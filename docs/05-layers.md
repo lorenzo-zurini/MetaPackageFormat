@@ -44,10 +44,10 @@ For content that is naturally one file: a ROM, a single patched executable, a lo
 layer's target directory keeping its own basename.
 
 ```json
-{ "TYPE": "VFSFileLayer", "PATH": "Super Metroid (Japan, USA).sfc" }
+{ "TYPE": "VFSFileLayer", "PATH": "StarVoyager.sfc" }
 ```
 
-With no `TARGET`, this lands at the content root as `Super Metroid (Japan, USA).sfc`.
+With no `TARGET`, this lands at the content root as `StarVoyager.sfc`.
 
 ### `VFSDirLayer` — an unzipped authoring intermediary
 

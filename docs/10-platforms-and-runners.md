@@ -35,8 +35,9 @@ This is a set of **directed edges** `guest → host`: for each `g` in `GUEST`, t
 Read it as "this runner *consumes* guest-platform content and *produces* a host-platform process."
 
 - Proton: edges `win32 → linux64` and `win64 → linux64`.
-- A native-Linux snes9x: edge `snes → linux64`.
-- A Windows snes9x: edge `snes → win32`.
+- A native-Linux emulator (e.g. snes9x): edge `snes → linux64` — content runs in one hop.
+- A Windows-only emulator (e.g. the hypothetical VortexEmu, chapter 11): edge `vortex → win32` — its host is win32, so it
+  must itself be chained onward to the machine.
 - The native terminal: edge `linux64 → linux64` (a self-loop; the universal executor).
 
 The union of all available runners' edges is the **platform graph**. Running content is finding a path through it from
@@ -81,12 +82,12 @@ A runner is **usable on this machine** when it can actually execute. Two kinds:
 - **PATH runner** — its `EXECUTABLE` is a bare system command (`wine`, `umu-run`). Usable iff that command resolves on the
   host's executable search path.
 - **Build-shipping runner** — its `EXECUTABLE` resolves from its mounted build (`%RunnerMount%/proton`), or is a
-  build-relative path (`snes9x.exe`). Usable iff its build is **hydrated** (every build VFS layer present locally) and,
-  if it generates a prefix, its prefix artifact exists.
+  build-relative path (e.g. `vortexemu.exe`). Usable iff its build is **hydrated** (every build VFS layer present locally)
+  and, if it generates a prefix, its prefix artifact exists.
 
 Crucially, **a runner that ships its own build is "available" even if its `EXECUTABLE` is not a system command** — the exe
 lives in the build, not on `PATH`. An implementation MUST treat "ships a build" as a form of availability; otherwise a
-nested Windows emulator (`EXECUTABLE: "snes9x.exe"`) would be wrongly judged missing. (VidyaGod: `RunnerWrapper::
+nested Windows-only emulator (`EXECUTABLE: "vortexemu.exe"`) would be wrongly judged missing. (VidyaGod: `RunnerWrapper::
 ExecutableAvailable` for the PATH case, OR a build-presence check; `RunnerInstalled`/`RunnerAvailable`.)
 
 (VidyaGod resolves `%var%`-bearing or empty executables as "available" — they come from a mount or are pass-throughs —

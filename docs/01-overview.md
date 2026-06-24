@@ -28,11 +28,11 @@ There is no monolithic package object. A *package*, informally, is **a bundle di
 files and loose content for one logical product, e.g. a game and its base content:
 
 ```
-[299] Super Metroid/
-├── super_metroid.json          # launchable node (the entry point / tile)
-├── super_metroid_base.json     # content node (carries the ROM as a layer)
-├── Super Metroid (...).sfc     # the ROM bytes referenced by the layer
-└── Super_Metroid.png           # cover art referenced by META
+[9001] Vortex Quest/
+├── vortex_quest.json           # launchable node (the entry point / tile)
+├── vortex_quest_base.json      # content node (carries the ROM as a layer)
+├── VortexQuest.vtx             # the ROM bytes referenced by the layer
+└── VortexQuest_Cover.png       # cover art referenced by META
 ```
 
 But a "package" has fuzzy edges *by design*: its launchable's closure can reference content nodes in *other* bundles

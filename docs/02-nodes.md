@@ -24,9 +24,9 @@ exactly as listed.
 
 | Field | JSON type | Default | Applies to | Meaning |
 |-------|-----------|---------|-----------|---------|
-| `NODE_ID` | string | — (required) | all | Globally-unique identity. The currency of every edge. MUST be non-empty and unique across the whole graph (invariant **I1**). Convention: lowercase snake-case slug (`aoe2_aok_base`, `ge-proton10-30`, `super_metroid`). |
+| `NODE_ID` | string | — (required) | all | Globally-unique identity. The currency of every edge. MUST be non-empty and unique across the whole graph (invariant **I1**). Convention: lowercase snake-case slug (`aoe2_aok_base`, `ge-proton10-30`, `vortex_quest`). |
 | `ROLE` | string | `"content"` | all | `"content"`, `"launchable"`, or `"runner"`. See [ch. 3](03-roles.md). Any other value is treated as `"content"` by a tolerant reader but SHOULD be rejected by a validator. |
-| `UID` | string | `""` | launchable (presentable) | A stable numeric-ish identifier for a presentable node — used as the package/save key and (for games) a metadata-DB id. Held as a string ("299", "7804"). Empty for non-presentable nodes. |
+| `UID` | string | `""` | launchable (presentable) | A stable numeric-ish identifier for a presentable node — used as the package/save key and (for games) a metadata-DB id. Held as a string ("7804", "9001"). Empty for non-presentable nodes. |
 | `GAME` | string | `""` | launchable | The grouping key that collapses multiple launchable variants into one library tile (e.g. all editions of "Age of Empires II"). When empty, the node is its own group (the effective group key is the `NODE_ID`). See [ch. 3 §3.4](03-roles.md). |
 | `LABEL` | string | `""` | launchable | Human-readable label distinguishing this variant within its `GAME` (e.g. "Original Release", "GOG v2.0"). Shown in the variant picker. |
 | `RECOMMENDED` | bool | `false` | launchable, runner | Marks the default/preferred choice within a set: the default variant within a `GAME`, or a preferred runner. The picker presents recommended entries first. |
@@ -110,7 +110,7 @@ A complete launchable node for a Windows game (from the reference library), anno
 
 ## 2.6 Authoring conventions (non-normative)
 
-- One node per file; name the file after the `NODE_ID` (`super_metroid.json` for `NODE_ID: "super_metroid"`). The indexer
+- One node per file; name the file after the `NODE_ID` (`vortex_quest.json` for `NODE_ID: "vortex_quest"`). The indexer
   does not require this, but it keeps a bundle navigable.
 - Prefix content nodes that belong to a launchable with the launchable's slug (`aom_base_content`, `aom_titans_expansion`)
   so the graph reads top-down.

@@ -83,69 +83,88 @@ shadows the default next launch.
 
 ---
 
-## 17.3 A SNES ROM via a native emulator
+## 17.3 A console ROM via a native emulator
+
+A console (here SNES) that *does* have a native-Linux emulator — the chain is one bridge hop. (`StarVoyager` is a
+hypothetical homebrew ROM.)
 
 ```
-[299] Super Metroid/
-├── super_metroid.json
-├── super_metroid_base.json
-└── Super Metroid (Japan, USA) (En,Ja).sfc
+[8500] Star Voyager/
+├── star_voyager.json
+├── star_voyager_base.json
+└── StarVoyager.sfc
 ```
 
 ```jsonc
-// super_metroid.json
-{ "NODE_ID": "super_metroid", "ROLE": "launchable",
-  "UID": "299", "GAME": "super_metroid", "LABEL": "Original", "RECOMMENDED": true,
-  "META": { "TITLE": "Super Metroid" },
+// star_voyager.json
+{ "NODE_ID": "star_voyager", "ROLE": "launchable",
+  "UID": "8500", "GAME": "star_voyager", "LABEL": "Original", "RECOMMENDED": true,
+  "META": { "TITLE": "Star Voyager" },
   "PLATFORM": { "HOST": "snes" },
-  "EXEC": { "CONTENTPATH": "Super Metroid (Japan, USA) (En,Ja).sfc" },
-  "PARENTS": ["super_metroid_base"] }
+  "EXEC": { "CONTENTPATH": "StarVoyager.sfc" },
+  "PARENTS": ["star_voyager_base"] }
 
-// super_metroid_base.json
-{ "NODE_ID": "super_metroid_base", "ROLE": "content",
-  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "Super Metroid (Japan, USA) (En,Ja).sfc" } ] }
+// star_voyager_base.json
+{ "NODE_ID": "star_voyager_base", "ROLE": "content",
+  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "StarVoyager.sfc" } ] }
 ```
 
-**Resolves to:** if a native-Linux `snes9x` runner (`GUEST:["snes"], HOST:"linux64"`) is installed, the shortest chain is
-`[snes9x, native-passthrough]` and the terminal runs `snes9x -fullscreen <runtime>/…sfc`. One bridge hop, no prefix.
+**Resolves to:** with a native-Linux `snes9x` runner (`GUEST:["snes"], HOST:"linux64"`) installed, the shortest chain is
+`[snes9x, native-passthrough]` and the terminal runs `snes9x -fullscreen <runtime>/StarVoyager.sfc`. One bridge hop, no
+prefix. Because a native runner exists, there's no reason to chain onward — contrast §17.4, where one doesn't.
 
 ---
 
-## 17.4 The SNES daisy chain (a Windows emulator under Proton)
+## 17.4 A cross-platform daisy chain (a console with only a Windows emulator)
 
-The verified cross-namespace example (chapter 11 §11.8). Add an embedded win32 emulator runner to the Super Metroid
-bundle, alongside §17.3:
+The cross-namespace example (chapter 11). The *Vortex* is a hypothetical console whose **only** emulator, *VortexEmu*, is
+a Windows program — so the route to `linux64` runs through win32, and the runtime derives the chain automatically. The
+emulator is shipped as a runner; here it's embedded in the game's bundle to also show the embedded-runner shape.
 
 ```
-[299] Super Metroid/
-├── …(as §17.3)…
-├── super_metroid_snes9x_win.json
-├── super_metroid_snes9x_win_build.json
-└── snes9x.exe                    // a win32 snes9x build
+[9001] Vortex Quest/
+├── vortex_quest.json
+├── vortex_quest_base.json
+├── vortexemu_win.json
+├── vortexemu_win_build.json
+├── VortexQuest.vtx               // the game ROM
+└── vortexemu.exe                 // the win32 emulator build
 ```
 
 ```jsonc
-// super_metroid_snes9x_win.json  (an embedded runner: lives in the game's bundle)
-{ "NODE_ID": "super_metroid_snes9x_win", "ROLE": "runner",
-  "PLATFORM": { "HOST": "win32", "GUEST": ["snes"] },
-  "EXEC": { "EXECUTABLE": "snes9x.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] },
-  "PARENTS": ["super_metroid_snes9x_win_build"] }
+// vortex_quest.json — Vortex content; declares no runner, just its platform
+{ "NODE_ID": "vortex_quest", "ROLE": "launchable",
+  "UID": "9001", "GAME": "vortex_quest", "LABEL": "Original", "RECOMMENDED": true,
+  "META": { "TITLE": "Vortex Quest" },
+  "PLATFORM": { "HOST": "vortex" },
+  "EXEC": { "CONTENTPATH": "VortexQuest.vtx" },
+  "PARENTS": ["vortex_quest_base"] }
 
-// super_metroid_snes9x_win_build.json
-{ "NODE_ID": "super_metroid_snes9x_win_build", "ROLE": "content",
-  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "snes9x.exe" } ] }
+// vortex_quest_base.json
+{ "NODE_ID": "vortex_quest_base", "ROLE": "content",
+  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "VortexQuest.vtx" } ] }
+
+// vortexemu_win.json — an embedded runner: VortexEmu is win32-only
+{ "NODE_ID": "vortexemu_win", "ROLE": "runner",
+  "PLATFORM": { "HOST": "win32", "GUEST": ["vortex"] },
+  "EXEC": { "EXECUTABLE": "vortexemu.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] },
+  "PARENTS": ["vortexemu_win_build"] }
+
+// vortexemu_win_build.json
+{ "NODE_ID": "vortexemu_win_build", "ROLE": "content",
+  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "vortexemu.exe" } ] }
 ```
 
-Pin the chain (CLI `--runner super_metroid_snes9x_win --runner ge-proton10-30`, or via the prelaunch per-step UI). The
-runtime resolves `[super_metroid_snes9x_win, ge-proton10-30, native-passthrough]`, mounts `snes9x.exe` at
-`pfx/drive_c/299/__runner_super_metroid_snes9x_win__/snes9x.exe` and the ROM at `pfx/drive_c/299/…sfc`, derives Proton's
-guest template from its `CONTENT_ROOT`, and execs:
+No pin is needed — `vortex → win32 → linux64` is the only route. The runtime resolves
+`[vortexemu_win, ge-proton10-30, native-passthrough]`, mounts `vortexemu.exe` at
+`pfx/drive_c/9001/__runner_vortexemu_win__/vortexemu.exe` and the ROM at `pfx/drive_c/9001/VortexQuest.vtx`, derives
+Proton's guest template from its `CONTENT_ROOT`, and execs:
 
 ```
-proton waitforexitandrun "C:\299\__runner_super_metroid_snes9x_win__\snes9x.exe" "C:\299\Super Metroid (Japan, USA) (En,Ja).sfc"
+proton waitforexitandrun "C:\9001\__runner_vortexemu_win__\vortexemu.exe" "C:\9001\VortexQuest.vtx"
 ```
 
-`snes → win32 → linux64`, one process. Note the emulator's `EXECUTABLE` is a *build-relative* `snes9x.exe` (it runs
+`vortex → win32 → linux64`, one process. Note the emulator's `EXECUTABLE` is a *build-relative* `vortexemu.exe` (it runs
 inside Wine, not from the host `PATH`), and the runner is "available" because it ships a build (chapter 10 §10.6).
 
 ---

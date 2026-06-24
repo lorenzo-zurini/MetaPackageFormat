@@ -41,7 +41,7 @@ roots. Multiple roots are common and compose into one flat graph:
 ```
 ~/.VidyaGod/LIBRARY/                    ← contains library roots, one per source
 ├── VidyaGodPackages/                   ← a library root (a games repo)
-│   ├── [299] Super Metroid/            ← bundle
+│   ├── [9001] Vortex Quest/            ← bundle
 │   ├── [7804] Age of Mythology/        ← bundle
 │   └── …
 └── VidyaGodRunners/                    ← a library root (a runners repo)

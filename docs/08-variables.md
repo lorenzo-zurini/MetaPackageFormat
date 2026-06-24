@@ -47,7 +47,7 @@ unless noted). Custom tokens (§8.3) are layered on top and MAY shadow a built-i
 
 | Token | Value |
 |-------|-------|
-| `%PackageUID%` | The launchable's `UID` (the package/save key; e.g. `"299"`). Used heavily in guest paths (`C:\%PackageUID%\…`). |
+| `%PackageUID%` | The launchable's `UID` (the package/save key; e.g. `"9001"`). Used heavily in guest paths (`C:\%PackageUID%\…`). |
 | `%PackageName%` | The launchable's human title (from `META.TITLE`). |
 | `%PackagePath%` | The bundle directory of the launchable. |
 | `%GameName%` | The selected game's title (usually = `%PackageName%`). |

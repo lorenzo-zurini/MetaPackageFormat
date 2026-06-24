@@ -43,29 +43,33 @@ in the format, they're all just shapes of the same graph.
 
 ## The thirty-second mental model
 
+Take a (hypothetical) console, the *Vortex*, whose only emulator `vortexemu` is a **Windows** program — there is no
+native-Linux build:
+
 ```
             ┌──────────────────────────────────────────────────────────┐
             │                    THE GLOBAL NODE GRAPH                    │
             │                                                            │
-   runner ──┤   super_metroid (launchable, PLATFORM.HOST = "snes")       │
+   runner ──┤   vortex_quest (launchable, PLATFORM.HOST = "vortex")      │
    edges    │        │ PARENTS                                           │
    GUEST→HOST│       ▼                                                   │
-            │   super_metroid_base (content: the .sfc ROM as a layer)    │
+            │   vortex_quest_base (content: the game ROM as a layer)     │
             └──────────────────────────────────────────────────────────┘
 
-   To RUN super_metroid on a linux64 machine, the runtime builds the SHORTEST
+   To RUN vortex_quest on a linux64 machine, the runtime builds the SHORTEST
    chain of runner edges from the content's platform to the machine's:
 
-        snes ──[snes9x.exe]──▶ win32 ──[Proton]──▶ linux64 ──[native]──▶ EXECUTED
-              (a win32 emulator)      (a Wine runtime)     (the terminal)
+      vortex ──[vortexemu.exe]──▶ win32 ──[Proton]──▶ linux64 ──[native]──▶ EXECUTED
+              (a win32 emulator)        (a Wine runtime)     (the terminal)
 
    …mounts every layer into one overlay filesystem, translates paths across each
    namespace boundary, and execve's a single nested command. Platforms: abstracted.
 ```
 
-That chain is not authored by hand. The packager declares only *facts* — "this is SNES content," "snes9x is a win32
-program that runs SNES content," "Proton is a linux64 runtime that runs win32 programs" — and the runtime *derives* the
-route. Add an ARM runner tomorrow and ARM hosts light up with no package changes.
+That chain is not authored by hand. The packager declares only *facts* — "this is Vortex content," "vortexemu is a win32
+program that runs Vortex content," "Proton is a linux64 runtime that runs win32 programs" — and the runtime *derives* the
+route. (When a platform *does* have a native runner, the chain is just one hop; daisy-chaining across a foreign platform
+happens only when there's no shorter route.) Add an ARM runner tomorrow and ARM hosts light up with no package changes.
 
 ---
 

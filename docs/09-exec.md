@@ -44,7 +44,7 @@ A runner's `EXEC` *is* its launcher definition. The full field set:
 
 | Field | Type | Default | Meaning |
 |-------|------|---------|---------|
-| `EXECUTABLE` | string | `""` | The program to execute. May reference a mounted build (`%RunnerMount%/proton`), a system command (`umu-run`, `wine`), a build-relative path (`snes9x.exe`, for a nested inner runner), or be **empty** / `%Content%` for a **native pass-through** (run the inner command / the content directly). `%TOKEN%`-expanded. |
+| `EXECUTABLE` | string | `""` | The program to execute. May reference a mounted build (`%RunnerMount%/proton`), a system command (`umu-run`, `wine`), a build-relative path (`vortexemu.exe`, for a nested inner runner), or be **empty** / `%Content%` for a **native pass-through** (run the inner command / the content directly). `%TOKEN%`-expanded. |
 | `ARGS` | array of string | `[]` | The runner's argument vector. The author composes the launch target into it using `%Content%`/`%ContentPath%` (e.g. Proton's `["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"]`, an emulator's `["-fullscreen", "%Content%"]`). Elements are kept verbatim (spaces safe). `%TOKEN%`-expanded. |
 | `ENV` | object | `{}` | Environment variables to set, `name → value`. Values `%TOKEN%`-expanded (e.g. `"STEAM_COMPAT_DATA_PATH": "%RuntimePath%"`). |
 | `REMOVE_ENV` | array of string | `[]` | Environment variable names to *remove* before launch (applied before `ENV`), e.g. `["LD_LIBRARY_PATH"]` to strip a bundling launcher's library path so the runner loads host libraries. |
@@ -80,7 +80,7 @@ For the classic single-runner case (e.g. a Windows game under Proton), the launc
 
 ```
 program   = EXECUTABLE (substituted)                         # e.g. /…/RUNNER/proton
-args      = [ each ARGS element, substituted ]               # e.g. waitforexitandrun  C:\299\aom.exe
+args      = [ each ARGS element, substituted ]               # e.g. waitforexitandrun  C:\7804\aom.exe
           + [ each EXEARGS token from the launchable ]       # e.g. xres=1920 yres=1080
 env       = host env, minus REMOVE_ENV, plus ENV (substituted)
           + WINEDLLOVERRIDES (joined DllOverride values, if a prefix runner)
@@ -121,12 +121,14 @@ this and is specified in [chapter 11](11-runner-chaining.md).
 "EXEC": { "EXECUTABLE": "snes9x", "ARGS": ["-fullscreen", "%Content%"], "ENV": {}, "REMOVE_ENV": [] }
 ```
 
-**A win32 emulator meant to be nested under Wine (build-relative exe, no prefix):**
+**A win32-only emulator meant to be nested under Wine (build-relative exe, no prefix):**
 ```json
-"EXEC": { "EXECUTABLE": "snes9x.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] }
+"EXEC": { "EXECUTABLE": "vortexemu.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] }
 ```
 
-Notice the last two are the *same emulator* differing only in `EXECUTABLE`/`HOST` — a native build vs a Windows build.
-The chain resolver (chapter 11) routes through whichever exists.
+The first emulator (`snes9x`) is a native-Linux build — content for its platform runs in a single bridge hop. The second
+(`vortexemu.exe`) is a Windows-only emulator for a platform with *no* native runner, so it must be chained under a Wine
+runtime (chapter 11). The chain resolver routes each platform through whatever runners exist — a native one-hop where one
+is available, a cross-platform chain only where it isn't.
 
 Next: [Platforms & runners](10-platforms-and-runners.md).
