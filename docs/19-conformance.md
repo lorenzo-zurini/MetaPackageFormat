@@ -42,11 +42,13 @@ each section is runnable once the previous ones are.
 
 ## 19.4 Variables
 
-- [ ] **MUST** implement the substitution engine of chapter 8 §8.1 exactly: paired `%`, unmatched `%` stops, unknown
-      token left in place, single non-recursive pass.
-- [ ] **MUST** provide the built-in token table (ch. 8 §8.2) at minimum.
-- [ ] **MUST** resolve `CustomVar`s by priority override > saved > `DEFAULT`, encode by `VARTYPE` (ch. 8 §8.4), re-roll
-      `random` each launch, and bind `%KEY%` — **before** expanding the layers that reference them.
+- [ ] **MUST** implement the substitution engine of chapter 8 §8.1 exactly: paired `%`, optional `:format` suffix,
+      unmatched `%` stops, unknown token left in place, single non-recursive pass.
+- [ ] **MUST** provide the built-in token table (ch. 8 §8.2) and the use-site render formats (ch. 8 §8.4:
+      `dword`/`qword`/`bool`/`winpath`/`upper`/`lower`) at minimum.
+- [ ] **MUST** resolve `CustomVar`s to **raw** values by priority override > saved > `DEFAULT` (a `secret`+`POOL` picks
+      per launch; `UI` presence ⇒ a user option, absence ⇒ a binding; same-`KEY` override via dependency-chain order),
+      and bind `%KEY%` — **before** expanding the layers that reference them.
 
 ## 19.5 The runtime
 

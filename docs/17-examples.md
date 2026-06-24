@@ -64,14 +64,14 @@ prefix, content at the root, whole-runtime persistence (no `Persist*` declared).
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "aom.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
 
-    // a user knob, exposed as %WIDESCREEN% and fed into a registry default below
-    { "TYPE": "CustomVar", "KEY": "WIDESCREEN", "LABEL": "Widescreen UI",
-      "VARTYPE": "bool", "DEFAULT": "1" },
+    // a user knob (bool), exposed as %WIDESCREEN% (raw "1"/"0") and rendered as a dword at the registry use-site
+    { "TYPE": "CustomVar", "KEY": "WIDESCREEN", "DEFAULT": "1",
+      "UI": { "LABEL": "Widescreen UI", "CONTROL": "bool" } },
 
     // a base registry default (overridable by the user once they change it in-game)
     { "TYPE": "RegEdit", "ARCHITECTURE": "32", "OVERRIDE": false,
       "REGPATH": "HKCU\\Software\\Microsoft\\Microsoft Games\\Age of Mythology",
-      "KEYVALUES": { "Widescreen": "%WIDESCREEN%" } }   // bool → dword:00000001
+      "KEYVALUES": { "Widescreen": "%WIDESCREEN:dword%" } }   // → dword:00000001
   ] }
 ```
 
@@ -272,9 +272,9 @@ The shared runners every game routes through. A separate bundle/repo (`VidyaGodR
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "GE-Proton10-30.zip", "TARGET": "",
       "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-    { "TYPE": "CustomVar", "KEY": "PROTON_LOG", "LABEL": "Proton logging",
-      "VARTYPE": "options", "DEFAULT": "0",
-      "OPTIONS": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] }
+    { "TYPE": "CustomVar", "KEY": "PROTON_LOG", "DEFAULT": "0",
+      "UI": { "LABEL": "Proton logging", "CONTROL": "enum",
+              "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } }
   ] }
 
 // snes9x — a native-Linux emulator (one bridge hop for SNES content)

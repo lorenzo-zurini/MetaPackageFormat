@@ -92,7 +92,7 @@ Writes keys/values into the runner's Wine/Proton registry hives. **Only meaningf
 | `TYPE` | `"RegEdit"` |
 | `REGPATH` | the key path in *natural* form, e.g. `HKCU\\Software\\Vendor\\App`. **Do not** include `Wow6432Node` — the runtime re-inserts WoW64 redirection itself based on `ARCHITECTURE`. |
 | `ARCHITECTURE` | `"32"` or `"64"` — the bitness of the app reading this key. For `"32"` on a 64-bit prefix, the runtime re-inserts `Wow6432Node` so the key lands where a 32-bit app looks. |
-| `KEYVALUES` | object of `name → value`. Values use Wine `.reg` encodings: a bare string (`"en"`), `"dword:0000000a"`, `"hex(b):..,.."`, etc. Use a `CustomVar` of the matching `VARTYPE` to *generate* these encodings from human input (chapter 8). |
+| `KEYVALUES` | object of `name → value`. Values use Wine `.reg` encodings: a bare string (`"en"`), `"dword:0000000a"`, `"hex(b):..,.."`, etc. Drive them from a `CustomVar` rendered at the use site — `"%FULLSCREEN:dword%"` / `"%MASK:qword%"` (chapter 8 §8.4). |
 | `OVERRIDE` | base vs. override pass (§6.1). |
 
 A `RegEdit` with no `KEYVALUES` creates the key itself (key-only). 
