@@ -1,27 +1,32 @@
-# 09 · The EXEC block
+# 09 · Invocation: `DeclareExec` & `DeclareRunner`
 
-`EXEC` declares *how to invoke* a node. It means different things for a launchable (what to run) and a runner (how to run
-things). Both are pure data — there are no special-cased "runner types" or hard-coded launchers; an executor's entire
-behavior is its `EXEC` fields.
+Invocation is declared by two identity layers ([ch. 3](03-roles.md)): **`DeclareExec`** on a launchable (*what* to run)
+and **`DeclareRunner`** on a runner (*how* to run things). Both are pure data — there are no special-cased "runner
+types" or hard-coded launchers; an executor's entire behavior is its `DeclareRunner` fields.
 
-## 9.1 Launchable EXEC
+## 9.1 `DeclareExec` — the launch target
 
-A launchable's `EXEC` describes the target *within its mounted content*. The runner (chapter 11) decides how to actually
-execute it; the launchable only points at it.
+A launchable's `DeclareExec` describes the target *within its mounted content* (plus the content's `PLATFORM`, and the
+variant's `LABEL`/`RECOMMENDED`). The runner (chapter 11) decides how to actually execute it; the launchable only points
+at it.
 
 | Field | Type | Meaning |
 |-------|------|---------|
+| `PLATFORM` | string | The platform of *its content* (`win32`/`snes`/`linux64`/…) — what the runtime must find a runner chain for. |
 | `CONTENTPATH` | string | The **one universal target**: the path, relative to the content/program mount, of whatever is to be run or loaded — an executable, a ROM, a data root, or empty for self-contained content. Exposed as `%ContentPath%` (relative) and `%Content%` (absolute). `%TOKEN%`-expanded. |
-| `WORKDIR` | string | Working directory, relative to `ProgramPath`. If absent, defaults to the *directory of `CONTENTPATH`* (games resolve data/DLLs relative to the exe's folder), or `ProgramPath` if `CONTENTPATH` is empty. `%TOKEN%`-expanded. |
+| `WORKDIR` | string | Working directory, relative to `ProgramPath`. If absent, defaults to the *directory of `CONTENTPATH`*, or `ProgramPath` if `CONTENTPATH` is empty. `%TOKEN%`-expanded. |
 | `EXEARGS` | string | Arguments belonging to the content itself (not the runner), space-separated, appended after the runner's own args. `%TOKEN%`-expanded. |
+| `LABEL` / `RECOMMENDED` | string / bool | The variant's name + default flag in its game's picker ([ch. 3 §3.4](03-roles.md)). |
 
 ```json
-"EXEC": {
-    "CONTENTPATH": "aom.exe",
-    "WORKDIR": "",
-    "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%"
-}
+{ "TYPE": "DeclareExec", "PLATFORM": "win32",
+  "CONTENTPATH": "aom.exe", "WORKDIR": "",
+  "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%" }
 ```
+
+> **Composition.** `DeclareExec` **composes along the launch closure** (field-level last-wins, the launch node
+> highest-priority — like CustomVar/Persist): a base/parent node can supply `CONTENTPATH`/`WORKDIR` and a variant or mod
+> override `EXEARGS`. The effective EXEC is the merge across the closure.
 
 For a ROM, `CONTENTPATH` is the ROM file; for a native binary, the binary; for a self-contained engine that finds its own
 data (e.g. some emulators/launchers), `CONTENTPATH` MAY be empty and the runner runs without a target.

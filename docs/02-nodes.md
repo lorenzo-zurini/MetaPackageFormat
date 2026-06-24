@@ -1,8 +1,9 @@
 # 02 · The Node object
 
 A node is a single JSON object stored in its own `<node_id>.json` file. This chapter is the exhaustive field reference.
-Layers (`LAYERS`), the exec block (`EXEC`), platforms (`PLATFORM`) and metadata (`META`) are large enough to have their
-own chapters; this one defines the *envelope* and links out.
+The envelope is tiny — `NODE_ID`, `PARENTS`, `LAYERS`, and a few selection flags. A node has **no `ROLE`**: its identity
+(content / launchable / library tile / runner) emerges from which `Declare*` layers it carries ([ch. 3](03-roles.md)),
+and those — like the content/edit/persistence/CustomVar layers — live in `LAYERS` and have their own chapters.
 
 ## 2.1 Identity & the minimal node
 
@@ -15,7 +16,7 @@ The minimal valid node:
 { "NODE_ID": "some_unique_id" }
 ```
 
-It defaults to `ROLE: "content"` with no layers and no parents — an empty content node. Useless alone, but valid.
+With no `Declare*` layer, no other layers and no parents, it is an empty **content** node. Useless alone, but valid.
 
 ## 2.2 Field reference
 
@@ -25,15 +26,7 @@ exactly as listed.
 | Field | JSON type | Default | Applies to | Meaning |
 |-------|-----------|---------|-----------|---------|
 | `NODE_ID` | string | — (required) | all | Globally-unique identity. The currency of every edge. MUST be non-empty and unique across the whole graph (invariant **I1**). Convention: lowercase snake-case slug (`aoe2_aok_base`, `ge-proton10-30`, `vortex_quest`). |
-| `ROLE` | string | `"content"` | all | `"content"`, `"launchable"`, or `"runner"`. See [ch. 3](03-roles.md). Any other value is treated as `"content"` by a tolerant reader but SHOULD be rejected by a validator. |
-| `UID` | string | `""` | launchable (presentable) | A stable numeric-ish identifier for a presentable node — used as the package/save key and (for games) a metadata-DB id. Held as a string ("7804", "9001"). Empty for non-presentable nodes. |
-| `GAME` | string | `""` | launchable | The grouping key that collapses multiple launchable variants into one library tile (e.g. all editions of "Age of Empires II"). When empty, the node is its own group (the effective group key is the `NODE_ID`). See [ch. 3 §3.4](03-roles.md). |
-| `LABEL` | string | `""` | launchable | Human-readable label distinguishing this variant within its `GAME` (e.g. "Original Release", "GOG v2.0"). Shown in the variant picker. |
-| `RECOMMENDED` | bool | `false` | launchable, runner | Marks the default/preferred choice within a set: the default variant within a `GAME`, or a preferred runner. The picker presents recommended entries first. |
-| `META` | object | absent | launchable (presentable) | Presence of a non-empty `META` object marks a node **presentable** (it appears as a library tile). Holds display metadata: `TITLE`, `COVER`, ids, dates, etc. See [ch. 3 §3.5](03-roles.md). |
-| `PLATFORM` | object | absent | launchable, runner | `{ "HOST": <token>, "GUEST": [<token>, …] }`. A launchable sets `HOST` = the platform of its content. A runner sets `HOST` = the platform it runs on, and `GUEST` = the platforms it can run. See [ch. 10](10-platforms-and-runners.md). |
-| `EXEC` | object | absent | launchable, runner | The invocation/content block. For a launchable: `CONTENTPATH`/`WORKDIR`/`EXEARGS`. For a runner: `EXECUTABLE`/`ARGS`/`ENV`/`REMOVE_ENV`/`CONTENT_ROOT`/`PREFIX_GENERATE`/`UNIFIED_RUNTIME`/`GUEST_PATH`. See [ch. 9](09-exec.md). |
-| `LAYERS` | array | `[]` | content (mainly) | The typed payloads this node contributes: VFS file layers, edit layers, persistence layers, CustomVar knobs. See [ch. 5](05-layers.md)–[ch. 8](08-variables.md). A runner node's *own* `LAYERS` are **ignored** for its build (see [ch. 10 §10.5](10-platforms-and-runners.md)). |
+| `LAYERS` | array | `[]` | all | The typed payloads this node contributes: content/edit/persistence/CustomVar layers **and** the `Declare*` identity layers (`DeclareExec`/`DeclareLibraryItem`/`DeclareRunner`) that make it launchable / a library tile / a runner — there is **no `ROLE`/`EXEC`/`META`/`PLATFORM`/`UID`/`GAME`/`LABEL`/`RECOMMENDED` field**; identity emerges from these layers (see [ch. 3](03-roles.md)). A runner node's *own* VFS layers are ignored for its build (see [ch. 10 §10.5](10-platforms-and-runners.md)). |
 | `PARENTS` | array of string | `[]` | all | The `NODE_ID`s this node selects/depends on. **List order is significant**: a parent listed *later* has *higher* overlay priority (its layers win on conflict). See [ch. 12](12-resolution.md). |
 | `OPTIONAL` | bool | `false` | content | When this node is referenced as a parent, it is a *toggleable* add-on rather than a hard dependency. Off-by-default unless `DEFAULT` says otherwise. See [ch. 12 §12.3](12-resolution.md). |
 | `DEFAULT` | bool | `true` | content | The initial on/off state of an `OPTIONAL` node when the user hasn't chosen. Ignored when `OPTIONAL` is false (the node is always pulled). |
@@ -47,32 +40,23 @@ Two fields are **derived, not authored** (an implementation computes them at ind
   runner's build layers resolve against the runner's bundle even when pulled into a game's closure). See
   [ch. 5 §5.4](05-layers.md).
 
-## 2.3 A representative launchable
+## 2.3 A representative launchable (single-variant game)
 
-A complete launchable node for a Windows game (from the reference library), annotated:
+A complete entry-point node for a Windows game — a `DeclareLibraryItem` (the tile) + a `DeclareExec` (how to run) on one
+node, since it's a single-variant game:
 
 ```json
 {
-    "NODE_ID": "aom_base_game",          // global id
-    "ROLE": "launchable",                 // an entry point
-    "UID": "7804",                        // save/package key + metadata-db id
-    "GAME": "aom_base",                   // tile grouping key (variants share this)
-    "LABEL": "Original Release",          // this variant's label
-    "RECOMMENDED": true,                  // the default variant of the tile
-    "META": {                             // presence ⇒ shows as a library tile
-        "TITLE": "Age of Mythology",
-        "COVER": { "PATH": "AoM_Cover.jpg",
-                   "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-        "RELEASEDATE": "2002-10-30",
-        "DEVELOPER": "Ensemble Studios",
-        "UMUID": "266840"                 // a runner knob (see ch. 8/9)
-    },
-    "PLATFORM": { "HOST": "win32" },      // its content is a win32 program
-    "EXEC": {                             // how to invoke it (ch. 9)
-        "CONTENTPATH": "aom.exe",
-        "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%"
-    },
-    "PARENTS": [ "aom_base_content" ]      // pulls in the game's files
+    "NODE_ID": "aom_base_game",
+    "PARENTS": [ "aom_base_content" ],
+    "LAYERS": [
+        { "TYPE": "DeclareLibraryItem", "UID": "7804",
+          "TITLE": "Age of Mythology",
+          "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+          "RELEASEDATE": "2002-10-30", "DEVELOPER": "Ensemble Studios", "UMUID": "266840" },
+        { "TYPE": "DeclareExec", "PLATFORM": "win32",
+          "CONTENTPATH": "aom.exe", "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%" }
+    ]
 }
 ```
 
@@ -81,7 +65,6 @@ A complete launchable node for a Windows game (from the reference library), anno
 ```json
 {
     "NODE_ID": "aom_base_content",
-    "ROLE": "content",
     "LAYERS": [
         { "TYPE": "VFSZipLayer", "PATH": "aom.zip",
           "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
@@ -94,17 +77,15 @@ A complete launchable node for a Windows game (from the reference library), anno
 ```json
 {
     "NODE_ID": "ge-proton10-30",
-    "ROLE": "runner",
-    "PLATFORM": { "HOST": "linux64", "GUEST": ["win32", "win64"] },
-    "EXEC": {
-        "EXECUTABLE": "%RunnerMount%/proton",
-        "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
-        "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%" },
-        "REMOVE_ENV": ["LD_LIBRARY_PATH"],
-        "CONTENT_ROOT": "pfx/drive_c/%PackageUID%",
-        "PREFIX_GENERATE": true
-    },
-    "PARENTS": [ "geproton_build" ]        // its runtime build lives on a content parent
+    "PARENTS": [ "geproton_build" ],
+    "LAYERS": [
+        { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["win32", "win64"],
+          "EXECUTABLE": "%RunnerMount%/proton",
+          "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
+          "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%" },
+          "REMOVE_ENV": ["LD_LIBRARY_PATH"],
+          "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true }
+    ]
 }
 ```
 

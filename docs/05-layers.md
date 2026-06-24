@@ -6,6 +6,8 @@
 - **Edit layers** ([chapter 6](06-edit-layers.md)): `RegEdit`, `DllOverride`, `FileEdit` — *mutate* files/registry.
 - **Persistence & knob layers** ([chapter 7](07-persistence.md), [chapter 8](08-variables.md)): `Persist`,
   `CustomVar` — declare durable state (one self-describing primitive) and user variables.
+- **Identity layers** ([chapter 3](03-roles.md)): `DeclareExec`, `DeclareLibraryItem`, `DeclareRunner` — declare *what
+  the node is* (launchable / a library tile / a runner). A node with none is plain content. There is no `ROLE` field.
 
 Every layer is an object with a `TYPE`. Order within `LAYERS` is preserved and, combined with the node closure order
 (chapter 12), determines overlay priority. Unknown `TYPE`s MUST be ignored (a validator MAY warn).
