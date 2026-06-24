@@ -17,7 +17,7 @@ The overlay is built from an ordered list of layers, **lowest priority first**:
 ┌──────────────────────────────────────────────────────────────┐  highest priority (top)
 │  OVERRIDE edits          (applied post-mount, COW → writable)  │   ← chapter 6 §6.1
 │  DROP shadows            (ephemeral RW, writes discarded)      │   ← chapter 7 (carve a hole)
-│  WRITABLE layer          (ephemeral, or = USERDATA if MODE:all)│   ← general COW top; session writes land here
+│  WRITABLE layer  (ephemeral, or = USERDATA if KEEP %RuntimePath%)│ ← general COW top; session writes land here
 │  KEEP passthrough dirs   (RW, live durable)                    │   ← chapter 7 (RW for their own subtree)
 │  DEFAULT-DATA layer      (base edits: FileEdit/RegEdit defaults)│   ← chapter 6
 │  INNER-RUNNER builds      (cross-namespace, @ CONTENT_ROOT/__runner_…__)│ ← chapter 11 §11.6
@@ -53,7 +53,7 @@ single delete cleans up:
 <dataRoot>/TEMP/<PackageUID>/
 ├── RUNTIME       ← the overlay mount point (%RuntimePath%)
 ├── RUNNER        ← the boundary runner's build mount (%RunnerMount%), if separate
-├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), unless MODE:all
+├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), unless KEEP %RuntimePath%
 ├── DROPS         ← per-launch scratch for DROP shadows (writes discarded)
 ├── DEFAULTDATA   ← base-edit layer (%DefaultData%), regenerated each launch
 └── DEFPREFIX     ← per-launch generated prefix (%DefPrefixPath%), if not an installed artifact
@@ -107,7 +107,7 @@ After the process exits, the session is dismantled in a **save-safe** order:
 1. **Capture** declared persistence *while the runtime is still mounted*: KEEP hives, KEEP files,
    KEEP registry-subtrees → `USERDATA` (chapter 7). (KEEP dirs are live passthroughs — already durable.)
 2. **Unmount durable-backed mounts non-lazily and verify**: any mount that exposes `USERDATA` through it (the
-   `MODE:all` writable union, or any KEEP-dir passthrough) is unmounted with a blocking unmount and retried; the
+   whole-runtime keep's writable union, or any KEEP-dir passthrough) is unmounted with a blocking unmount and retried; the
    implementation confirms it is gone from the mount table before proceeding.
 3. **Lazy-unmount purely-ephemeral mounts** (content/runner mounts whose backing is all under `TEMP`).
 4. **Wipe `TEMP` only if every durable mount detached cleanly.** If any durable-backed mount is still live, the wipe is
