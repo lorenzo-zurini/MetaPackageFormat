@@ -16,8 +16,9 @@ The overlay is built from an ordered list of layers, **lowest priority first**:
 ```
 ┌──────────────────────────────────────────────────────────────┐  highest priority (top)
 │  OVERRIDE edits          (applied post-mount, COW → writable)  │   ← chapter 6 §6.1
-│  WRITABLE layer          (ephemeral, or = USERDATA if PersistAll)│  ← general COW top; session writes land here
-│  PERSIST passthrough dirs (RW, live durable, selective persist) │   ← chapter 7 (RW for their own subtree)
+│  DROP shadows            (ephemeral RW, writes discarded)      │   ← chapter 7 (carve a hole)
+│  WRITABLE layer          (ephemeral, or = USERDATA if MODE:all)│   ← general COW top; session writes land here
+│  KEEP passthrough dirs   (RW, live durable)                    │   ← chapter 7 (RW for their own subtree)
 │  DEFAULT-DATA layer      (base edits: FileEdit/RegEdit defaults)│   ← chapter 6
 │  INNER-RUNNER builds      (cross-namespace, @ CONTENT_ROOT/__runner_…__)│ ← chapter 11 §11.6
 │  CONTENT layers          (the game's VFS layers, @ CONTENT_ROOT)│   ← chapters 5,12 (closure order within)
@@ -52,7 +53,8 @@ single delete cleans up:
 <dataRoot>/TEMP/<PackageUID>/
 ├── RUNTIME       ← the overlay mount point (%RuntimePath%)
 ├── RUNNER        ← the boundary runner's build mount (%RunnerMount%), if separate
-├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), unless PersistAll
+├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), unless MODE:all
+├── DROPS         ← per-launch scratch for DROP shadows (writes discarded)
 ├── DEFAULTDATA   ← base-edit layer (%DefaultData%), regenerated each launch
 └── DEFPREFIX     ← per-launch generated prefix (%DefPrefixPath%), if not an installed artifact
 ```
@@ -93,7 +95,7 @@ between content and the writable layer:
 - **Base `RegEdit`s** → full `user/system/userdef.reg` built by loading the pristine prefix's hives, applying the edits,
   and writing the result into `DEFAULTDATA` (Wine only; the prefix itself is never touched). Wine COWs the whole hive
   from this layer when it writes the registry.
-- **Persisted `RegKeyPersist` subtrees** are merged into those hives *after* the base edits, so saved user keys win over
+- **Persisted KEEP registry-subtrees** are merged into those hives *after* the base edits, so saved user keys win over
   package defaults.
 
 A package with no base edits gets no (empty) default-data layer. (VidyaGod: `RegistryLayer::BuildDefaultData`.)
@@ -102,10 +104,10 @@ A package with no base edits gets no (empty) default-data layer. (VidyaGod: `Reg
 
 After the process exits, the session is dismantled in a **save-safe** order:
 
-1. **Capture** declared persistence *while the runtime is still mounted*: `RegPersist` hives, `PersistFile`s,
-   `RegKeyPersist` subtrees → `USERDATA` (chapter 7). (`PersistDir`s are live passthroughs — already durable.)
+1. **Capture** declared persistence *while the runtime is still mounted*: KEEP hives, KEEP files,
+   KEEP registry-subtrees → `USERDATA` (chapter 7). (KEEP dirs are live passthroughs — already durable.)
 2. **Unmount durable-backed mounts non-lazily and verify**: any mount that exposes `USERDATA` through it (the
-   `PersistAll` writable union, or any `PersistDir` passthrough) is unmounted with a blocking unmount and retried; the
+   `MODE:all` writable union, or any KEEP-dir passthrough) is unmounted with a blocking unmount and retried; the
    implementation confirms it is gone from the mount table before proceeding.
 3. **Lazy-unmount purely-ephemeral mounts** (content/runner mounts whose backing is all under `TEMP`).
 4. **Wipe `TEMP` only if every durable mount detached cleanly.** If any durable-backed mount is still live, the wipe is

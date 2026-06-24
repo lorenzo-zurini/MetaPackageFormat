@@ -37,7 +37,7 @@ build the node graph. Multiple roots compose into one graph. See [chapter 04](04
 
 **Layer** — one entry in a node's `LAYERS` array: a typed payload. *VFS layers* contribute files
 (`VFSZipLayer`/`VFSDirLayer`/`VFSFileLayer`); *edit layers* mutate files/registry (`RegEdit`/`DllOverride`/`FileEdit`);
-*persistence layers* declare durable state (`PersistDir`/`PersistFile`/`RegPersist`/`RegKeyPersist`); the *CustomVar*
+the *Persist* layer declares durable state (one self-describing primitive: `MODE`/`KEEP`/`DROP`); the *CustomVar*
 layer declares a user knob. See [chapters 05](05-layers.md)–[08](08-variables.md).
 
 **VFS** — the *virtual filesystem*: the single overlay/union mount the runtime assembles from all VFS layers (plus a
