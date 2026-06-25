@@ -43,9 +43,9 @@ data (e.g. some emulators/launchers), `CONTENTPATH` MAY be empty and the runner 
 splitting; arguments containing spaces are not currently expressible via `EXEARGS` — put such a target in the runner's
 `ARGS` array, which preserves elements verbatim.) Each token is appended after the runner's composed command.
 
-## 9.3 Runner EXEC
+## 9.3 Runner invocation fields
 
-A runner's `EXEC` *is* its launcher definition. The full field set:
+A runner's `DeclareRunner` layer (besides `HOST`/`GUEST`) *is* its launcher definition. The full invocation field set:
 
 | Field | Type | Default | Meaning |
 |-------|------|---------|---------|
@@ -66,9 +66,9 @@ mechanism behind the **native terminal** (chapter 11) and behind native Linux ga
 `CONTENT_ROOT` and no prefix.
 
 ```json
-{ "NODE_ID": "native-passthrough", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["linux64"] },
-  "EXEC": { "EXECUTABLE": "%Content%", "ARGS": [], "ENV": {}, "REMOVE_ENV": [] } }
+{ "NODE_ID": "native-passthrough",
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["linux64"],
+                "EXECUTABLE": "%Content%", "ARGS": [], "ENV": {}, "REMOVE_ENV": [] } ] }
 ```
 
 ### Override invocation (tooling)

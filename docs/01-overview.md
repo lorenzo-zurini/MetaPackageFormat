@@ -12,8 +12,9 @@ A node is a small JSON object with a globally-unique identity (`NODE_ID`). It do
    live on the *selected* node.
 2. **Contributes** payloads, by listing them in `LAYERS`: files to overlay, registry edits, config patches, persistence
    rules, user knobs.
-3. **Declares execution**, via `ROLE`, `PLATFORM` and `EXEC`: whether it's an entry point (`launchable`), an executor
-   (`runner`), or neither (`content`), and on/for what platform, and how to invoke it.
+3. **Declares its identity**, via the `Declare*` *identity layers* in that same `LAYERS` array: a `DeclareExec` makes it
+   an entry point (a launchable), a `DeclareRunner` an executor, a `DeclareLibraryItem` a library tile; a node with none
+   is plain content. There is no `ROLE` field — identity emerges from which layers a node carries.
 
 Nothing else is a first-class concept. There is no separate "package object," no "installer," no "variant table," no
 "runner registry schema." There is the graph, and the rules for walking it.
@@ -69,8 +70,8 @@ These are *not* features the format special-cases. They are shapes of the one gr
   resolved order, so "later in the closure wins" *is* the load order. Marking a mod `OPTIONAL` makes it a toggle.
 - **Optional DLC / expansions** — an `OPTIONAL` content node; `DEFAULT` decides if it's on out of the box; `EXCLUDE`
   makes a set of them mutually exclusive (pick-one).
-- **Multi-edition games** — several `launchable` nodes sharing a `GAME` value; the library groups them, the user picks a
-  variant, each variant resolves its own closure.
+- **Multi-edition games** — several launchable (`DeclareExec`) nodes that `PARENTS` one library-tile (`DeclareLibraryItem`)
+  node; the library groups them under that tile, the user picks a variant, each variant resolves its own closure.
 - **Cross-platform execution & ARM** — a runner is an edge in a platform graph; running anything anywhere is shortest-path
   over runner edges. New platforms are new runners, not new format.
 - **P2P distribution & portable installs** — every payload carries a content-addressed `SOURCE`; an install is "fetch the

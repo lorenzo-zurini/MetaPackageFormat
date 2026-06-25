@@ -69,7 +69,7 @@ A node referenced as a parent is a **hard dependency** unless it declares `OPTIO
 has one consistent toggle state. Optional content is how DLC, mods and feature flags are modelled:
 
 ```json
-{ "NODE_ID": "morrowind_tribunal", "ROLE": "content", "OPTIONAL": true, "DEFAULT": false,
+{ "NODE_ID": "morrowind_tribunal", "OPTIONAL": true, "DEFAULT": false,
   "PARENTS": ["morrowind_tribunal_data"], "LAYERS": [ … ] }
 ```
 

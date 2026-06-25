@@ -1,32 +1,38 @@
 # Glossary
 
 Terms are defined here once and used with these exact meanings throughout the spec. Capitalized JSON keys (e.g.
-`PARENTS`) are field names; `code font` lower-case words (e.g. `runner`) are role/type values.
+`PARENTS`) are field names; `code font` lower-case words (e.g. `runner`) are identity/type values.
 
 **Node** — the atomic unit of the format. One JSON object, stored in one `<node_id>.json` file, identified by a
-globally-unique `NODE_ID`. A node either groups/selects other nodes (via `PARENTS`), contributes payloads (via
-`LAYERS`), declares how to run something (via `EXEC` + `PLATFORM`), or any combination. See [chapter 02](02-nodes.md).
+globally-unique `NODE_ID`. A node groups/selects other nodes (via `PARENTS`) and/or contributes payloads (via `LAYERS`).
+What it *is* — content, launchable, runner, library tile — emerges from which `Declare*` identity layers it carries;
+there is no `ROLE` field. See [chapter 02](02-nodes.md).
 
 **Node graph** — the union of every node discoverable by an implementation, keyed by `NODE_ID`. A single flat namespace;
-edges are `NODE_ID` references in `PARENTS` (and platform edges implied by runner `PLATFORM`). See
+edges are `NODE_ID` references in `PARENTS` (and platform edges implied by a runner's `DeclareRunner` host/guest). See
 [chapter 04](04-bundles-and-library.md).
 
-**Role** — a node's function: `content`, `launchable`, or `runner`. The `ROLE` field; default `content`. See
-[chapter 03](03-roles.md).
+**Identity layer** — one of the `Declare*` layers (`DeclareExec`, `DeclareLibraryItem`, `DeclareRunner`) that, by its
+presence in a node's `LAYERS`, declares what the node is. A node may carry several; their union is its identity. A node
+with none is plain content. There is no `ROLE` field. See [chapter 03](03-roles.md).
 
-**Launchable** — a node with `ROLE: "launchable"`: an entry point the user can start (a game, a tool, an edition). It
-declares the target platform of its content and how to invoke it. See [chapter 03](03-roles.md).
+**Launchable** — a node carrying a `DeclareExec` layer: an entry point the user can start (a game, a tool, an edition).
+It declares the target platform of its content and how to invoke it. See [chapter 03](03-roles.md).
 
-**Content node** — a node with `ROLE: "content"` (the default): contributes `LAYERS` (files, edits, persistence rules)
-and/or groups other content via `PARENTS`. Never started directly; pulled in by a launchable's or runner's closure.
+**Content node** — a node with no `Declare*` layer: contributes `LAYERS` (files, edits, persistence rules) and/or groups
+other content via `PARENTS`. Never started directly; pulled in by a launchable's or runner's closure.
 
-**Runner** — a node with `ROLE: "runner"`: an executor that runs content of one or more *guest* platforms while itself
-running on a *host* platform. Wine/Proton, an emulator, or a native pass-through. Its runnable payload (its *build*)
-comes from its `PARENTS`. See [chapter 10](10-platforms-and-runners.md).
+**Runner** — a node carrying a `DeclareRunner` layer: an executor that runs content of one or more *guest* platforms
+while itself running on a *host* platform. Wine/Proton, an emulator, or a native pass-through. Its runnable payload (its
+*build*) comes from its `PARENTS`. See [chapter 10](10-platforms-and-runners.md).
 
-**Variant** — one launchable among several that share a `GAME` value: different editions/versions of "the same game,"
-shown grouped under one library tile. The `GAME` field is the grouping key; `LABEL` distinguishes them. See
-[chapter 03](03-roles.md).
+**Library tile** — a node carrying a `DeclareLibraryItem` layer: a presentable *game* in the library (`TITLE`/`COVER`/
+descriptive metadata). Not launchable on its own unless it also carries a `DeclareExec`. See [chapter 03](03-roles.md).
+
+**Variant** — a launchable (`DeclareExec`) node that has a library-tile (`DeclareLibraryItem`) node as a `PARENTS`
+ancestor: one edition/version among several of "the same game," shown grouped under that one tile. Grouping is the
+graph edge — there is no `GAME` field; `LABEL` distinguishes variants. A single-variant game collapses to one node
+carrying both layers. See [chapter 03](03-roles.md).
 
 **Bundle** — a directory holding one or more node `.json` files plus the loose content they reference (zips, ROMs,
 covers). A bundle groups *files*; it has no semantic meaning beyond being a scan unit. See

@@ -20,16 +20,15 @@ The simplest case: content whose platform *is* the machine platform. The chain i
 ```
 
 ```jsonc
-// mylinuxgame.json
-{ "NODE_ID": "mylinuxgame", "ROLE": "launchable",
-  "UID": "1234", "GAME": "mylinuxgame", "LABEL": "Linux", "RECOMMENDED": true,
-  "META": { "TITLE": "My Linux Game" },
-  "PLATFORM": { "HOST": "linux64" },
-  "EXEC": { "CONTENTPATH": "mygame", "EXEARGS": "--fullscreen" },
-  "PARENTS": ["mylinuxgame_base"] }
+// mylinuxgame.json — single-variant game: tile + exec on one node
+{ "NODE_ID": "mylinuxgame",
+  "PARENTS": ["mylinuxgame_base"],
+  "LAYERS": [
+    { "TYPE": "DeclareLibraryItem", "UID": "1234", "TITLE": "My Linux Game" },
+    { "TYPE": "DeclareExec", "PLATFORM": "linux64", "CONTENTPATH": "mygame", "EXEARGS": "--fullscreen" } ] }
 
 // mylinuxgame_base.json
-{ "NODE_ID": "mylinuxgame_base", "ROLE": "content",
+{ "NODE_ID": "mylinuxgame_base",
   "LAYERS": [ { "TYPE": "VFSZipLayer", "PATH": "mylinuxgame.zip" } ] }
 ```
 
@@ -50,17 +49,17 @@ prefix, content at the root, whole-runtime persistence (no `Persist*` declared).
 
 ```jsonc
 // aom.json
-{ "NODE_ID": "aom", "ROLE": "launchable",
-  "UID": "7804", "GAME": "aom", "LABEL": "Original Release", "RECOMMENDED": true,
-  "META": { "TITLE": "Age of Mythology",
-            "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-            "UMUID": "266840" },
-  "PLATFORM": { "HOST": "win32" },
-  "EXEC": { "CONTENTPATH": "aom.exe", "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%" },
-  "PARENTS": ["aom_base"] }
+{ "NODE_ID": "aom",
+  "PARENTS": ["aom_base"],
+  "LAYERS": [
+    { "TYPE": "DeclareLibraryItem", "UID": "7804", "TITLE": "Age of Mythology",
+      "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+      "UMUID": "266840" },
+    { "TYPE": "DeclareExec", "PLATFORM": "win32",
+      "CONTENTPATH": "aom.exe", "EXEARGS": "xres=%ScreenWidth% yres=%ScreenHeight%" } ] }
 
 // aom_base.json
-{ "NODE_ID": "aom_base", "ROLE": "content",
+{ "NODE_ID": "aom_base",
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "aom.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
 
@@ -97,15 +96,14 @@ hypothetical homebrew ROM.)
 
 ```jsonc
 // star_voyager.json
-{ "NODE_ID": "star_voyager", "ROLE": "launchable",
-  "UID": "8500", "GAME": "star_voyager", "LABEL": "Original", "RECOMMENDED": true,
-  "META": { "TITLE": "Star Voyager" },
-  "PLATFORM": { "HOST": "snes" },
-  "EXEC": { "CONTENTPATH": "StarVoyager.sfc" },
-  "PARENTS": ["star_voyager_base"] }
+{ "NODE_ID": "star_voyager",
+  "PARENTS": ["star_voyager_base"],
+  "LAYERS": [
+    { "TYPE": "DeclareLibraryItem", "UID": "8500", "TITLE": "Star Voyager" },
+    { "TYPE": "DeclareExec", "PLATFORM": "snes", "CONTENTPATH": "StarVoyager.sfc" } ] }
 
 // star_voyager_base.json
-{ "NODE_ID": "star_voyager_base", "ROLE": "content",
+{ "NODE_ID": "star_voyager_base",
   "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "StarVoyager.sfc" } ] }
 ```
 
@@ -133,25 +131,24 @@ emulator is shipped as a runner; here it's embedded in the game's bundle to also
 
 ```jsonc
 // vortex_quest.json — Vortex content; declares no runner, just its platform
-{ "NODE_ID": "vortex_quest", "ROLE": "launchable",
-  "UID": "9001", "GAME": "vortex_quest", "LABEL": "Original", "RECOMMENDED": true,
-  "META": { "TITLE": "Vortex Quest" },
-  "PLATFORM": { "HOST": "vortex" },
-  "EXEC": { "CONTENTPATH": "VortexQuest.vtx" },
-  "PARENTS": ["vortex_quest_base"] }
+{ "NODE_ID": "vortex_quest",
+  "PARENTS": ["vortex_quest_base"],
+  "LAYERS": [
+    { "TYPE": "DeclareLibraryItem", "UID": "9001", "TITLE": "Vortex Quest" },
+    { "TYPE": "DeclareExec", "PLATFORM": "vortex", "CONTENTPATH": "VortexQuest.vtx" } ] }
 
 // vortex_quest_base.json
-{ "NODE_ID": "vortex_quest_base", "ROLE": "content",
+{ "NODE_ID": "vortex_quest_base",
   "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "VortexQuest.vtx" } ] }
 
 // vortexemu_win.json — an embedded runner: VortexEmu is win32-only
-{ "NODE_ID": "vortexemu_win", "ROLE": "runner",
-  "PLATFORM": { "HOST": "win32", "GUEST": ["vortex"] },
-  "EXEC": { "EXECUTABLE": "vortexemu.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] },
-  "PARENTS": ["vortexemu_win_build"] }
+{ "NODE_ID": "vortexemu_win",
+  "PARENTS": ["vortexemu_win_build"],
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "win32", "GUEST": ["vortex"],
+                "EXECUTABLE": "vortexemu.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] } ] }
 
 // vortexemu_win_build.json
-{ "NODE_ID": "vortexemu_win_build", "ROLE": "content",
+{ "NODE_ID": "vortexemu_win_build",
   "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "vortexemu.exe" } ] }
 ```
 
@@ -171,28 +168,31 @@ inside Wine, not from the host `PATH`), and the runner is "available" because it
 
 ## 17.5 A multi-variant game (two editions, one tile)
 
-Two launchables sharing a `GAME` group under one library tile.
+Two launchable (`DeclareExec`) nodes grouped under one library-tile (`DeclareLibraryItem`) node via a `PARENTS` edge —
+no `GAME` string. The tile node carries the metadata and no content; each variant `PARENTS` it and hangs its own content
+chain off itself. (A *single*-variant game collapses to one node with both layers — see §17.1/§17.2.)
 
 ```jsonc
-// aoe2.json — the default variant
-{ "NODE_ID": "aoe2", "ROLE": "launchable",
-  "UID": "1001", "GAME": "aoe2", "LABEL": "Forgotten Empires", "RECOMMENDED": true,
-  "META": { "TITLE": "Age of Empires II" },
-  "PLATFORM": { "HOST": "win32" },
-  "EXEC": { "CONTENTPATH": "age2_x1/age2_x1.5.exe" },
-  "PARENTS": ["aoe2_base", "aoe2_fe_patch"] }      // patch listed later ⇒ higher priority (overrides base)
+// aoe2.json — the GAME TILE: presentable, carries no content, not launchable itself
+{ "NODE_ID": "aoe2",
+  "LAYERS": [ { "TYPE": "DeclareLibraryItem", "UID": "1001", "TITLE": "Age of Empires II" } ] }
+
+// aoe2_fe.json — the default variant; PARENTS the tile to group under it
+{ "NODE_ID": "aoe2_fe",
+  "PARENTS": ["aoe2", "aoe2_base", "aoe2_fe_patch"],   // patch listed later ⇒ higher priority (overrides base)
+  "LAYERS": [ { "TYPE": "DeclareExec", "PLATFORM": "win32", "CONTENTPATH": "age2_x1/age2_x1.5.exe",
+                "LABEL": "Forgotten Empires", "RECOMMENDED": true } ] }
 
 // aoe2_gog.json — another edition of the SAME tile
-{ "NODE_ID": "aoe2_gog", "ROLE": "launchable",
-  "UID": "1002", "GAME": "aoe2", "LABEL": "GOG edition",
-  "META": { "TITLE": "Age of Empires II" },
-  "PLATFORM": { "HOST": "win32" },
-  "EXEC": { "CONTENTPATH": "empires2.exe" },
-  "PARENTS": ["aoe2_gog_base"] }
+{ "NODE_ID": "aoe2_gog",
+  "PARENTS": ["aoe2", "aoe2_gog_base"],
+  "LAYERS": [ { "TYPE": "DeclareExec", "PLATFORM": "win32", "CONTENTPATH": "empires2.exe",
+                "LABEL": "GOG edition" } ] }
 ```
 
-**Behavior:** the library shows **one** "Age of Empires II" tile (grouped by `GAME: "aoe2"`); opening it offers two
-variants, "Forgotten Empires" (pre-selected, `RECOMMENDED`) and "GOG edition". Each resolves its own closure and chain.
+**Behavior:** the library shows **one** "Age of Empires II" tile (the two variants share `aoe2` as a `PARENTS` ancestor);
+opening it offers two variants, "Forgotten Empires" (pre-selected, `RECOMMENDED`) and "GOG edition". Each variant inherits
+the tile's metadata (field-level composition down the closure) and resolves its own content closure and chain.
 
 ---
 
@@ -202,16 +202,15 @@ Optional content + `AppendLine` = a toggleable mod that registers itself in the 
 with no mod-manager construct.
 
 ```jsonc
-// morrowind.json
-{ "NODE_ID": "morrowind", "ROLE": "launchable",
-  "UID": "2050", "GAME": "morrowind", "LABEL": "GOTY", "RECOMMENDED": true,
-  "META": { "TITLE": "The Elder Scrolls III: Morrowind" },
-  "PLATFORM": { "HOST": "win32" },
-  "EXEC": { "CONTENTPATH": "Morrowind.exe" },
-  "PARENTS": ["morrowind_base", "morrowind_tribunal", "morrowind_bloodmoon"] }
+// morrowind.json — single-variant game: tile + exec on one node
+{ "NODE_ID": "morrowind",
+  "PARENTS": ["morrowind_base", "morrowind_tribunal", "morrowind_bloodmoon"],
+  "LAYERS": [
+    { "TYPE": "DeclareLibraryItem", "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
+    { "TYPE": "DeclareExec", "PLATFORM": "win32", "CONTENTPATH": "Morrowind.exe", "LABEL": "GOTY" } ] }
 
 // morrowind_base.json
-{ "NODE_ID": "morrowind_base", "ROLE": "content",
+{ "NODE_ID": "morrowind_base",
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "morrowind.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
     // register the base master in the load order (idempotent, ordered)
@@ -219,14 +218,14 @@ with no mod-manager construct.
   ] }
 
 // morrowind_tribunal.json — an OPTIONAL expansion (off by default)
-{ "NODE_ID": "morrowind_tribunal", "ROLE": "content", "OPTIONAL": true, "DEFAULT": false,
+{ "NODE_ID": "morrowind_tribunal", "OPTIONAL": true, "DEFAULT": false,
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "tribunal.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
     { "TYPE": "FileEdit", "MODE": "AppendLine", "FILE": "Data Files/openmw.cfg", "VALUE": "content=Tribunal.esm" }
   ] }
 
 // morrowind_bloodmoon.json — another OPTIONAL expansion
-{ "NODE_ID": "morrowind_bloodmoon", "ROLE": "content", "OPTIONAL": true, "DEFAULT": false,
+{ "NODE_ID": "morrowind_bloodmoon", "OPTIONAL": true, "DEFAULT": false,
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "bloodmoon.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
     { "TYPE": "FileEdit", "MODE": "AppendLine", "FILE": "Data Files/openmw.cfg", "VALUE": "content=Bloodmoon.esm" }
@@ -253,22 +252,22 @@ The shared runners every game routes through. A separate bundle/repo (`VidyaGodR
 
 ```jsonc
 // native-passthrough — the universal terminal
-{ "NODE_ID": "native-passthrough", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["linux64"] },
-  "EXEC": { "EXECUTABLE": "%Content%", "ARGS": [], "ENV": {}, "REMOVE_ENV": [] } }
+{ "NODE_ID": "native-passthrough",
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["linux64"],
+                "EXECUTABLE": "%Content%", "ARGS": [], "ENV": {}, "REMOVE_ENV": [] } ] }
 
 // ge-proton10-30 — Wine-family, generates a prefix; build on a content parent
-{ "NODE_ID": "ge-proton10-30", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["win32", "win64"] },
-  "EXEC": { "EXECUTABLE": "%RunnerMount%/proton",
-            "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
-            "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%" },
-            "REMOVE_ENV": ["LD_LIBRARY_PATH"],
-            "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true },
-  "PARENTS": ["geproton_build"] }
+{ "NODE_ID": "ge-proton10-30",
+  "PARENTS": ["geproton_build"],
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["win32", "win64"],
+                "EXECUTABLE": "%RunnerMount%/proton",
+                "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
+                "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%" },
+                "REMOVE_ENV": ["LD_LIBRARY_PATH"],
+                "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true } ] }
 
 // geproton_build — the Proton tree (+ a couple of runner knobs)
-{ "NODE_ID": "geproton_build", "ROLE": "content",
+{ "NODE_ID": "geproton_build",
   "LAYERS": [
     { "TYPE": "VFSZipLayer", "PATH": "GE-Proton10-30.zip", "TARGET": "",
       "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
@@ -278,18 +277,18 @@ The shared runners every game routes through. A separate bundle/repo (`VidyaGodR
   ] }
 
 // snes9x — a native-Linux emulator (one bridge hop for SNES content)
-{ "NODE_ID": "snes9x", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["snes"] },
-  "EXEC": { "EXECUTABLE": "snes9x", "ARGS": ["-fullscreen", "%Content%"], "ENV": {}, "REMOVE_ENV": [] } }
+{ "NODE_ID": "snes9x",
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["snes"],
+                "EXECUTABLE": "snes9x", "ARGS": ["-fullscreen", "%Content%"], "ENV": {}, "REMOVE_ENV": [] } ] }
 ```
 
 A *cloned terminal* that wraps every launch in `gamescope` (chapter 11 §11.3) is just another native runner the user can
 select as the terminal step:
 
 ```jsonc
-{ "NODE_ID": "native-gamescope", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["linux64"] },
-  "EXEC": { "EXECUTABLE": "gamescope", "ARGS": ["-f", "--"], "ENV": {}, "REMOVE_ENV": [] } }
+{ "NODE_ID": "native-gamescope",
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["linux64"],
+                "EXECUTABLE": "gamescope", "ARGS": ["-f", "--"], "ENV": {}, "REMOVE_ENV": [] } ] }
 ```
 
 Selected as the terminal, it composes `gamescope -f -- <whatever the chain produced>` — wrapping the game, or Proton, or

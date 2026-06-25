@@ -24,11 +24,12 @@ hosts are supported. The format already supports any host token; only detection 
 
 ## 10.3 Runners as platform-graph edges
 
-A `runner` node declares:
+A runner node's `DeclareRunner` layer declares:
 
 ```json
-"PLATFORM": { "HOST": "<the platform the runner itself runs on>",
-              "GUEST": ["<platform it can run>", "<…>"] }
+{ "TYPE": "DeclareRunner",
+  "HOST": "<the platform the runner itself runs on>",
+  "GUEST": ["<platform it can run>", "<…>"], … }
 ```
 
 This is a set of **directed edges** `guest → host`: for each `g` in `GUEST`, the runner is an edge from `g` to `HOST`.
@@ -50,12 +51,12 @@ A runner needs *binaries* to do its job — the Proton tree, the emulator execut
 runner node's own `LAYERS`.
 
 ```json
-{ "NODE_ID": "ge-proton10-30", "ROLE": "runner",
-  "PLATFORM": { "HOST": "linux64", "GUEST": ["win32","win64"] },
-  "EXEC": { "EXECUTABLE": "%RunnerMount%/proton", … },
-  "PARENTS": ["geproton_build"] }            // ← the build lives here
+{ "NODE_ID": "ge-proton10-30",
+  "PARENTS": ["geproton_build"],             // ← the build lives here
+  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["win32","win64"],
+                "EXECUTABLE": "%RunnerMount%/proton", "…": "…" } ] }
 
-{ "NODE_ID": "geproton_build", "ROLE": "content",
+{ "NODE_ID": "geproton_build",
   "LAYERS": [ { "TYPE": "VFSZipLayer", "PATH": "GE-Proton10-30.zip",
                 "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ] }
 ```
