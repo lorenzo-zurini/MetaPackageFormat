@@ -20,8 +20,8 @@ pointers are illustrative, not normative** — the spec defines the format; this
 | 11 Chain UI | `src/prelaunchwindow.cpp` | `RebuildRunnerChain`, `RenderChainCombos`, `onChainStepChanged`; `PackageCatalog::CandidateRunners` |
 | 12 Resolution | `src/manifestmodel.cpp` | `ResolveNodeOrder`, `OptionalNodes` |
 | 13 Runtime model | `src/vfsmount.cpp`, `src/containerwrapper.cpp`, `src/registrylayer.cpp`, `src/launchresolver.cpp` | `BuildLayerSpec`, `MountVFS`, `MountRunnerBuild`, `InitializeDefPrefix`, `DerivePaths`, `ContainerWrapper::BuildContainerRuntime`/`Cleanup`, `CleanStaleRuntime` |
-| 13 Overlay filesystem | `external/VidyaGodFS` (`vidyagodfs`) | the FUSE union/zip/file mounter driven by the JSON layer spec |
-| 14 Content addressing | `src/packagecatalog.cpp`, `src/ipfswrapper.cpp`, `src/launchsources.cpp`, `external/VidyaGodIPFS` | `PublishPackage`, `SeedDirectory`, `MirrorDehydrated`, `HydrateNode`/`DehydrateNode`, `NodeContentCids`, `EnsureSources`/`MaterializeLayers`; embedded Boxo/IPFS node |
+| 13 Overlay filesystem | `VidyaGodFS` (`vidyagodfs`) | the FUSE union/zip/file mounter driven by the JSON layer spec |
+| 14 Content addressing | `src/packagecatalog.cpp`, `src/ipfswrapper.cpp`, `src/launchsources.cpp`, `VidyaGodIPFS` | `PublishPackage`, `SeedDirectory`, `MirrorDehydrated`, `HydrateNode`/`DehydrateNode`, `NodeContentCids`, `EnsureSources`/`MaterializeLayers`; embedded Boxo/IPFS node |
 | 15 Validation | `src/manifestmodel.cpp` | `ValidateNodeGraph`, `GatherLaunchContentFiles`, `FindCrossLayerCaseCollisions` |
 | 16 Run modes / CLI / paths | `src/main.cpp`, `src/apppaths.{h,cpp}` | argument parsing, `AcquireSingleInstanceLock`, `DumpResolution`; `AppPaths::DataRoot/Mode/*Override` |
 | 16 Saved settings | `src/packagecatalog.cpp` | `GetPackageUserSettings`, `SetPackageUserSetting` (`RUNNER_CHAIN`/`VARIABLES`/`MODULES`) |
