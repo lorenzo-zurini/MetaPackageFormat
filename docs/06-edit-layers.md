@@ -125,11 +125,77 @@ Declares a Wine DLL override string. All `DllOverride` values in the closure are
 
 (VidyaGod: `ProcessDLLOverrides` collects them; `Execute` joins into `WINEDLLOVERRIDES`.)
 
-## 6.5 Applicability summary
+## 6.5 `BinaryPatch` — patch an executable
+
+Mutates a binary in place, declaratively, over the **pristine** file. The shipped/content-addressed executable is
+never modified; the patch is applied to a copy-on-write copy in the runtime prefix at launch. This replaces the
+"ship a whole patched copy of the exe" convention (a No-CD crack, a crash fix): the pristine binary is stored once
+and the modification travels as a few hundred bytes of JSON. Because the base is content-addressed (a frozen hash),
+fixed offsets can never drift, and an `EXPECT` guard makes a wrong or already-patched target fail loud.
+
+Common fields:
+
+| Field | Meaning |
+|-------|---------|
+| `TYPE` | `"BinaryPatch"` |
+| `FILE` | target binary, relative to the mount root (same convention as a `DeclareExec` `CONTENTPATH`) |
+| `MODE` | `"Replace"` \| `"Poke"` \| `"Cave"` |
+| `APPLY` | `"prefix"` (default — on-disk into the writelayer) \| `"memory"` (patch the live process; see below) |
+| `ANCHOR` | a hex signature locating the site, `??` = wildcard byte (`"8b ?? 24 08"`); **must match exactly one place** — *or* give `OFFSET` |
+| `OFFSET` | a fixed address: a **VA** if `>=` the PE image base, else a raw **file offset**. Hex (`"0x44be08"`) or decimal. |
+| `EXPECT` | hex of the original bytes at the site. A mismatch is an error (wrong/foreign binary); bytes already equal to the patched result are skipped (idempotent). Required for `Replace`/`Cave`; recommended for `Poke`. |
+
+Every field is `%TOKEN%`-substituted (chapter 8), so offsets, bytes and values can come from `CustomVar`s.
+
+### `MODE: "Replace"` — overwrite bytes
+
+Writes `REPLACE` (hex) at the site. `len(REPLACE) ≤ len(EXPECT)`; a shorter `REPLACE` is padded with `0x90` (NOP)
+to the `EXPECT` length. The No-CD primitive.
+
+```json
+{ "TYPE": "BinaryPatch", "MODE": "Replace", "FILE": "%PrefixRoot%/drive_c/%PackageUID%/GAME.EXE",
+  "OFFSET": "0x44a45c", "EXPECT": "01", "REPLACE": "00" }
+```
+
+### `MODE: "Poke"` — write a scalar
+
+Writes `VALUE` (hex) at the site — usually a `CustomVar` rendered with a numeric format so a setting is baked
+straight into the binary: `"VALUE": "%ResWidth:u16le%"` (see chapter 8 §8.4 for `u8`/`u16le`/`u16be`/`u32le`/`u32be`).
+
+### `MODE: "Cave"` — jmp trampoline
+
+Displaces `EXPECT` (≥5 bytes, room for a `jmp rel32`) into a **code cave** and runs custom code around it. The
+engine writes the cave as `PAYLOAD` (your code) + the displaced original bytes + a `jmp` back to just past the
+site, then overwrites the site with `jmp <cave>` (NOP-padded to the `EXPECT` length).
+
+| Field | Meaning |
+|-------|---------|
+| `PAYLOAD` | hex of the cave body to run *before* the displaced bytes |
+| `CAVE` | `"auto"` (default — the first zero run of sufficient length in an executable section) or a fixed VA |
+
+```json
+{ "TYPE": "BinaryPatch", "MODE": "Cave", "FILE": "%PrefixRoot%/drive_c/%PackageUID%/GAME.EXE",
+  "OFFSET": "0x44be08", "EXPECT": "c705d07d4d0001000000",
+  "PAYLOAD": "5031c0a390d09000...58", "CAVE": "0x4cf360" }
+```
+
+### `APPLY: "memory"` (opt-in)
+
+`"prefix"` (default) patches the file on disk (in the writelayer) and works for **every** runner and launch path —
+it is what the loader reads. Use `"memory"` only when the on-disk file must stay pristine at load (anti-tamper that
+checksums the file): the patch is applied to the live process image after `CREATE_SUSPENDED` and before the first
+instruction runs. This is **single-player only** (it requires a direct process handle, which DirectPlay-spawned and
+several-hops-into-wine launches do not provide) and is a VidyaGod-specific capability, not portable.
+
+(VidyaGod: `BinaryPatch::ApplyOne` / `ProcessBinaryPatches` in `binarypatch.cpp`; `APPLY:"memory"` via `vglobby`.)
+
+## 6.6 Applicability summary
 
 | Layer | Native / emulator runner | Wine-family runner |
 |-------|--------------------------|--------------------|
 | `FileEdit` (all modes) | ✅ applied (files exist for any runtime) | ✅ applied |
+| `BinaryPatch` (`APPLY:"prefix"`) | ✅ applied (patches the on-disk exe) | ✅ applied |
+| `BinaryPatch` (`APPLY:"memory"`) | ✅ single-player direct-launch only | ✅ single-player direct-launch only |
 | `RegEdit` | ⛔ no-op (no hives) | ✅ applied |
 | `DllOverride` | ⛔ no-op (no Wine) | ✅ applied |
 
