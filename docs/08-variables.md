@@ -77,6 +77,7 @@ A `CustomVar` is **one primitive** whose role is implied by its facets:
 | `TYPE` | `"CustomVar"` |
 | `KEY` | the bare token name → `%KEY%`. MUST NOT contain `:`. |
 | `DEFAULT` | the value: the fixed value for a binding, or the user-overridable initial for an option. May itself contain `%tokens%` (a **computed** variable, expanded against the map as it stands). |
+| `WHEN` | *optional.* A **condition** (§8.8) gating the variable: when it does not hold, the var resolves to `""` (empty) **and** its UI control is hidden. So a var can be active only in a certain mode — the data-driven `enableIf`. |
 | `UI` | *optional.* Its **presence** makes the variable a **user-facing option** (a control is shown in the launch dialog, the choice persists per package). Its **absence** makes it an **internal binding** (no UI; e.g. a value one node passes to another). |
 
 The `UI` facet (when present):
@@ -86,7 +87,7 @@ The `UI` facet (when present):
 | `LABEL` | human label for the control (falls back to `KEY`). |
 | `CONTROL` | the value **domain / widget**: `bool` \| `int` \| `float` \| `text` \| `enum` \| `secret`. **No encoding here** — encoding is a use-site concern (§8.4). |
 | `GROUP` | optional UI section heading (e.g. `"Graphics"`) — organizes a large option set into panels. |
-| `WHEN` | optional condition (`"%RENDERER% == wined3d"`) — the control is shown only when it holds, re-evaluated live as other controls change (dependent options). Supports `==` / `!=`. |
+| `WHEN` | *(alias.)* A UI-only condition — the control is shown only when it holds, re-evaluated live as other controls change. Prefer the **top-level** `WHEN` (above), which gates the *value* too; `UI.WHEN` only affects visibility. |
 | `CHOICES` | for `enum`: `[{ "LABEL": "...", "VALUE": "..." }]`. |
 | `POOL` | for `secret`: an array of values; the engine picks one **per launch** (a masked, rotating value — e.g. a CD key). A `secret` with no `POOL` is a masked free-text field. |
 | `MIN` / `MAX` | numeric bounds for `int`/`float`. |
@@ -186,5 +187,52 @@ silent-substitution model hid:
 - **Orphan option** — a `CustomVar` with a `UI` facet whose `%KEY%` is referenced nowhere is a dead knob → **warning**.
 
 (VidyaGod: `ManifestModel::ValidateNodeGraph`.)
+
+## 8.8 `WHEN` — conditional layers
+
+`WHEN` is a **condition** attachable to *any* layer, not just `CustomVar`. A false `WHEN` makes the layer **inert**:
+
+- on a `CustomVar` → the variable resolves to `""` (its references vanish; a single-token arg like `--addr=%X%`
+  drops via the empty-arg rule of chapter 9) **and** its UI control is hidden;
+- on any other layer (`FileEdit`, `RegEdit`, `DllOverride`, `BinaryPatch`, a VFS mount, …) → the layer is not
+  applied at all.
+
+This is how the format expresses *data-driven logic* — "this only applies when that" — the building block for
+replacing an external launcher with declarative data (e.g. one `%NETMODE%` = `host`/`join`, with the join address,
+host options, and registry writes each `WHEN`-gated on it).
+
+**Grammar.** A small boolean expression over variables:
+
+```
+condition := or
+or        := and ( '||' and )*
+and       := unary ( '&&' unary )*
+unary     := '!' unary | primary
+primary   := '(' or ')' | operand ( ('==' | '!=') operand )?
+operand   := %KEY%   (→ its value)  |  "quoted"  |  bare-word
+```
+
+- An operand alone is **truthy** iff its value is non-empty and not `0` / `false` / `no`.
+- `==` / `!=` compare the two operands as strings. Precedence: `!` > `&&` > `||`; parentheses override.
+- Operands are resolved **during** evaluation, so a value that contains `&&` or `==` is compared as data, never
+  re-parsed as an operator.
+- The condition is evaluated against the fully-resolved variable map, so it may reference any `%KEY%` (built-in or
+  `CustomVar`). CustomVar `WHEN`s are evaluated inside the resolution fixpoint (§8.6), so conditions may **chain**
+  (`A`'s `WHEN` references `B`, whose `WHEN` references `%NETMODE%`).
+- An **empty** condition is always-true. A **malformed** condition is always-true at runtime (fail-open) **and** a
+  validator error (§8.7) — so a typo cannot silently disable gating.
+
+```jsonc
+{ "TYPE": "CustomVar", "KEY": "NETMODE", "DEFAULT": "host",
+  "UI": { "LABEL": "Network", "CONTROL": "enum",
+          "CHOICES": [ {"LABEL":"Host","VALUE":"host"}, {"LABEL":"Join","VALUE":"join"} ] } }
+{ "TYPE": "CustomVar", "KEY": "JOIN_ADDR", "DEFAULT": "", "WHEN": "%NETMODE% == join",
+  "UI": { "LABEL": "Host address", "CONTROL": "text" } }
+{ "TYPE": "RegEdit", "WHEN": "%NETMODE% == host", "REGPATH": "HKCU\\Software\\Game", "ARCHITECTURE":"32",
+  "KEYVALUES": { "Hosting": "%TRUE:dword%" } }
+```
+
+(VidyaGod: `VarSubst::EvaluateCondition` / `ConditionParses`; gated in `ResolveCustomVariables` and the layer
+collection in `BuildSubComponentsArray`; live UI in `PreLaunchWindow::EvaluateVarConditions`.)
 
 Next: [The EXEC block](09-exec.md).

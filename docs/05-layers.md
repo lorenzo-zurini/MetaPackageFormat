@@ -12,6 +12,10 @@
 Every layer is an object with a `TYPE`. Order within `LAYERS` is preserved and, combined with the node closure order
 (chapter 12), determines overlay priority. Unknown `TYPE`s MUST be ignored (a validator MAY warn).
 
+Any layer MAY carry a **`WHEN`** condition ([chapter 8 §8.8](08-variables.md#88-when--conditional-layers)): when it
+does not hold, the layer is **inert** (a false-`WHEN` VFS/edit/patch layer is not applied; a false-`WHEN` `CustomVar`
+resolves empty). This is how the format expresses conditional, data-driven behaviour.
+
 ## 5.1 The three VFS layer types
 
 A VFS layer mounts file content into the runtime overlay.

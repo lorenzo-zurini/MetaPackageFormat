@@ -2,7 +2,8 @@
 
 Edit layers *mutate* the runtime rather than contributing whole files: a registry key, a DLL load policy, a line in a
 config file. There are three: `RegEdit`, `DllOverride`, `FileEdit`. They share one cross-cutting concept — the
-**OVERRIDE pass** — defined first.
+**OVERRIDE pass** — defined first. Any edit layer (like any layer) MAY carry a **`WHEN`** condition
+([chapter 8 §8.8](08-variables.md#88-when--conditional-layers)) — a false `WHEN` skips the edit entirely.
 
 ## 6.1 The two-pass model: base vs. OVERRIDE
 
