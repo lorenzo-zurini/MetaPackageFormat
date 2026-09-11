@@ -1,6 +1,6 @@
 # 18 · Reference implementation map
 
-[VidyaGod](https://github.com/lorenzo-zurini) is the reference implementation (Qt 6 / C++23). This chapter maps spec
+[VidyaGod](https://github.com/lorenzo-zurini) is the reference implementation (Qt 6 / C++23, Linux and Windows). This chapter maps spec
 chapters to the source that realizes them, so a reader can cross-check behavior against working code or port it. **These
 pointers are illustrative, not normative** — the spec defines the format; this table says where one program implements it
 (file/function names current as of writing; they drift).
@@ -8,9 +8,10 @@ pointers are illustrative, not normative** — the spec defines the format; this
 | Spec chapter | Reference source | Key symbols |
 |--------------|------------------|-------------|
 | 02 Nodes · 04 Indexing | `src/manifestmodel.{h,cpp}` | `Node`, `NodeIndex`, `ParseNode`, `ScanBundleNodes`, `BuildNodeIndex` |
-| 03 Roles | `src/manifestmodel.h` | `Node::IsLaunchable/IsRunner/Presentable/GameKey` |
-| 04 Repos / sync | `src/packagecatalog.cpp` | `SyncGitRepository`, `SyncRepositories`, `RepositoryDirs` |
-| 05 VFS layers | `src/manifestmodel.cpp`, `src/vfsmount.cpp` | `IsVfsLayer`, `LayerType`, `LayerLocator`, `ResolveLayerSource`, `ZipFullyStored`, `BuildLayerSpec` |
+| 02/03 The flat schema | `src/nodelower.{h,cpp}` | `NodeLower::Lower` — **the** front-end: expands one flat node into the ordered layer sequence the engine consumes. Total by contract (`TypeCheck` asserts the emitted layers are well-typed, so downstream readers may use `.value()`) |
+| 03 Node types | `src/manifestmodel.h`, `src/pkggraph.cpp` | `Node::IsLaunchable/IsRunner/Presentable/GameKey`; `PkgGraph::AllTypes/FieldsFor` (the declared per-TYPE field table) |
+| 04 Sources / sync | `src/packagecatalog.cpp` | `SyncPackageSources`, `AddPackageSource`, `PackageSourceDir`, `PackageSourceName` |
+| 05 `Content` nodes | `src/manifestmodel.cpp`, `src/vfsmount.cpp`, `VidyaGodFS` | `IsVfsLayer`, `IsRunnerBuildLayer`, `LayerType`, `LayerLocator`, `ResolveLayerSource`, `ZipFullyStored`, `BuildLayerSpec`; `vgdelta` (`GenerateDelta`/`VerifyDelta`/`DeltaByteSource`) for `FORM: "delta"` |
 | 06 Edit layers | `src/fileedits.cpp`, `src/registrylayer.cpp`, `src/registrywrapper.cpp` | `ProcessFileEdits` (`ConfigWrite`/`FileOverwrite`/`AppendLine`), `ProcessDLLOverrides`, `ApplyRegEdits`, `BuildDefaultData`, `ApplyOverrideRegEdits` |
 | 07 Persistence | `src/persistlayer.cpp`, `src/registrylayer.cpp`, `src/launchresolver.cpp` | `DerivePersistence`, `SeedPersistFiles`/`CapturePersistFiles`, `SeedPersistRegistry`/`CapturePersistRegistry`, `CapturePersistRegKeys` |
 | 08 Variables / CustomVar | `src/varsubst.cpp`, `src/launchparams.cpp`, `src/launchresolver.cpp` | `StringVariableSubstitution`, `TranslateCustomVarValue`, `ContainerParams::GetVariablesMap`, `ResolveCustomVariables` |
@@ -18,11 +19,12 @@ pointers are illustrative, not normative** — the spec defines the format; this
 | 10 Platforms / runners | `src/manifestmodel.cpp`, `src/packagecatalog.cpp`, `src/runnerwrapper.cpp` | `MachinePlatform`, `CompatibleRunners`, `RunnerInstalled`, `RunnerWrapper::ExecutableAvailable`/`DefPrefixDir` |
 | 11 Daisy-chaining | `src/launchresolver.cpp`, `src/vfsmount.cpp`, `src/containerwrapper.cpp` | `ResolveChainIds`, `ResolveChainTail`, `ResolveRunnerChain`, `RunnerAvailable`, `BoundaryLinkIndex`, `GuestPath`, `ComposeGuestTarget`, `InnerRunnerMountRel`; `BuildLayerSpec` (inner mounts); `Execute` (nested command) |
 | 11 Chain UI | `src/prelaunchwindow.cpp` | `RebuildRunnerChain`, `RenderChainCombos`, `onChainStepChanged`; `PackageCatalog::CandidateRunners` |
-| 12 Resolution | `src/manifestmodel.cpp` | `ResolveNodeOrder`, `OptionalNodes` |
+| 12 Resolution | `src/manifestmodel.cpp` | `ResolveNodeOrder`, `OptionalNodes`, `ForEachClosureNode` |
 | 13 Runtime model | `src/vfsmount.cpp`, `src/containerwrapper.cpp`, `src/registrylayer.cpp`, `src/launchresolver.cpp` | `BuildLayerSpec`, `MountVFS`, `MountRunnerBuild`, `InitializeDefPrefix`, `DerivePaths`, `ContainerWrapper::BuildContainerRuntime`/`Cleanup`, `CleanStaleRuntime` |
 | 13 Overlay filesystem | `VidyaGodFS` (`vidyagodfs`) | the FUSE union/zip/file mounter driven by the JSON layer spec |
-| 14 Content addressing | `src/packagecatalog.cpp`, `src/ipfswrapper.cpp`, `src/launchsources.cpp`, `VidyaGodIPFS` | `PublishPackage`, `SeedDirectory`, `MirrorDehydrated`, `HydrateNode`/`DehydrateNode`, `NodeContentCids`, `EnsureSources`/`MaterializeLayers`; embedded Boxo/IPFS node |
-| 15 Validation | `src/manifestmodel.cpp` | `ValidateNodeGraph`, `GatherLaunchContentFiles`, `FindCrossLayerCaseCollisions` |
+| 14 Content addressing | `src/packagecatalog{,_publish}.cpp`, `src/ipfswrapper.cpp`, `src/launchsources.cpp`, `VidyaGodIPFS` | `PublishPackage`, `PublishMetaCid` (the Meta-CID), `SeedDirectory`, `MirrorDehydrated`, `HydrateNode`/`DehydrateNode`, `NodeContentCids`, `EnsureSources`/`MaterializeLayers`; embedded Boxo/IPFS node, `buildMetaDirNode` for the text-only folder DAG |
+| 15 Validation | `src/manifestmodel.cpp`, `src/cli/cliaudit.cpp` | `ValidateNodeGraph` (incl. tile-UID, ambiguous-tile and unconsumed-WHEN rules), `GatherLaunchContentFiles`, `FindCrossLayerCaseCollisions`; `--audit-packages` resolves every launchable |
+| — Authoring / editor | `src/pkgcanvas.cpp`, `src/pkggraph.cpp`, `src/pkgactions.cpp`, `src/authoringsessionmodel.cpp` | the ImGui blueprint canvas (no GL, no QWidget → headlessly testable), the declared field/action tables, the node actions, and capture-to-new-nodes |
 | 16 Run modes / CLI / paths | `src/main.cpp`, `src/apppaths.{h,cpp}` | argument parsing, `AcquireSingleInstanceLock`, `DumpResolution`; `AppPaths::DataRoot/Mode/*Override` |
 | 16 Saved settings | `src/packagecatalog.cpp` | `GetPackageUserSettings`, `SetPackageUserSetting` (`RUNNER_CHAIN`/`VARIABLES`/`MODULES`) |
 

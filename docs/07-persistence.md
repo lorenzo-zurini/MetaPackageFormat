@@ -4,27 +4,25 @@ The runtime is **ephemeral by construction**: it is assembled fresh each launch 
 Persistence declares which state escapes that wipe — written to the package's **`USERDATA`** store, which lives beside
 the bundle and travels with it (`<bundle>/USERDATA`), surviving even a full wipe of the implementation's data root.
 
-Persistence is **one primitive** — a `Persist` layer — that lives in `LAYERS`, so it composes through the same
-dependency-chain hierarchy as everything else (chapter 12). It is **purely additive**: `KEEP` adds durable state, `DROP`
-removes it. There is no mode or policy flag — the runtime is pristine by default, and "keep everything" is simply a
-`KEEP` of the runtime root.
+Persistence is **one primitive** — a `Persist` node — so it composes through the same dependency-chain hierarchy as
+everything else (chapter 12). It is **purely additive**: `KEEP` adds durable state, `DROP` removes it. There is no mode
+or policy flag — the runtime is pristine by default, and "keep everything" is simply a `KEEP` of the runtime root.
 
 ## 7.1 The `Persist` primitive
 
 ```jsonc
-"LAYERS": [
-  { "TYPE": "Persist", "KEEP": "drive_c/Game/Saves" },           // persist a target (durable)
-  { "TYPE": "Persist", "KEEP": "HKCU\\Software\\id Software\\Quake" },
-  { "TYPE": "Persist", "DROP": "drive_c/Game/cache" }            // make a path ephemeral (writes discarded)
-]
+{ "NODE_ID": "quake_persist", "TYPE": "Persist", "PARENTS": ["quake_content"],
+  "KEEP": [ "drive_c/Game/Saves",                        // persist a target (durable)
+            "HKCU\\Software\\id Software\\Quake" ],
+  "DROP": [ "drive_c/Game/cache" ] }                     // make a path ephemeral (writes discarded)
 ```
 
 | Facet | Meaning |
 |-------|---------|
-| `KEEP` | persist this target. Subsumes the old `PersistDir`/`PersistFile`/`RegPersist`/`RegKeyPersist` — its kind is **derived** from the target's shape (§7.2). A `KEEP` of the runtime root (`%RuntimePath%`) persists the *whole* runtime. |
-| `DROP` | make this runtime path **ephemeral** — its writes go nowhere durable. The exclude axis: carve a throwaway hole out of a kept tree. Paths only. |
+| `KEEP` | array of targets to persist. Subsumes the old `PersistDir`/`PersistFile`/`RegPersist`/`RegKeyPersist` — each target's kind is **derived** from its shape (§7.2). A `KEEP` of the runtime root (`%RuntimePath%`) persists the *whole* runtime. |
+| `DROP` | array of runtime paths made **ephemeral** — their writes go nowhere durable. The exclude axis: carve a throwaway hole out of a kept tree. Paths only. |
 
-A single `Persist` layer typically carries one facet; an author MAY combine `KEEP` and `DROP` on one layer.
+Both arrays are plural on purpose: a keep-set is one policy statement, not one node per path.
 
 > **Design note.** Earlier MPF had four persistence types and an **inverted default**: a closure that declared
 > *nothing* persisted the *entire* prefix (saves, configs, registry, **and** caches/system files), with no way to
@@ -68,17 +66,17 @@ that is folded into **every** launch alongside the game's own `Persist` layers. 
 user-profile tree and the user hive:
 
 ```jsonc
-// on the Proton runner node (CONTENT_ROOT "pfx/drive_c/…")
-"LAYERS": [ { "TYPE":"Persist", "KEEP":"pfx/drive_c/users" }, { "TYPE":"Persist", "KEEP":"HKCU" } ]
-// on the Wine runner node  (CONTENT_ROOT "drive_c/…")
-"LAYERS": [ { "TYPE":"Persist", "KEEP":"drive_c/users" },     { "TYPE":"Persist", "KEEP":"HKCU" } ]
+// for the Proton runner (CONTENT_ROOT "pfx/drive_c/…")
+{ "NODE_ID": "proton_keepset", "TYPE": "Persist", "KEEP": ["pfx/drive_c/users", "HKCU"] }
+// for the Wine runner  (CONTENT_ROOT "drive_c/…")
+{ "NODE_ID": "wine_keepset",   "TYPE": "Persist", "KEEP": ["drive_c/users", "HKCU"] }
 ```
 
 So by default a typical game saves to `…/users/<user>/Documents`, `Saved Games`, `AppData`, and the registry — **all
 kept** by the runner — while the rest of the prefix (system files, caches, the DXVK shader cache) regenerates pristine
 each launch. A game adds a `KEEP` only for a **non-standard** save path (e.g. a save folder under the install dir) or a
-`DROP` to trim. (`Persist` layers are otherwise the one kind of layer read off a runner *node* directly — its build
-comes from the runner's `PARENTS`, but a keep-set is policy, not content.)
+`DROP` to trim. (A runner's keep-set is the one payload read off the runner's own `DeclareExec` node's chain and applied
+to the *game's* runtime — its build comes from the runner's `PARENTS`, but a keep-set is policy, not content.)
 
 ## 7.4 Mechanics — the overlay, no new filesystem
 

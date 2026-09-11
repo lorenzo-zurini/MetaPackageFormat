@@ -7,7 +7,7 @@ and the bytes fetched on demand and verified by hash. This is what makes "the gr
 
 ## 14.1 The `SOURCE` block
 
-Any VFS layer (chapter 5) and any cover (`META.COVER`, chapter 3) MAY carry a `SOURCE`:
+Any `Content` node (chapter 5) and any tile's `COVER` (chapter 3) MAY carry a `SOURCE`:
 
 ```json
 "SOURCE": { "TYPE": "ipfs", "CID": "QmRVRg1spGsV96NuKv7HH27kwhnPKwadNnBp3ZyarDPFwY",
@@ -27,6 +27,10 @@ The pairing of a **local `PATH`** with a **content `CID`** is the heart of the m
 
 (VidyaGod: `LayerLocator` returns `(localPath, cid)`; the IPFS backend is an embedded node.)
 
+A `FORM: "delta"` node is addressed exactly like any other: the `.vgdelta` is a file with its own CID. A 900-version
+chain is therefore 900 small content objects plus one base, and hydrating version *N* fetches only the deltas on the
+path to it.
+
 ## 14.2 The present-vs-fetch rule (invariant I8)
 
 A file **present** at its resolved local path is authoritative and used as-is — the `CID` is *not* consulted (no re-hash,
@@ -34,15 +38,17 @@ no network). The `CID` is consulted **only** to fetch a **missing** file. Theref
 
 - A package whose layers are all present locally runs fully offline, immediately.
 - A package whose layers are missing but have CIDs is *fetchable* — not an error until a fetch fails.
-- A layer with **neither** a present file **nor** a CID is *unavailable*; a launch needing it MUST be refused with a clear
-  diagnostic (don't mount nothing and pretend success).
+- A node with **neither** a present file **nor** a CID is *unavailable*; a launch needing it MUST be refused with a
+  clear diagnostic (don't mount nothing and pretend success).
+- A node whose path is **runtime-sourced** (a `%variable%` that resolves only at mount time) has no on-disk file by
+  design and is outside this rule entirely — it is neither present, missing, nor fetchable.
 
 (VidyaGod: `EnsureSources` classifies each layer; `MaterializeLayers` fetches missing-but-fetchable ones to their path,
 self-healing the package.)
 
 ## 14.3 Hydrate (install)
 
-**Hydrating** a launchable = ensuring every VFS layer in its closure (and the runner chain's builds) is present locally,
+**Hydrating** a launchable = ensuring every `Content` node in its closure (and the runner chain's builds) is present locally,
 fetching missing-but-fetchable layers by CID to their declared paths. After hydration the package is fully local and
 subsequent launches need no network. The set of CIDs to fetch is just *the closure's layer CIDs* — the graph is the
 download manifest. (VidyaGod: `HydrateNode`, and `CollectFetchTargets` for batching a game's content with its runners'
@@ -54,7 +60,7 @@ disk while keeping it installable. (VidyaGod: `DehydrateNode`.)
 
 ## 14.4 Publish (dehydrate-for-sharing) & seed
 
-To *share* a package you've authored, you **publish** it: for each VFS layer and each cover, the implementation adds the
+To *share* a package you've authored, you **publish** it: for each `Content` node and each cover, the implementation adds the
 local file to the content network, obtaining its `CID`, and records that CID in the node's `SOURCE`. The result is a
 **dehydrated** package — node `.json`s with CIDs but (optionally) without the heavy bytes — that anyone can hydrate.
 Publishing is the bridge from "a folder of files on my disk" to "an address others can fetch."
@@ -66,8 +72,26 @@ Publishing is the bridge from "a folder of files on my disk" to "an address othe
   changed since publish (so they no longer match the recorded CID) are reported rather than silently re-hashed. (VidyaGod:
   `SeedDirectory`, `MirrorDehydrated`.)
 
-The STORE-zip requirement (chapter 5) matters here: a layer's bytes are addressed and served as the zip file itself, so
+The STORE-zip requirement (chapter 5) matters here: a node's bytes are addressed and served as the zip file itself, so
 the same zip is simultaneously the install medium, the integrity unit, and the content-network object.
+
+### The Meta-CID — addressing the *descriptions*
+
+Publishing content gives every payload an address. Addressing the **graph** needs one more step, and it is what makes a
+whole catalogue subscribable: mint a **Meta-CID**, a folder CID over the node `.json` files **only**.
+
+- It is **text-only by construction**: the builder takes `*.json` and nothing else, so covers, zips, ROMs and deltas
+  are present only as the CIDs written inside those files. A collection of 4000 nodes is a few megabytes of text.
+- It is **reproducible**: the same nodes mint the same CID on any machine, which is the property that makes it usable
+  as a subscription. It is also why anything that changes node bytes for a cosmetic reason — an editor stamping empty
+  containers onto nodes it merely rendered, a canvas writing positions into them — is a correctness bug and not a
+  nuisance. Per-machine state belongs in files the builder does not take ([ch. 4 §4.1](04-bundles-and-library.md)).
+- Runtime subtrees are excluded whole: a generated prefix and `USERDATA` contain `.json` of their own and are
+  per-machine, so they are skipped by name rather than by content.
+
+A **package source** (ch. 4 §4.4) is exactly a Meta-CID. Publishing an update to a collection mints a new one; the
+subscriber points at it. (VidyaGod: `PublishMetaCid`, `--publish-meta`; `MirrorDehydrated` for the equivalent
+staging-copy form.)
 
 ## 14.5 The content backend
 
@@ -86,7 +110,8 @@ no source) — so always ship at least a backend the target audience supports.
 
 Because a `CID` is a hash, fetched content is self-verifying: bytes that don't hash to the CID are rejected by the
 content layer, so a fetch can't substitute tampered content for a given CID. What a CID does *not* tell you is whether the
-*publisher* is trustworthy — that's a higher-level concern (signing a set of node files, curating which repos you sync).
+*publisher* is trustworthy — that's a higher-level concern (signing a set of node files, curating which sources you
+subscribe to).
 The format provides integrity of *bytes-for-a-CID*; provenance of *CIDs-for-a-package* is left to distribution policy.
 
 Next: [Validation](15-validation.md).

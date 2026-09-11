@@ -17,18 +17,27 @@ sit together and can be copied/shared/deleted as a unit.
 ├── silent_hill_2_enhanced.json        ← content node (an optional mod)
 ├── Silent Hill 2.zip                  ← bytes referenced by a layer
 ├── SH2 Enhanced Edition.zip
-├── SH2_Cover.png                      ← bytes referenced by META.COVER
+├── SH2_Cover.png                      ← bytes referenced by the tile's COVER
+├── LAYOUT.vglayout                    ← an authoring tool's canvas layout (see below) — not part of the package
 └── USERDATA/                          ← per-package durable saves (ch. 7) — created at runtime
 ```
 
-A bundle MAY contain any number of nodes of any roles. A "game package" is typically one launchable plus its content
-nodes; a "runner package" is a runner node plus its build content node(s). Nothing prevents one bundle from holding many
-launchables (e.g. a multi-game collection).
+A bundle MAY contain any number of nodes of any `TYPE`. A "game package" is typically one tile, one launchable and
+their content chain; a "runner package" is a `DeclareExec` with `GUEST` plus its build content node(s). Nothing
+prevents one bundle from holding many launchables (e.g. a multi-game collection).
+
+A `.json` file in a bundle holds **one node or a JSON array of them** ([ch. 2 §2.2](02-nodes.md)); an indexer MUST
+accept both. Since a chain of twenty nodes is the normal shape now, keeping one chain in one array file is common —
+file grouping remains pure presentation with no semantics.
+
+**Non-`.json` files are never nodes**, which gives authoring tools somewhere to put per-machine state that must not
+travel: the reference implementation writes canvas layout to `<bundle>/LAYOUT.vglayout`. That matters because
+publishing is text-only-JSON by construction (§4.4), so such a file reaches neither peers nor the running game.
 
 ### Relative-path resolution
 
-Every relative path written inside a node — a layer's `PATH`, a `SOURCE.PATH`, `META.COVER.PATH` — resolves against **the
-bundle directory of the node that declares it**, not against the launchable being run. This is essential for cross-bundle
+Every relative path written inside a node — a `Content` node's `PATH`, a `SOURCE.PATH`, a tile's `COVER.PATH` —
+resolves against **the bundle directory of the node that declares it**, not against the launchable being run. This is essential for cross-bundle
 composition: when a game's closure pulls in a runner whose build layer says `PATH: "GE-Proton10-30.zip"`, that path
 resolves against the *runner's* bundle, wherever the runner lives. (VidyaGod: each node records its `BundleDir`;
 `LayerLocator` joins relative paths against it.)
@@ -39,13 +48,13 @@ A **library root** is a directory whose **immediate subdirectories are bundles**
 roots. Multiple roots are common and compose into one flat graph:
 
 ```
-~/.VidyaGod/LIBRARY/                    ← contains library roots, one per source
-├── VidyaGodPackages/                   ← a library root (a games repo)
+~/.VidyaGod/LIBRARY/                    ← contains library roots, one per configured source
+├── VidyaGod/                           ← a library root (a games source)
 │   ├── [9001] Vortex Quest/            ← bundle
 │   ├── [7804] Age of Mythology/        ← bundle
 │   └── …
-└── VidyaGodRunners/                    ← a library root (a runners repo)
-    ├── ge-proton10-30/                 ← bundle
+└── VidyaGodRunners/                    ← a library root (a runners source)
+    ├── proton/                         ← bundle
     ├── snes9x/                         ← bundle
     └── native-passthrough/             ← bundle
 ```
@@ -68,60 +77,86 @@ function BuildNodeIndex(libraryRoots):
             if not isDirectory(bundle): continue
             for file in files(bundle) where extension == ".json":
                 json = parse(file)              # skip unparseable files (warn)
-                node = ParseNode(json, file, bundle)
-                if node is null: continue        # no NODE_ID ⇒ not a node, ignore
-                if node.NODE_ID in index:
-                    warn("duplicate NODE_ID, keeping first-seen")
-                    continue                     # invariant I1: first-seen wins
-                index[node.NODE_ID] = node
+                # A file holds ONE node or an ARRAY of them (ch. 2 §2.2).
+                for entry in (json is array ? json : [json]):
+                    node = ParseNode(entry, file, bundle)
+                    if node is null: continue    # no NODE_ID ⇒ not a node, ignore
+                    if node.NODE_ID in index:
+                        warn("duplicate NODE_ID, keeping first-seen")
+                        continue                 # invariant I1: first-seen wins
+                    index[node.NODE_ID] = node
     return index
 ```
 
-`ParseNode` reads the fields in [chapter 2 §2.2](02-nodes.md), applies defaults, and records the source file and bundle
-directory. A JSON file that is not an object, or lacks a non-empty string `NODE_ID`, yields no node and is silently
-skipped (it may be unrelated data living in the bundle).
+`ParseNode` reads the fields in [chapter 2 §2.2](02-nodes.md), applies defaults, expands the node's payload into the
+layers the runtime consumes, and records the source file and bundle directory. A JSON entry that is not an object, or
+lacks a non-empty string `NODE_ID`, yields no node and is silently skipped (it may be unrelated data living in the
+bundle).
+
+**`ParseNode` MUST be total.** A node file is untrusted input — it arrives from a peer, or from an author's typo — and
+indexing happens at startup, so an exception escaping here takes the whole runtime down before it can be used to
+remove the offending source. A node whose payload cannot be understood (unknown `TYPE` or `FORM`, a wrong-typed field
+at any depth, a malformed `EDITS`) MUST therefore be **indexed carrying its error, not dropped**:
+
+- Dropping it removes it from the graph entirely, so a *referrer* dangles loudly but a **leaf** mistake — an unknown
+  `FORM` on a `Content` node — is reported by nothing at all, and validation prints a clean bill of health over a
+  package that has silently lost a layer.
+- Indexed-with-an-error, it contributes **no layers**, validation names it ([ch. 15](15-validation.md)), and
+  resolution treats it as missing so a launch that would route through it is refused rather than quietly doing less.
 
 **Duplicate ids (invariant I1).** If two files declare the same `NODE_ID`, the **first one seen wins** and the second is
 dropped with a warning. Scan order across roots is therefore observable; an implementation SHOULD make it deterministic
 (e.g. roots in a configured order, bundles and files sorted). Authors MUST treat `NODE_ID` collisions as errors to avoid
-depending on scan order. (One legitimate use of shadowing: a user's *local* package overriding a repo copy of the same id
-— see §4.5.)
+depending on scan order. (One legitimate use of shadowing: a user's *local* package overriding a source's copy of the
+same id — see §4.5.)
 
-## 4.4 Distribution: repositories
+## 4.4 Distribution: sources
 
-Bundles are distributed as ordinary directories, so any transport works (a zip, a synced folder, a git repo). The
-reference implementation models a **repository** as a git remote cloned into a library root and refreshed on launch. A
-repository is just a library root whose bundles happen to be version-controlled.
+Bundles are distributed as ordinary directories, so any transport works. The format mandates none — only that
+refreshing node descriptions MUST NOT destroy locally-hydrated content.
 
-Repository sync MUST be **content-safe**: the heavy, content-addressed payloads (downloaded layer zips, generated
-prefixes, fetched ROMs) live *inside* the bundles but are **untracked** (gitignored). A sync updates only the tracked
-node `.json` files and MUST NEVER delete the clone or its untracked content. The reference sync:
+The reference implementation uses exactly one channel: a **source is an immutable content-addressed folder** (an IPFS
+directory CID) listed in the user's settings and mirrored into a library root. Publishing a new version of a collection
+mints a **new CID**; subscribing to it means pointing at that CID. There is no mutable remote, no branch, no merge, and
+nothing to go wrong halfway.
 
-1. `git pull --ff-only` — the normal fast-forward; leaves untracked content alone.
-2. On failure (diverged/rewritten history): `git fetch` then `git reset --hard @{u}` — realigns *tracked* files to
-   upstream; untracked content survives.
-3. On any failure of both: keep the last-synced clone untouched. Never nuke it.
+Two properties make this work, and both are worth stating as requirements on any transport:
 
-(VidyaGod: `SyncGitRepository`/`SyncRepositories` in `packagecatalog.cpp`.) The format does not mandate git — only that
-*whatever* the transport, refreshing node descriptions MUST NOT destroy locally-hydrated content. An implementation MAY
-support non-git transports identically.
+- **A source folder is TEXT-ONLY.** Only the node `.json` files are part of it. Covers, zips, ROMs and deltas travel as
+  *content* CIDs referenced **from** those files (ch. 14), so the folder CID is small, reproducible, and identical for
+  everyone who mints it from the same nodes. This is also why a non-`.json` file in a bundle (§4.1) is invisible to
+  distribution.
+- **Refreshing must be content-safe.** The heavy, content-addressed payloads live *inside* the bundles and are hydrated
+  locally. Updating the descriptions MUST leave them alone: a sync replaces node text, never the bytes beside it. The
+  reference fetches the new source folder and reconciles the node files, leaving hydrated content in place.
+
+(VidyaGod: `Settings.PackageSources[]`, `PackageCatalog::SyncPackageSources`, `PublishMetaCid`.)
+
+> *Historical note.* An earlier generation of the reference implementation modelled a source as a **git remote** cloned
+> into a library root, with `--ff-only` pulls and a hard-reset fallback. It was removed: a mutable remote gives a
+> package graph no property a content address does not, while adding merge states, partial clones, and a second thing
+> that can be out of date. A CID either resolves to exactly those bytes or it does not.
 
 ## 4.5 Local packages and shadowing
 
-A user's own bundle (authored locally, not from a repo) is part of the graph like any other. Because of first-seen-wins
-(I1), an implementation MAY order scanning so that a **local** bundle shadows a repo bundle declaring the same id — the
-user's edited copy wins. This is the one intended use of id shadowing; it MUST be deterministic (local before remote),
-and a validator SHOULD still flag cross-*repo* collisions.
+A user's own bundle (authored locally, not from a source) is part of the graph like any other. Because of
+first-seen-wins (I1), an implementation MAY order scanning so that a **local** bundle shadows a source's bundle
+declaring the same id — the user's edited copy wins. This is the one intended use of id shadowing; it MUST be
+deterministic (local before remote), and a validator SHOULD still flag cross-*source* collisions.
 
 ## 4.6 What "installed" means
 
 A node being *in the index* means it is *known*, not that it is *runnable*:
 
-- A launchable is **hydrated** when every VFS layer in its content closure is present locally (its bytes are on disk).
-  Otherwise some content must be fetched first (chapter 14).
-- A runner is **installed** when its build is hydrated and (if it generates a prefix) its prefix artifact exists.
+- A launchable is **hydrated** when every `Content` node in its closure is present locally (its bytes are on disk).
+  Otherwise some content must be fetched first (chapter 14). A node whose `PATH` is *runtime-sourced* — a `%variable%`
+  that only resolves to a real path at mount time, like a runner's prefix-assembly mounts — has no on-disk file at all
+  and is never counted as missing.
+- A runner is **installed** when its **build** is hydrated and (if it generates a prefix) its prefix artifact exists.
+  "Its build" is the real on-disk content in its closure, again excluding the runtime-sourced nodes: counting those
+  makes every prefix-generating runner look permanently un-installed.
 
 Implementations distinguish "known" from "hydrated/installed" to drive UI (browse vs. play) and to gate launches.
 (VidyaGod: `NodeHydrated`, `RunnerInstalled`.)
 
-Next: [VFS content layers](05-layers.md).
+Next: [`Content` nodes](05-layers.md).

@@ -16,16 +16,17 @@ each section is runnable once the previous ones are.
 ## 19.2 Resolution
 
 - [ ] **MUST** resolve a launchable's content closure by the two-phase algorithm of chapter 12: BFS enable pass
-      (`OPTIONAL`/`DEFAULT` toggles, symmetric `EXCLUDE` first-kept-wins, explicit-choice-beats-default, the hierarchy
+      (`TOGGLE` on/off, symmetric `EXCLUDE` first-kept-wins, explicit-choice-beats-default, the hierarchy
       gate) then post-order topological emission (parents first, launch node last).
 - [ ] **MUST** tolerate `PARENTS` cycles by breaking the back-edge and completing (invariant I2), and a validator **MUST**
       report them as errors.
-- [ ] **MUST** treat closure order + `LAYERS` array order as overlay priority (later = higher).
+- [ ] **MUST** treat resolved closure order as overlay priority (later = higher; a child wins over its parents), and
+      MUST NOT treat a node's `PARENTS` list order as a priority tie-break (invariant **I9**).
 
 ## 19.3 Platforms & runner chains
 
 - [ ] **MUST** model runners as `GUEST → HOST` edges and resolve a chain by shortest-path BFS from the launchable's
-      `PLATFORM.HOST` to the machine platform, considering only *available* runners (PATH-resolvable **or** ships a
+      the launchable's `HOST` to the machine platform, considering only *available* runners (PATH-resolvable **or** ships a
       build). (ch. 10, 11)
 - [ ] **MUST** always append a native terminal (host = guest = machine), synthesizing a pass-through if none is authored,
       and **MUST** `execve` only the terminal (invariant I4).
@@ -86,7 +87,8 @@ each section is runnable once the previous ones are.
 ## 19.8 Validation
 
 - [ ] **SHOULD** implement the validator of chapter 15: graph integrity (errors), STORE-zip + VFS-path (errors),
-      `CONTENTPATH` case-exactness + cross-layer case collisions (errors), and the various warnings (dir layers, runner
+      a launchable's `PATH` case-exactness + cross-layer case collisions + a missing tile `UID` + an ambiguous tile
+      (errors), and the various warnings (dir content, runner
       layers, EXCLUDE symmetry, missing host/runner, prefix-without-drive_c).
 
 ## 19.9 Operations

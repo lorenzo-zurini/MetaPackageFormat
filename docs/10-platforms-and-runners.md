@@ -24,10 +24,10 @@ hosts are supported. The format already supports any host token; only detection 
 
 ## 10.3 Runners as platform-graph edges
 
-A runner node's `DeclareRunner` layer declares:
+A runner is a `DeclareExec` node that declares:
 
 ```json
-{ "TYPE": "DeclareRunner",
+{ "TYPE": "DeclareExec",
   "HOST": "<the platform the runner itself runs on>",
   "GUEST": ["<platform it can run>", "<…>"], … }
 ```
@@ -44,51 +44,63 @@ Read it as "this runner *consumes* guest-platform content and *produces* a host-
 The union of all available runners' edges is the **platform graph**. Running content is finding a path through it from
 the content's platform to the machine platform (chapter 11).
 
-## 10.4 The runner build comes from PARENTS, not LAYERS
+## 10.4 The runner build comes from PARENTS
 
 A runner needs *binaries* to do its job — the Proton tree, the emulator executable. Those bytes are the runner's
-**build**, and they are supplied by the runner node's **`PARENTS`** (content nodes carrying VFS layers), **not** by the
-runner node's own `LAYERS`.
+**build**, and they are supplied by the runner's **`PARENTS`** (ordinary `Content` nodes).
 
 ```json
-{ "NODE_ID": "ge-proton10-30",
+{ "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec",
   "PARENTS": ["geproton_build"],             // ← the build lives here
-  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "linux64", "GUEST": ["win32","win64"],
-                "EXECUTABLE": "%RunnerMount%/proton", "…": "…" } ] }
+  "HOST": "linux64", "GUEST": ["win32", "win64"],
+  "PATH": "%RunnerMount%/proton" }
 
-{ "NODE_ID": "geproton_build",
-  "LAYERS": [ { "TYPE": "VFSZipLayer", "PATH": "GE-Proton10-30.zip",
-                "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ] }
+{ "NODE_ID": "geproton_build", "TYPE": "Content", "FORM": "zip",
+  "PATH": "GE-Proton10-30.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
 ```
 
-The runner's build is the runner node's content closure (its `PARENTS`, resolved like any closure — chapter 12), **minus
-the runner node itself**. This keeps runner nodes thin and puts the heavy, shareable, content-addressed bytes on ordinary
-content nodes (so a Proton build is fetched/seeded/deduplicated exactly like a game).
+The runner's build is the runner's content closure (its `PARENTS`, resolved like any closure — chapter 12), **minus the
+runner node itself**. This keeps the runner's description separable from its (large) bytes and puts the heavy,
+shareable, content-addressed content on ordinary `Content` nodes (so a Proton build is fetched/seeded/deduplicated
+exactly like a game).
 
-## 10.5 Runner LAYERS are ignored (a deliberate trap)
+## 10.5 Which content builds the runner, and which assembles the prefix
 
-Because the build comes from `PARENTS`, **VFS layers placed directly on a runner node are ignored** — never mounted. An
-author who ships the runtime as the *runner node's own* `LAYERS` gets a runner with no build and a silent failure.
-Validators MUST warn on a runner node that carries its own VFS layer and point at the fix: move the layer to a content
-node and add it to the runner's `PARENTS`. (VidyaGod: this warning is in `ValidateNodeGraph`.)
+Two kinds of `Content` end up in a runner's closure, and the distinction is a property of **the content**, not of which
+node it sits on:
 
-This is the one place the "everything is a node" symmetry is intentionally broken, and it's worth the asymmetry: it means
-a runner and the game it runs compose their builds the same way (content nodes pulled via `PARENTS`), and a runner's
-description stays separable from its (large) bytes.
+- **Build content** — real bytes on disk. This *is* the runner, and it mounts separately at `%RunnerMount%`.
+- **Prefix-assembly content** — content whose `PATH` is **runtime-sourced** (a `%variable%` that only resolves to a real
+  path at mount time, e.g. `%RunnerMount%/files/share/default_pfx`). It contributes to the **game's** runtime, laying
+  down the wine prefix.
+
+When "a runner" was one node with an ordered layer array, these were told apart by *which node they sat on*: assembly
+layers happened to live on the runner node itself. One node per layer makes node membership meaningless, so the real
+property is tested directly.
+
+> **Prefix-assembly content is PREPENDED, not appended.** The wine prefix (the default prefix plus the
+> `system32`/`syswow64` builtin DLLs) is the **base system**: it must sit *beneath* the game and library content so a
+> package's native override DLLs win over wine's builtins at the same path. Appending it puts wine's builtins on top and
+> silently masks every `syswow64`/`system32` override a package ships. (`FileEdit`/`RegEdit`/`DllOverride` are
+> order-independent — separate passes — so those are appended.)
+
+A runner's whole closure contributes its order-independent edits (`DllOverride`/`RegEdit`/`FileEdit`) to the game
+runtime, exactly as a library pinned by the *game* does — a runner may legitimately pin a media stack that installs
+native DirectShow filters and switches `winegstreamer` off. The runner chain is not less capable than the content chain.
 
 ## 10.6 Runner availability & the installed model
 
 A runner is **usable on this machine** when it can actually execute. Two kinds:
 
-- **PATH runner** — its `EXECUTABLE` is a bare system command (`wine`, `umu-run`). Usable iff that command resolves on the
+- **PATH runner** — its `PATH` is a bare system command (`wine`, `umu-run`). Usable iff that command resolves on the
   host's executable search path.
-- **Build-shipping runner** — its `EXECUTABLE` resolves from its mounted build (`%RunnerMount%/proton`), or is a
-  build-relative path (e.g. `vortexemu.exe`). Usable iff its build is **hydrated** (every build VFS layer present locally)
+- **Build-shipping runner** — its `PATH` resolves from its mounted build (`%RunnerMount%/proton`), or is a
+  build-relative path (e.g. `vortexemu.exe`). Usable iff its build is **hydrated** (every real on-disk `Content` node in its closure present locally; the runtime-sourced prefix-assembly ones are not build content and must not be counted — see §10.5)
   and, if it generates a prefix, its prefix artifact exists.
 
-Crucially, **a runner that ships its own build is "available" even if its `EXECUTABLE` is not a system command** — the exe
+Crucially, **a runner that ships its own build is "available" even if its `PATH` is not a system command** — the exe
 lives in the build, not on `PATH`. An implementation MUST treat "ships a build" as a form of availability; otherwise a
-nested Windows-only emulator (`EXECUTABLE: "vortexemu.exe"`) would be wrongly judged missing. (VidyaGod: `RunnerWrapper::
+nested Windows-only emulator (`PATH: "vortexemu.exe"`) would be wrongly judged missing. (VidyaGod: `RunnerWrapper::
 ExecutableAvailable` for the PATH case, OR a build-presence check; `RunnerInstalled`/`RunnerAvailable`.)
 
 (VidyaGod resolves `%var%`-bearing or empty executables as "available" — they come from a mount or are pass-throughs —
@@ -99,7 +111,7 @@ and checks bare commands against the host `PATH`, falling back to the build-pres
 A build-shipping runner mounts its build read-only:
 
 - **Separate mount (default):** the build mounts at its own mount point, reached via `%RunnerMount%` (so
-  `EXECUTABLE: "%RunnerMount%/proton"`). The game's content mounts separately under `CONTENT_ROOT`.
+  `PATH: "%RunnerMount%/proton"`). The game's content mounts separately under `CONTENT_ROOT`.
 - **Unified (`UNIFIED_RUNTIME: true`):** the build folds *into* the game runtime root (lowest priority), sharing one
   filesystem view with the content. `%RunnerMount%` then resolves to the runtime root. Use only when the runtime must see
   the game's files and its own in one tree.

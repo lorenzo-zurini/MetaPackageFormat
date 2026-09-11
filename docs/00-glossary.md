@@ -3,36 +3,41 @@
 Terms are defined here once and used with these exact meanings throughout the spec. Capitalized JSON keys (e.g.
 `PARENTS`) are field names; `code font` lower-case words (e.g. `runner`) are identity/type values.
 
-**Node** — the atomic unit of the format. One JSON object, stored in one `<node_id>.json` file, identified by a
-globally-unique `NODE_ID`. A node groups/selects other nodes (via `PARENTS`) and/or contributes payloads (via `LAYERS`).
-What it *is* — content, launchable, runner, library tile — emerges from which `Declare*` identity layers it carries;
-there is no `ROLE` field. See [chapter 02](02-nodes.md).
+**Node** — the atomic unit of the format, and **one layer**. One JSON object with a globally-unique `NODE_ID`, a
+`TYPE`, that type's payload hoisted directly onto it, and `PARENTS` edges. There is no `ROLE` field and no `LAYERS`
+array: what a node *is* **is** its `TYPE`. See [chapter 02](02-nodes.md).
 
 **Node graph** — the union of every node discoverable by an implementation, keyed by `NODE_ID`. A single flat namespace;
-edges are `NODE_ID` references in `PARENTS` (and platform edges implied by a runner's `DeclareRunner` host/guest). See
+edges are `NODE_ID` references in `PARENTS` (and platform edges implied by a runner's `HOST`/`GUEST`). See
 [chapter 04](04-bundles-and-library.md).
 
-**Identity layer** — one of the `Declare*` layers (`DeclareExec`, `DeclareLibraryItem`, `DeclareRunner`) that, by its
-presence in a node's `LAYERS`, declares what the node is. A node may carry several; their union is its identity. A node
-with none is plain content. There is no `ROLE` field. See [chapter 03](03-roles.md).
+**Type** — the node's `TYPE` field: one of `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride`, `Persist`,
+`CustomVar`, `DeclareExec`, `DeclareLibraryItem`, `Group`. It selects both what the node does and which payload fields
+it carries. See [chapter 03](03-roles.md).
 
-**Launchable** — a node carrying a `DeclareExec` layer: an entry point the user can start (a game, a tool, an edition).
-It declares the target platform of its content and how to invoke it. See [chapter 03](03-roles.md).
+**Chain** — a run of nodes each of which is the next one's parent. What used to be one node's ordered `LAYERS` array is
+now a chain: the order is the edges. Nodes in a chain are applied parent-first.
 
-**Content node** — a node with no `Declare*` layer: contributes `LAYERS` (files, edits, persistence rules) and/or groups
-other content via `PARENTS`. Never started directly; pulled in by a launchable's or runner's closure.
+**Launchable** — a `DeclareExec` node **with no `GUEST`**: an entry point the user can start (a game, a tool, an
+edition). It declares the `HOST` platform its content needs and the target to run. See [chapter 09](09-exec.md).
 
-**Runner** — a node carrying a `DeclareRunner` layer: an executor that runs content of one or more *guest* platforms
-while itself running on a *host* platform. Wine/Proton, an emulator, or a native pass-through. Its runnable payload (its
-*build*) comes from its `PARENTS`. See [chapter 10](10-platforms-and-runners.md).
+**Runner** — a `DeclareExec` node **with a non-empty `GUEST`**: an executor that runs content of one or more *guest*
+platforms while itself running on a *host* platform. Wine/Proton, an emulator, or a native pass-through. Its runnable
+payload (its *build*) comes from its `PARENTS`. Launchable and runner are the same type because a launchable is a runner
+that provides nothing. See [chapter 10](10-platforms-and-runners.md).
 
-**Library tile** — a node carrying a `DeclareLibraryItem` layer: a presentable *game* in the library (`TITLE`/`COVER`/
-descriptive metadata). Not launchable on its own unless it also carries a `DeclareExec`. See [chapter 03](03-roles.md).
+**Group node** — a `Group`: no payload, only `PARENTS`. Pure composition, so that a referrer can depend on a whole set
+with one edge. Never optimised away — something points at it by name.
 
-**Variant** — a launchable (`DeclareExec`) node that has a library-tile (`DeclareLibraryItem`) node as a `PARENTS`
-ancestor: one edition/version among several of "the same game," shown grouped under that one tile. Grouping is the
-graph edge — there is no `GAME` field; `LABEL` distinguishes variants. A single-variant game collapses to one node
-carrying both layers. See [chapter 03](03-roles.md).
+**Library tile** — a `DeclareLibraryItem` node: a presentable *game* in the library (`UID`/`TITLE`/`COVER`/descriptive
+metadata), and the **parent** of the launchables it groups. Never launchable itself. See [chapter 03](03-roles.md).
+
+**Variant** — a launchable that has a library-tile node as a `PARENTS` ancestor: one edition/version among several of
+"the same game," shown grouped under that one tile. Grouping is the graph edge — there is no `GAME` field; `LABEL`
+distinguishes variants. See [chapter 03](03-roles.md).
+
+**Toggle** — a node's `TOGGLE` field, `"on"` (default) or `"off"`. `"off"` makes the node a toggleable add-on: in the
+graph, not applied unless switched on. It replaced the old `OPTIONAL`+`DEFAULT` pair. See [chapter 02](02-nodes.md).
 
 **Bundle** — a directory holding one or more node `.json` files plus the loose content they reference (zips, ROMs,
 covers). A bundle groups *files*; it has no semantic meaning beyond being a scan unit. See
@@ -41,19 +46,19 @@ covers). A bundle groups *files*; it has no semantic meaning beyond being a scan
 **Library root** — a directory whose immediate subdirectories are bundles. The implementation scans library roots to
 build the node graph. Multiple roots compose into one graph. See [chapter 04](04-bundles-and-library.md).
 
-**Layer** — one entry in a node's `LAYERS` array: a typed payload. *VFS layers* contribute files
-(`VFSZipLayer`/`VFSDirLayer`/`VFSFileLayer`); *edit layers* mutate files/registry (`RegEdit`/`DllOverride`/`FileEdit`);
-the *Persist* layer declares durable state (one self-describing primitive: `MODE`/`KEEP`/`DROP`); the *CustomVar*
-layer declares a user knob. See [chapters 05](05-layers.md)–[08](08-variables.md).
+**Layer** — a node's payload, seen from the runtime's side. `Content` nodes contribute files (`FORM`
+`zip`/`dir`/`file`/`delta`); the edit types mutate files/registry/binaries (`RegEdit`/`FileEdit`/`BinaryPatch`/
+`DllOverride`); `Persist` declares durable state; `CustomVar` declares a user knob. One node is one layer — the words
+are now the same thing seen from two sides. See [chapters 05](05-layers.md)–[08](08-variables.md).
 
-**VFS** — the *virtual filesystem*: the single overlay/union mount the runtime assembles from all VFS layers (plus a
+**VFS** — the *virtual filesystem*: the single overlay/union mount the runtime assembles from all `Content` nodes (plus a
 runtime prefix, default-data and a writable layer) and presents at the *runtime path*. See
 [chapter 13](13-runtime-model.md).
 
 **Runtime path** — the single mount point the assembled VFS appears at; the root a runner's prefix/env points to. Exposed
 as `%RuntimePath%`.
 
-**Content root** — a runner property (`EXEC.CONTENT_ROOT`): the runtime-path-relative directory the game's content is
+**Content root** — a runner property (`CONTENT_ROOT`): the runtime-path-relative directory the game's content is
 mounted *under*. `""` = the root; `"pfx/drive_c/<uid>"` places content inside a Proton prefix's `C:` drive. See
 [chapter 09](09-exec.md), [chapter 13](13-runtime-model.md).
 
@@ -67,8 +72,8 @@ etc. Compared only for equality. The host's own token is the *machine platform*.
 **Machine platform** — the platform token of the host the runtime is executing on (e.g. `"linux64"`). Every runner chain
 must terminate at the machine platform. See [chapter 10](10-platforms-and-runners.md).
 
-**Guest / host platform** — a runner runs *guest*-platform content (`PLATFORM.GUEST[]`) while itself being a
-*host*-platform program (`PLATFORM.HOST`). A runner is a directed edge `guest → host` in the platform graph.
+**Guest / host platform** — a runner runs *guest*-platform content (`GUEST[]`) while itself being a
+*host*-platform program (`HOST`). A runner is a directed edge `guest → host` in the platform graph.
 
 **Runner chain (daisy chain)** — the ordered list of runners that takes content from its platform to the machine
 platform, nesting innermost (runs the content) to outermost (runs on the machine), always terminated by a native runner.

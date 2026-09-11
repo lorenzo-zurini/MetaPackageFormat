@@ -64,21 +64,27 @@ are illustrative; the *capabilities* are what matter):
 | `--resolve-only <id>` | Resolve everything (closure, runner chain, variables, paths) and dump the resolved parameters **without** mounting or launching. The fast, side-effect-light way to verify resolution — including the full runner chain. |
 | `--runner <id>` (repeatable) | Pin the runner chain: each occurrence appends a link (innermost→outermost); the native terminal is appended automatically. |
 | `--var KEY=VALUE` (repeatable) | Override a `CustomVar` for this launch. |
-| `--module ID=on|off` (repeatable) | Override an optional node's toggle for this launch. |
-| `--validate-nodes` | Validate the whole graph (chapter 15) and report errors/warnings. |
+| `--module ID=on\|off` (repeatable) | Override a node's `TOGGLE` for this launch. |
+| `--validate-nodes [scope]` | Validate the whole graph (chapter 15), or one bundle/UID and its closure — the fast pre-publish check. |
+| `--audit-packages` | Resolve **every** launchable in the library and report what would fail at launch. The loud counterpart to the static validator: it catches what only appears once a closure, a runner chain and variable expansion are real. |
 | `--list-nodes` | List presentable library tiles (grouped launchables) and hydration status. |
 | `--import-package <uid>` / `--import-runner <id>` | Hydrate a game / install a runner (fetch build + generate prefix). |
-| `--publish <dir>` / `--seed <dir>` | Publish (dehydrate-for-sharing) / re-seed a package's content (chapter 14). |
+| `--publish` / `--seed <dir>` | Publish (dehydrate-for-sharing) / re-seed a package's content (chapter 14). |
+| `--publish-meta <dir>` | Mint the text-only **Meta-CID** for a bundle or a whole collection — the address a source subscribes to (chapter 14 §14.4). |
 
 `--resolve-only` is the most useful for spec conformance testing: it exercises closure resolution, chain resolution and
 variable expansion, and emits a dump a test can golden-compare — proving the *decisions* without the side effects of a
-real mount/launch. (For cross-namespace *command composition*, which happens at execution, a real `--node` launch or an
+real mount/launch.
+
+A caution learned the hard way: a green sweep proves only what its path touches. `--audit-packages` reports every
+launchable healthy while the *install gate* is broken, persistence resolves to nothing, or hydration is lying, because
+it exercises the resolver and nothing else. Conformance-test each surface, not one of them twice. (For cross-namespace *command composition*, which happens at execution, a real `--node` launch or an
 equivalent dry path is needed.)
 
 ## 16.6 Saved user settings
 
 Per-package user choices persist across launches, keyed by the launchable's `UID`: the preferred runner chain
-(`RUNNER_CHAIN`), `CustomVar` values (`VARIABLES`), optional-node toggles (`MODULES`), and UI preferences (e.g. skip the
+(`RUNNER_CHAIN`), `CustomVar` values (`VARIABLES`), node toggles (`MODULES` — the key kept its older name), and UI preferences (e.g. skip the
 prelaunch dialog). These are an implementation's own store (the reference keeps them in its global config), not part of a
 distributed package — they describe *this user's* preferences, and feed the resolution priority chain (chapter 8 §8.3,
 chapter 11 §11.4).

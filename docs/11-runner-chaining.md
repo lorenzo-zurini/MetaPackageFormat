@@ -109,13 +109,13 @@ differently, decided by whether a link is a **namespace boundary** (it introduce
 Links that run in the **host** namespace (host paths, no prefix). They compose by **command concatenation**:
 
 ```
-wrappedArgv = [ wrapper.EXECUTABLE ] + wrapper.ARGS + innerProgram + innerArgs
+wrappedArgv = [ wrapper.PATH ] + wrapper.ARGS + innerProgram + innerArgs
 ```
 
-A pass-through wrapper (empty `EXECUTABLE`, or one referencing `%Content%`) contributes nothing and **forwards the inner
+A pass-through wrapper (empty `PATH`, or one referencing `%Content%`) contributes nothing and **forwards the inner
 argv unchanged**. A real wrapper tool (e.g. `gamescope`, `mangohud`) prepends its executable and args, then the inner
 command. Env from every same-namespace link is merged into the single process environment (innermost wins on conflict;
-all `REMOVE_ENV` applied).
+all `ENV_REMOVE` applied).
 
 This is what makes the native terminal free in the common case, and what makes "clone the native runner to add
 `gamescope`" work: `gamescope -- proton waitforexitandrun C:\…\game.exe`.
@@ -155,13 +155,13 @@ path to its guest path. For Wine, that's `C:\<uid-part>\%REL%`. The implementati
 target:
 
 ```
-romGuest        = GuestPath(template, content.CONTENTPATH)              # C:\9001\VortexQuest.vtx
+romGuest        = GuestPath(template, launchable.PATH)                  # C:\9001\VortexQuest.vtx
 emuGuest        = GuestPath(template, "__runner_vortexemu_win__/vortexemu.exe")  # C:\9001\__runner_vortexemu_win__\vortexemu.exe
 innerArgv       = [ emuGuest ] + vortexemu.ARGS with %Content% = romGuest        # [emuGuest, romGuest]
 
 # the boundary (proton) runs innerArgv: its %ContentPath% is redirected to the inner exe,
 # and the inner args trail the boundary's ARGS:
-protonArgv      = proton.EXECUTABLE
+protonArgv      = proton.PATH
                 + proton.ARGS with %ContentPath% = "__runner_vortexemu_win__/vortexemu.exe"
                 + [ romGuest ]                                         # the trailing inner args
 ```
@@ -206,15 +206,15 @@ The Windows-only VortexEmu emulator, shipped as a runner (its build on a content
 // vortexemu_win.json  (a runner — VortexEmu is a win32 program)
 { "NODE_ID": "vortexemu_win",
   "PARENTS": ["vortexemu_win_build"],
-  "LAYERS": [ { "TYPE": "DeclareRunner", "HOST": "win32", "GUEST": ["vortex"],
-                "EXECUTABLE": "vortexemu.exe", "ARGS": ["%Content%"], "ENV": {}, "REMOVE_ENV": [] } ] }
+  "TYPE": "DeclareExec", "HOST": "win32", "GUEST": ["vortex"],
+  "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
 
 // vortexemu_win_build.json  (its build: the win32 binary)
 { "NODE_ID": "vortexemu_win_build",
-  "LAYERS": [ { "TYPE": "VFSFileLayer", "PATH": "vortexemu.exe" } ] }
+  "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" }
 ```
 
-Launch a Vortex game (its `DeclareExec` has `PLATFORM: "vortex"`, `CONTENTPATH: "VortexQuest.vtx"`). Because the only route
+Launch a Vortex game (its `DeclareExec` has `HOST: "vortex"`, `PATH: "VortexQuest.vtx"`). Because the only route
 from `vortex` to `linux64` runs through win32, the runtime resolves the chain **automatically** — nothing is pinned:
 
 1. Resolves `[vortexemu_win, ge-proton10-30, native-passthrough]` (shortest, and only, path).
@@ -229,7 +229,7 @@ from `vortex` to `linux64` runs through win32, the runtime resolves the chain **
    ```
 5. Proton starts, Wine launches vortexemu.exe, VortexEmu loads the ROM. `vortex → win32 → linux64`, executed.
 
-> Note the inner runner's `EXECUTABLE` is a *build-relative* `vortexemu.exe` (it runs inside Wine, not from the host
+> Note the inner runner's `PATH` is a *build-relative* `vortexemu.exe` (it runs inside Wine, not from the host
 > `PATH`), and the runner is "available" because it ships a build (chapter 10 §10.6).
 
 The reference implementation has validated this cross-namespace execution path end-to-end (a real win32 emulator running

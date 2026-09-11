@@ -8,7 +8,7 @@ runners and prefixes meet the filesystem.
 
 The entire runtime is a **single overlay/union filesystem** mounted at the **runtime path** (`%RuntimePath%`). A
 Wine-family runner's prefix env (`STEAM_COMPAT_DATA_PATH` / `WINEPREFIX`) points at this one mount; an emulator runs from
-it; the content lives inside it at the content root. There is no extraction and no second copy: VFS layers are mounted by
+it; the content lives inside it at the content root. There is no extraction and no second copy: content is mounted by
 reference (zips served zero-copy by offset, dirs/files passed through).
 
 The overlay is built from an ordered list of layers, **lowest priority first**:
@@ -21,7 +21,7 @@ The overlay is built from an ordered list of layers, **lowest priority first**:
 │  KEEP passthrough dirs   (RW, live durable)                    │   ← chapter 7 (RW for their own subtree)
 │  DEFAULT-DATA layer      (base edits: FileEdit/RegEdit defaults)│   ← chapter 6
 │  INNER-RUNNER builds      (cross-namespace, @ CONTENT_ROOT/__runner_…__)│ ← chapter 11 §11.6
-│  CONTENT layers          (the game's VFS layers, @ CONTENT_ROOT)│   ← chapters 5,12 (closure order within)
+│  CONTENT layers          (the game's Content nodes, @ CONTENT_ROOT)│   ← chapters 5,12 (closure order within)
 │  DEFPREFIX base          (the generated Wine prefix tree)       │   ← §13.4 (only if PREFIX_GENERATE)
 └──────────────────────────────────────────────────────────────┘  lowest priority (bottom)
 ```
@@ -34,7 +34,10 @@ edits are written into the writable layer *after* mounting so they win unconditi
 Notes:
 
 - **DEFPREFIX at the bottom**: the prefix's `drive_c`/`pfx` structure provides the base filesystem the content is laid
-  *into*; content layers at `CONTENT_ROOT` (= `pfx/drive_c/<uid>`) sit above it.
+  *into*; content layers at `CONTENT_ROOT` (= `pfx/drive_c/<uid>`) sit above it. The runner's **prefix-assembly**
+  content ([ch. 10 §10.5](10-platforms-and-runners.md)) belongs to this base and is therefore **prepended** with it,
+  never appended: it includes the `system32`/`syswow64` builtin DLLs, and putting those on top silently shadows every
+  native override a package ships at the same path.
 - **Content layers** are ordered by the resolved closure (chapter 12): later closure node = higher; the launchable's own
   layers highest among content.
 - **DEFAULT-DATA above content**: base edits override the package's shipped files…
@@ -65,7 +68,7 @@ data root, runtime path and userdata path can each be relocated per launch (chap
 ## 13.3 Content placement & the prefix root
 
 - **Content root** (`CONTENT_ROOT`, runner-declared): the runtime-relative directory content mounts under. `%ProgramPath%`
-  = `RuntimePath / CONTENT_ROOT`; the launch target is `%ProgramPath% / CONTENTPATH`.
+  = `RuntimePath / CONTENT_ROOT`; the launch target is `%ProgramPath% / ` the launchable's `PATH`.
 - **Prefix root**: derived as the part of `CONTENT_ROOT` *before* `drive_c` — `""` for plain Wine (hives at the root),
   `"pfx"` for Proton (`pfx/drive_c/…`). The three registry hive files (`system.reg`, `user.reg`, `userdef.reg`) live at
   `<root>/<prefixRoot>`. The implementation uses the prefix root to find hives when building default-data and capturing

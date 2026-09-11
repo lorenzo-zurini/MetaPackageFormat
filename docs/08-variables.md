@@ -52,7 +52,7 @@ Custom variables (§8.3) layer on top and MAY shadow a built-in.
 | `%ScreenWidth%` / `%ScreenHeight%` | Host primary display geometry (`"0"` if unknown/headless). |
 | `%RuntimePath%` | The single overlay mount root. |
 | `%ProgramPath%` | `RuntimePath` joined with the content root — where the game's content sits. |
-| `%Content%` | Absolute host path of the launch target (`ProgramPath` + `CONTENTPATH`). |
+| `%Content%` | Absolute host path of the launch target (`ProgramPath` + the launchable's `PATH`). |
 | `%ContentPath%` | The launch target relative to `ProgramPath`. |
 | `%WorkDirPathRelative%` / `%WorkDirPathComplete%` | The working directory (relative / absolute). |
 | `%RunnerMount%` | Where the boundary runner's build is mounted (or the runtime root if unified). |
@@ -65,7 +65,7 @@ Custom variables (§8.3) layer on top and MAY shadow a built-in.
 
 ## 8.3 `CustomVar` — package-declared variables
 
-A `CustomVar` is a `LAYERS` entry that declares a variable, exposed as a `%KEY%` token. It lives in `LAYERS` so it
+A `CustomVar` is a node that declares a variable, exposed as a `%KEY%` token. It is an ordinary node so it
 **resolves through the same dependency-chain hierarchy** as everything else (chapter 12): a node later in the closure
 re-declaring the same `KEY` overrides an earlier one — that is the override mechanism (§8.5). It is **not** a content
 payload; the runtime resolves it into the variable map and never mounts it.
@@ -122,7 +122,7 @@ Examples:
 A variable's value is stored **raw** (e.g. `"1"`). Encoding is requested by the *consumer*, inline:
 
 ```
-RegEdit KEYVALUES { "Fullscreen": "%FULLSCREEN:dword%" }   → dword:00000001    (Wine registry)
+RegEdit tree value  "Fullscreen": "%FULLSCREEN:dword%"      → dword:00000001    (Wine registry)
 config  "fullscreen=%FULLSCREEN%"                          → 1                 (raw)
 config  "fullscreen=%FULLSCREEN:bool%"                     → true              (human text)
 ```
@@ -143,7 +143,7 @@ So **one value feeds many consumers**, each formatted as it needs. Formats a con
 
 ## 8.5 Override via the dependency chain
 
-Because `CustomVar`s live in `LAYERS`, they resolve in **closure order** (parents before children; the launchable last —
+Because `CustomVar`s are ordinary nodes, they resolve in **closure order** (parents before children; the launchable last —
 chapter 12). When the same `KEY` is declared more than once, the declaration **later in the chain wins**. That is the
 override mechanism — and it falls out of the node graph, not a special field:
 
@@ -190,12 +190,18 @@ silent-substitution model hid:
 
 ## 8.8 `WHEN` — conditional layers
 
-`WHEN` is a **condition** attachable to *any* layer, not just `CustomVar`. A false `WHEN` makes the layer **inert**:
+`WHEN` is a **condition** attachable to any node whose payload is *applied*. A false `WHEN` makes it **inert**:
 
 - on a `CustomVar` → the variable resolves to `""` (its references vanish; a single-token arg like `--addr=%X%`
   drops via the empty-arg rule of chapter 9) **and** its UI control is hidden;
-- on any other layer (`FileEdit`, `RegEdit`, `DllOverride`, `BinaryPatch`, a VFS mount, …) → the layer is not
-  applied at all.
+- on `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride` → the payload is not applied at all;
+- on `Persist` → the `KEEP`/`DROP` entries do not enter the persistence policy.
+
+`WHEN` is **not** accepted on `DeclareExec` or `DeclareLibraryItem`. Those payloads become the node's *identity*
+when the graph is indexed — before any variable exists to evaluate against — so a condition there could only be
+ignored, and a declaration nothing honours is worse than no declaration. Validators MUST reject it and point at
+`TOGGLE`, which is the mechanism for "this node is opt-in". The node is still inert in the sense that matters:
+its `PARENTS` remain reachable either way, because `WHEN` gates the payload, not the edge.
 
 This is how the format expresses *data-driven logic* — "this only applies when that" — the building block for
 replacing an external launcher with declarative data (e.g. one `%NETMODE%` = `host`/`join`, with the join address,
@@ -228,8 +234,9 @@ operand   := %KEY%   (→ its value)  |  "quoted"  |  bare-word
           "CHOICES": [ {"LABEL":"Host","VALUE":"host"}, {"LABEL":"Join","VALUE":"join"} ] } }
 { "TYPE": "CustomVar", "KEY": "JOIN_ADDR", "DEFAULT": "", "WHEN": "%NETMODE% == join",
   "UI": { "LABEL": "Host address", "CONTROL": "text" } }
-{ "TYPE": "RegEdit", "WHEN": "%NETMODE% == host", "REGPATH": "HKCU\\Software\\Game", "ARCHITECTURE":"32",
-  "KEYVALUES": { "Hosting": "%TRUE:dword%" } }
+{ "NODE_ID": "game_host_reg", "TYPE": "RegEdit", "WHEN": "%NETMODE% == host",
+  "EDITS": [ { "ARCHITECTURE": ["32"],
+               "HKCU": { "Software": { "Game": { "Hosting": "%TRUE:dword%" } } } } ] }
 ```
 
 (VidyaGod: `VarSubst::EvaluateCondition` / `ConditionParses`; gated in `ResolveCustomVariables` and the layer

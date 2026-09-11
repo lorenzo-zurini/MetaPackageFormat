@@ -5,19 +5,23 @@
 MPF has exactly one structural primitive. Every concept that other formats model with distinct constructs — a game, an
 edition, a dependency, a mod, an optional add-on, an emulator, a runtime, a config option — is, in MPF, **a node**.
 
-A node is a small JSON object with a globally-unique identity (`NODE_ID`). It does at most three things:
+A node is a small JSON object with a globally-unique identity (`NODE_ID`). It does exactly two things:
 
-1. **Selects** other nodes, by listing their ids in `PARENTS`. This is how composition, dependencies, variants and
-   options are expressed. Edges carry no attributes; selection attributes (optional? default-on? mutually exclusive?)
-   live on the *selected* node.
-2. **Contributes** payloads, by listing them in `LAYERS`: files to overlay, registry edits, config patches, persistence
-   rules, user knobs.
-3. **Declares its identity**, via the `Declare*` *identity layers* in that same `LAYERS` array: a `DeclareExec` makes it
-   an entry point (a launchable), a `DeclareRunner` an executor, a `DeclareLibraryItem` a library tile; a node with none
-   is plain content. There is no `ROLE` field — identity emerges from which layers a node carries.
+1. **It is one layer.** Its `TYPE` says which — files to overlay (`Content`), a registry write (`RegEdit`), a config
+   patch (`FileEdit`), a byte patch (`BinaryPatch`), a DLL policy (`DllOverride`), durable state (`Persist`), a user
+   knob (`CustomVar`), what to run (`DeclareExec`), a library tile (`DeclareLibraryItem`), or nothing at all (`Group`).
+   That type's payload sits **directly on the node**. There is no `ROLE` field, and no `LAYERS` array.
+2. **It selects other nodes**, by listing their ids in `PARENTS`. This is how composition, dependencies, variants,
+   options *and order* are expressed: a parent is applied before its child. Edges carry no attributes; selection
+   attributes (toggleable? mutually exclusive? conditional?) live on the *selected* node.
 
 Nothing else is a first-class concept. There is no separate "package object," no "installer," no "variant table," no
-"runner registry schema." There is the graph, and the rules for walking it.
+"runner registry schema," and no ordered array inside a node. There is the graph, and the rules for walking it.
+
+> **Order is an edge.** A node that used to carry twenty layers in a list is twenty nodes in a chain. This is not a
+> cosmetic change: it means a mod can depend on *one* of those layers, a capture can be parented at *one* point in the
+> chain, and "these two writes are unordered" becomes a statement the format can make — and a validator can check —
+> rather than an accident of array position.
 
 > **Design consequence.** Because there is one primitive, every feature is expressed by *composing* nodes rather than by
 > *adding* format constructs. The format stays small while the expressible space stays large. New capabilities tend to
@@ -30,10 +34,11 @@ files and loose content for one logical product, e.g. a game and its base conten
 
 ```
 [9001] Vortex Quest/
-├── vortex_quest.json           # launchable node (the entry point / tile)
-├── vortex_quest_base.json      # content node (carries the ROM as a layer)
-├── VortexQuest.vtx             # the ROM bytes referenced by the layer
-└── VortexQuest_Cover.png       # cover art referenced by META
+├── vortex_quest.json           # DeclareLibraryItem — the tile
+├── vortex_quest_game.json      # DeclareExec — the launchable (the tile is its parent)
+├── vortex_quest_rom.json       # Content — FORM "file", the ROM
+├── VortexQuest.vtx             # the ROM bytes
+└── VortexQuest_Cover.png       # cover art referenced by COVER
 ```
 
 But a "package" has fuzzy edges *by design*: its launchable's closure can reference content nodes in *other* bundles
@@ -47,10 +52,10 @@ Resolving and running a launchable proceeds in well-defined phases. Each is spec
 
 1. **Index** the graph: scan every library root's bundles, parse each `.json` with a `NODE_ID`, key by id
    ([ch. 4](04-bundles-and-library.md)).
-2. **Resolve the content closure** of the chosen launchable: walk `PARENTS`, apply `OPTIONAL`/`DEFAULT`/`EXCLUDE` gating
-   and the hierarchy gate, topologically order the survivors ([ch. 12](12-resolution.md)).
-3. **Resolve the runner chain**: BFS the platform graph from the launchable's `PLATFORM.HOST` to the machine platform,
-   appending the native terminal ([ch. 11](11-runner-chaining.md)).
+2. **Resolve the content closure** of the chosen launchable: walk `PARENTS` **upward**, apply `TOGGLE`/`EXCLUDE`/`WHEN`
+   gating and the hierarchy gate, topologically order the survivors ([ch. 12](12-resolution.md)).
+3. **Resolve the runner chain**: BFS the platform graph from the launchable's `HOST` to the machine platform, appending
+   the native terminal ([ch. 11](11-runner-chaining.md)).
 4. **Resolve variables & persistence**: expand `%TOKEN%`s, resolve `CustomVar` knobs, decide what state persists
    ([ch. 8](08-variables.md), [ch. 7](07-persistence.md)).
 5. **Materialize content**: ensure every layer's bytes are present locally, fetching content-addressed sources as needed
@@ -66,12 +71,15 @@ Resolving and running a launchable proceeds in well-defined phases. Each is spec
 
 These are *not* features the format special-cases. They are shapes of the one graph:
 
-- **Mods with automatic load order** — a mod is a content node that `PARENTS` the base. Overlay priority follows the
-  resolved order, so "later in the closure wins" *is* the load order. Marking a mod `OPTIONAL` makes it a toggle.
-- **Optional DLC / expansions** — an `OPTIONAL` content node; `DEFAULT` decides if it's on out of the box; `EXCLUDE`
-  makes a set of them mutually exclusive (pick-one).
+- **Mods with automatic load order** — a mod is a `Content` node that `PARENTS` the base. Overlay priority follows the
+  resolved order, so "a child wins over its parents" *is* the load order. `TOGGLE: "off"` makes a mod a toggle.
+- **Optional DLC / expansions** — a `TOGGLE: "off"` content node (or `"on"` to be on out of the box); `EXCLUDE` makes a
+  set of them mutually exclusive (pick-one).
 - **Multi-edition games** — several launchable (`DeclareExec`) nodes that `PARENTS` one library-tile (`DeclareLibraryItem`)
   node; the library groups them under that tile, the user picks a variant, each variant resolves its own closure.
+- **Authoring by capture** — run an installer on a live runtime built from any point of a chain, and the files and
+  registry it wrote become *new nodes parented at that point*. Nothing has to be spliced into an existing node, because
+  a node is only one layer.
 - **Cross-platform execution & ARM** — a runner is an edge in a platform graph; running anything anywhere is shortest-path
   over runner edges. New platforms are new runners, not new format.
 - **P2P distribution & portable installs** — every payload carries a content-addressed `SOURCE`; an install is "fetch the
@@ -92,8 +100,9 @@ A conforming implementation MUST preserve these properties. They are referenced 
   is dropped with a diagnostic ([ch. 4](04-bundles-and-library.md)).
 - **I2 — Acyclic selection.** `PARENTS` edges MUST form a DAG. Cycles are reported; resolution still completes by
   breaking the back-edge ([ch. 12](12-resolution.md)).
-- **I3 — Single overlay.** The entire runtime is ONE overlay mount at the runtime path. Layer order = overlay priority,
-  lowest first; the launchable's own layers are highest ([ch. 13](13-runtime-model.md)).
+- **I3 — Single overlay.** The entire runtime is ONE overlay mount at the runtime path. Resolved closure order =
+  overlay priority, lowest first; the launchable — the terminal node of its chain — is highest
+  ([ch. 13](13-runtime-model.md)).
 - **I4 — One process.** A launch executes exactly one host process — the outermost (native-terminal) runner — which
   nests every inner runner and the content as arguments. Inner runners are not separately spawned by the implementation
   ([ch. 11](11-runner-chaining.md)).
@@ -105,8 +114,11 @@ A conforming implementation MUST preserve these properties. They are referenced 
   persistence survives, written to `USERDATA` ([ch. 7](07-persistence.md), [ch. 13](13-runtime-model.md)).
 - **I7 — Save-safety.** The runtime MUST NOT destroy durable user data. Teardown unmounts durable-backed mounts
   non-lazily and verifies them gone before deleting any ephemeral tree ([ch. 13](13-runtime-model.md)).
-- **I8 — Content addressing is advisory-to-present, authoritative-to-fetch.** A locally-present file at a layer's path is
+- **I8 — Content addressing is advisory-to-present, authoritative-to-fetch.** A locally-present file at a node's path is
   authoritative; the `SOURCE` `CID` is consulted only to obtain a missing file ([ch. 14](14-content-addressing.md)).
+- **I9 — Sibling order is unspecified.** Two parents of the same node are not ordered with respect to each other. An
+  implementation MUST be deterministic, but a package MUST NOT depend on which of two unrelated nodes writes last; if
+  the order matters, it must be an edge ([ch. 2 §2.4](02-nodes.md)).
 
 ## 1.6 Relationship to the reference implementation
 
