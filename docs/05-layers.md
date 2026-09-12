@@ -79,11 +79,21 @@ in the overlay. That is what a chain is, and it is why the overwhelming majority
   "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
 ```
 
-`BASE_TARGET` names a **different** base, and is only needed when the delta is not over the thing it mounts onto:
+`BASE_TARGETS` names a **different** base, and is only needed when the delta is not over the thing it mounts onto:
 
-- **`BASE_TARGET`** (string, or array of string) — the mount target(s) whose composed content is this delta's byte
-  base. An array means the base is the **concatenation** of those targets, in order, which lets one delta dedup
-  against several independent trees at once (a wine build ‖ a DXVK build ‖ the previous prefix).
+- **`BASE_TARGETS`** (array of string) — the mount targets whose composed content is this delta's byte base. The
+  base is the **concatenation** of those targets, in the order given, which lets one delta dedup against several
+  independent trees at once (a wine build ‖ a DXVK build ‖ the previous prefix). It is **always a list**: a
+  one-element list is the ordinary cross-target delta, and there is deliberately no singular spelling — `""` is a
+  real target (the mount root), so a lone string could not distinguish a base declared *at* the root from no base
+  declared at all, and the runtime would silently reconstruct against the wrong bytes.
+
+  Each named target MUST be one that some layer in the closure **already mounts at, earlier in the plan** — and it
+  must be a target whose content is a byte stream (a `zip` or a `delta`); a `dir` or `file` layer mounts fine and is
+  not a base. A base naming anything else is an error ([chapter 15](15-validation.md)): the runtime finds no bytes,
+  skips the layer, and the package launches with that content silently absent.
+
+  The order is load-bearing — it must match the concatenation the delta was generated against.
 
 > **A delta must reconstruct a COMPLETE tree.** Authoring a delta from an *overlay* zip (one that only contains the
 > files that changed) produces a delta that masks the base rather than replacing it. The base is the full tree, and so
