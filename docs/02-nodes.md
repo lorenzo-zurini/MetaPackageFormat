@@ -48,7 +48,7 @@ questions and MUST be stored in different places.
   files** ([ch. 14](14-content-addressing.md)), so anything in a node file is in the CID: writing a drag back
   would republish the package for every peer on every mouse-up. It belongs in the tool's own per-user
   configuration, keyed by bundle. (The reference implementation keeps it in `GlobalConfig.JSON` under
-  `EDITORLAYOUT`, keyed by bundle directory name then `NODE_ID`.)
+  `EDITORLAYOUT`, keyed by bundle PATH then `NODE_ID`.)
 
 A reader resolves a node's position weakest-to-strongest: the computed default from its own layout algorithm,
 then `POS`, then the local override. A tool that publishes SHOULD stamp the layout as it stands at that moment —
