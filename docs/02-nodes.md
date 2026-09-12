@@ -35,15 +35,29 @@ These fields apply to a node of **any** `TYPE`. Every one is optional except `NO
 | `WHEN` | string | `""` | A boolean condition over `%variables%` ([ch. 8 §8.8](08-variables.md)). When it does not hold the node is **inert**: its payload is not applied, but it is still a graph node, so its `PARENTS` are still reached. Not accepted on `DeclareExec`/`DeclareLibraryItem`, whose payloads become the node's identity at index time — use `TOGGLE` there. |
 | `COMMENT` | string | `""` | Free text for a human. Never interpreted. |
 
-**Canvas position is deliberately NOT a node field.** An authoring tool needs somewhere to remember where a node
-sits on screen, and the obvious place — a `POS` key on the node — is wrong: a package is content-addressed, and a
-Meta-CID is minted **add-by-reference, in place, over the author's own files** ([ch. 14](14-content-addressing.md)),
-so anything in a node file is in the CID. Storing layout there means dragging a box republishes the package for
-every peer. Layout belongs in a sidecar the publisher already excludes — the reference implementation uses
-`<bundle>/LAYOUT.vglayout`, keyed by `NODE_ID`: a Meta-CID is text-only-JSON by construction, and nothing mounts
-the bundle directory itself, so a non-`.json` file there reaches neither peers nor the running game. (`USERDATA`
-looks like the obvious home and is not one — a whole-runtime `Persist` makes it the writable top branch of the
-runtime union, so anything in it appears inside the game's own directory.)
+**Canvas position is a node field, and where an author MOVES a node is not.** The two halves answer different
+questions and MUST be stored in different places.
+
+- **`POS`** — optional, `[x, y]` numbers — is the node's **default** position: where a tool SHOULD draw it when
+  nobody on this machine has an opinion. It is written by the publisher, not by dragging (see below), so it
+  changes only when a package is republished. Without it a received package opens as a pile at the origin or is
+  re-arranged from scratch by whatever heuristic the reader happens to implement, which means no two people
+  looking at the same package see the same picture.
+- **Where this machine has since dragged a node** is a LOCAL PREFERENCE and MUST NOT be written into the node. A
+  package is content-addressed and a Meta-CID is minted **add-by-reference, in place, over the author's own
+  files** ([ch. 14](14-content-addressing.md)), so anything in a node file is in the CID: writing a drag back
+  would republish the package for every peer on every mouse-up. It belongs in the tool's own per-user
+  configuration, keyed by bundle. (The reference implementation keeps it in `GlobalConfig.JSON` under
+  `EDITORLAYOUT`, keyed by bundle directory name then `NODE_ID`.)
+
+A reader resolves a node's position weakest-to-strongest: the computed default from its own layout algorithm,
+then `POS`, then the local override. A tool that publishes SHOULD stamp the layout as it stands at that moment —
+local overrides included, since that is the picture the author arranged — into every node's `POS`, and MUST leave
+a node whose `POS` is already correct untouched, so republishing an unchanged bundle mints the same CID.
+
+`POS` carries no semantics whatsoever: it never affects resolution, ordering, closure, or what a package does. An
+implementation with no canvas ignores it, and a malformed `POS` (not two numbers) MUST be treated as absent
+rather than as an error.
 
 Two fields are **derived, not authored** (an implementation computes them at index time; they never appear in JSON):
 

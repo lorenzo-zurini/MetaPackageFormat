@@ -18,7 +18,6 @@ sit together and can be copied/shared/deleted as a unit.
 ├── Silent Hill 2.zip                  ← bytes referenced by a layer
 ├── SH2 Enhanced Edition.zip
 ├── SH2_Cover.png                      ← bytes referenced by the tile's COVER
-├── LAYOUT.vglayout                    ← an authoring tool's canvas layout (see below) — not part of the package
 └── USERDATA/                          ← per-package durable saves (ch. 7) — created at runtime
 ```
 
@@ -30,9 +29,12 @@ A `.json` file in a bundle holds **one node or a JSON array of them** ([ch. 2 §
 accept both. Since a chain of twenty nodes is the normal shape now, keeping one chain in one array file is common —
 file grouping remains pure presentation with no semantics.
 
-**Non-`.json` files are never nodes**, which gives authoring tools somewhere to put per-machine state that must not
-travel: the reference implementation writes canvas layout to `<bundle>/LAYOUT.vglayout`. That matters because
-publishing is text-only-JSON by construction (§4.4), so such a file reaches neither peers nor the running game.
+**Non-`.json` files are never nodes.** Publishing is text-only-JSON by construction (§4.4), so anything else in a
+bundle reaches neither peers nor the running game — which makes a bundle a safe place for bytes a layer
+references (zips, covers) but a poor one for per-machine state, since it still travels with the folder when the
+author copies or backs it up. Per-machine state belongs in the tool's own configuration: canvas positions split
+into a published default on the node (`POS`) and a local override outside the bundle entirely
+([ch. 2 §2.1](02-nodes.md)).
 
 ### Relative-path resolution
 
