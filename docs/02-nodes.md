@@ -55,6 +55,10 @@ then `POS`, then the local override. A tool that publishes SHOULD stamp the layo
 local overrides included, since that is the picture the author arranged — into every node's `POS`, and MUST leave
 a node whose `POS` is already correct untouched, so republishing an unchanged bundle mints the same CID.
 
+Stamping is an AUTHORING act, so a tool SHOULD do it only for a bundle that machine actually authored. Writing
+`POS` into a bundle merely fetched from someone else changes bytes that a content address elsewhere still claims
+to serve, and adds nothing: a reader with no `POS` computes the same default anyway.
+
 `POS` carries no semantics whatsoever: it never affects resolution, ordering, closure, or what a package does. An
 implementation with no canvas ignores it, and a malformed `POS` (not two numbers) MUST be treated as absent
 rather than as an error.
