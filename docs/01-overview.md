@@ -8,7 +8,7 @@ edition, a dependency, a mod, an optional add-on, an emulator, a runtime, a conf
 A node is a small JSON object with a globally-unique identity (`NODE_ID`). It does exactly two things:
 
 1. **It is one layer.** Its `TYPE` says which — files to overlay (`Content`), a registry write (`RegEdit`), a config
-   patch (`FileEdit`), a byte patch (`BinaryPatch`), a DLL policy (`DllOverride`), durable state (`Persist`), a user
+   patch (`FileEdit`), a byte patch (`BinaryPatch`), a DLL policy (`DllOverride`), durable state (`DeclarePersist`), a user
    knob (`CustomVar`), what to run (`DeclareExec`), a library tile (`DeclareLibraryItem`), or nothing at all (`Group`).
    That type's payload sits **directly on the node**. There is no `ROLE` field, and no `LAYERS` array.
 2. **It selects other nodes**, by listing their ids in `PARENTS`. This is how composition, dependencies, variants,

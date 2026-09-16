@@ -16,9 +16,8 @@ The overlay is built from an ordered list of layers, **lowest priority first**:
 ```
 ┌──────────────────────────────────────────────────────────────┐  highest priority (top)
 │  OVERRIDE edits          (applied post-mount, COW → writable)  │   ← chapter 6 §6.1
-│  DROP shadows            (ephemeral RW, writes discarded)      │   ← chapter 7 (carve a hole)
-│  WRITABLE layer  (ephemeral, or = USERDATA if KEEP %RuntimePath%)│ ← general COW top; session writes land here
-│  KEEP passthrough dirs   (RW, live durable)                    │   ← chapter 7 (RW for their own subtree)
+│  WRITABLE layer          (always ephemeral)                    │   ← general COW top; session writes land here
+│  persist passthrough dirs (RW, live durable → <instance>/<TARGET>)│ ← chapter 7 (RW for their own subtree)
 │  DEFAULT-DATA layer      (base edits: FileEdit/RegEdit defaults)│   ← chapter 6
 │  INNER-RUNNER builds      (cross-namespace, @ CONTENT_ROOT/__runner_…__)│ ← chapter 11 §11.6
 │  CONTENT layers          (the game's Content nodes, @ CONTENT_ROOT)│   ← chapters 5,12 (closure order within)
@@ -26,9 +25,11 @@ The overlay is built from an ordered list of layers, **lowest priority first**:
 └──────────────────────────────────────────────────────────────┘  lowest priority (bottom)
 ```
 
-The `layers` array is stacked lowest→highest in the order above; the **writable layer** is a distinct top branch (a
-persist passthrough is read-write for *its own* subtree, the writable layer is the catch-all for everything else); OVERRIDE
-edits are written into the writable layer *after* mounting so they win unconditionally. Ordering among
+The `layers` array is stacked lowest→highest in the order above; the **writable layer** is a distinct top branch and is
+**always ephemeral** (a persist passthrough is read-write for *its own* subtree, backed by the durable instance target;
+the writable layer is the catch-all scratch for everything else and is wiped after the session — which keeps the
+instance's own config out of any game-writable mount); OVERRIDE edits are written into the writable layer *after*
+mounting so they win unconditionally. Ordering among
 *non-conflicting* layers (e.g. content vs. an inner-runner build in a separate `__runner_…__` subdir) is immaterial.
 
 Notes:
@@ -49,21 +50,21 @@ Notes:
 
 ## 13.2 The session directory tree
 
-Everything ephemeral for one launch lives under a per-session temp root (under the implementation's data root), so a
-single delete cleans up:
+Everything ephemeral for one launch lives under a per-session temp root (in the OS temp dir — it is pure scratch and
+never needs to persist, so it stays off the data root entirely), so a single delete cleans up:
 
 ```
-<dataRoot>/TEMP/<PackageUID>/
+<tmp>/VidyaGod/<PackageUID>/<instance>/
 ├── RUNTIME       ← the overlay mount point (%RuntimePath%)
 ├── RUNNER        ← the boundary runner's build mount (%RunnerMount%), if separate
-├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), unless KEEP %RuntimePath%
-├── DROPS         ← per-launch scratch for DROP shadows (writes discarded)
+├── WRITELAYER    ← ephemeral writable branch (%WriteLayerPath%), always
 ├── DEFAULTDATA   ← base-edit layer (%DefaultData%), regenerated each launch
 └── DEFPREFIX     ← per-launch generated prefix (%DefPrefixPath%), if not an installed artifact
 ```
 
-Durable saves live **outside** this tree, at `<bundle>/USERDATA` (chapter 7), so wiping `TEMP` never touches them. The
-data root, runtime path and userdata path can each be relocated per launch (chapter 16) for portable/in-package runs.
+Durable saves live **outside** this tree, in the per-game **instance** directory (chapter 7/16) as named `TARGET`
+subdirs, so wiping the temp tree never touches them. The data root, runtime path and instance/userdata path can each be
+relocated per launch (chapter 16) for portable/in-package runs.
 
 ## 13.3 Content placement & the prefix root
 
@@ -98,8 +99,8 @@ between content and the writable layer:
 - **Base `RegEdit`s** → full `user/system/userdef.reg` built by loading the pristine prefix's hives, applying the edits,
   and writing the result into `DEFAULTDATA` (Wine only; the prefix itself is never touched). Wine COWs the whole hive
   from this layer when it writes the registry.
-- **Persisted KEEP registry-subtrees** are merged into those hives *after* the base edits, so saved user keys win over
-  package defaults.
+- **Persisted registry-subtrees** (`DeclarePersist` `SCOPE:registry`) are merged into those hives *after* the base
+  edits, so saved user keys win over package defaults.
 
 A package with no base edits gets no (empty) default-data layer. (VidyaGod: `RegistryLayer::BuildDefaultData`.)
 
@@ -107,11 +108,12 @@ A package with no base edits gets no (empty) default-data layer. (VidyaGod: `Reg
 
 After the process exits, the session is dismantled in a **save-safe** order:
 
-1. **Capture** declared persistence *while the runtime is still mounted*: KEEP hives, KEEP files,
-   KEEP registry-subtrees → `USERDATA` (chapter 7). (KEEP dirs are live passthroughs — already durable.)
-2. **Unmount durable-backed mounts non-lazily and verify**: any mount that exposes `USERDATA` through it (the
-   whole-runtime keep's writable union, or any KEEP-dir passthrough) is unmounted with a blocking unmount and retried; the
-   implementation confirms it is gone from the mount table before proceeding.
+1. **Capture** declared persistence *while the runtime is still mounted*: persisted hives, files, and
+   registry-subtrees → the instance's durable `TARGET`s (chapter 7). (Directory persists are live passthroughs —
+   already durable.)
+2. **Unmount durable-backed mounts non-lazily and verify**: any mount that exposes a durable instance `TARGET` through
+   it (any directory-persist passthrough) is unmounted with a blocking unmount and retried; the implementation confirms
+   it is gone from the mount table before proceeding.
 3. **Lazy-unmount purely-ephemeral mounts** (content/runner mounts whose backing is all under `TEMP`).
 4. **Wipe `TEMP` only if every durable mount detached cleanly.** If any durable-backed mount is still live, the wipe is
    **aborted** and `TEMP` is left in place — because a recursive delete could otherwise traverse a live passthrough into

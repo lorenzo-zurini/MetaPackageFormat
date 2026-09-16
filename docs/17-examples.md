@@ -270,10 +270,12 @@ runner is just a `DeclareExec` with a non-empty `GUEST`.
     "UI": { "LABEL": "Proton logging", "CONTROL": "enum",
             "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } },
 
-  { "NODE_ID": "proton_keepset", "TYPE": "Persist", "PARENTS": ["geproton_var_log"],
-    "KEEP": ["pfx/drive_c/users", "HKCU"] },
+  { "NODE_ID": "proton_keep_users", "TYPE": "DeclarePersist", "PARENTS": ["geproton_var_log"],
+    "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
+  { "NODE_ID": "proton_keep_hkcu", "TYPE": "DeclarePersist", "PARENTS": ["proton_keep_users"],
+    "SCOPE": "registry", "PATH": "HKCU" },
 
-  { "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["proton_keepset"],
+  { "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["proton_keep_hkcu"],
     "HOST": "linux64", "GUEST": ["win32", "win64"],
     "PATH": "%RunnerMount%/proton",
     "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],

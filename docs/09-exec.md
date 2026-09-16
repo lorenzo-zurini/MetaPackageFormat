@@ -46,7 +46,7 @@ special case for the ends.
 > could not say so.)
 
 > **Composition.** `DeclareExec` **composes along the launch closure** (field-level last-wins, the launch node
-> highest-priority — like `CustomVar`/`Persist`): a base/parent node can supply `PATH`/`WORKDIR` and a variant or mod
+> highest-priority — like `CustomVar`/`DeclarePersist`): a base/parent node can supply `PATH`/`WORKDIR` and a variant or mod
 > override `ARGS`. The effective exec is the merge across the closure.
 
 For a ROM, `PATH` is the ROM file; for a native binary, the binary; for a self-contained engine that finds its own data

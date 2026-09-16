@@ -11,7 +11,7 @@ array: what a node *is* **is** its `TYPE`. See [chapter 02](02-nodes.md).
 edges are `NODE_ID` references in `PARENTS` (and platform edges implied by a runner's `HOST`/`GUEST`). See
 [chapter 04](04-bundles-and-library.md).
 
-**Type** — the node's `TYPE` field: one of `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride`, `Persist`,
+**Type** — the node's `TYPE` field: one of `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride`, `DeclarePersist`,
 `CustomVar`, `DeclareExec`, `DeclareLibraryItem`, `Group`. It selects both what the node does and which payload fields
 it carries. See [chapter 03](03-roles.md).
 
@@ -48,7 +48,7 @@ build the node graph. Multiple roots compose into one graph. See [chapter 04](04
 
 **Layer** — a node's payload, seen from the runtime's side. `Content` nodes contribute files (`FORM`
 `zip`/`dir`/`file`/`delta`); the edit types mutate files/registry/binaries (`RegEdit`/`FileEdit`/`BinaryPatch`/
-`DllOverride`); `Persist` declares durable state; `CustomVar` declares a user knob. One node is one layer — the words
+`DllOverride`); `DeclarePersist` declares durable state; `CustomVar` declares a user knob. One node is one layer — the words
 are now the same thing seen from two sides. See [chapters 05](05-layers.md)–[08](08-variables.md).
 
 **VFS** — the *virtual filesystem*: the single overlay/union mount the runtime assembles from all `Content` nodes (plus a

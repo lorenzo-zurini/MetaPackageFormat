@@ -195,7 +195,7 @@ silent-substitution model hid:
 - on a `CustomVar` → the variable resolves to `""` (its references vanish; a single-token arg like `--addr=%X%`
   drops via the empty-arg rule of chapter 9) **and** its UI control is hidden;
 - on `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride` → the payload is not applied at all;
-- on `Persist` → the `KEEP`/`DROP` entries do not enter the persistence policy.
+- on `DeclarePersist` → the persist does not enter the persistence policy (nothing is kept for it).
 
 `WHEN` is **not** accepted on `DeclareExec` or `DeclareLibraryItem`. Those payloads become the node's *identity*
 when the graph is indexed — before any variable exists to evaluate against — so a condition there could only be
