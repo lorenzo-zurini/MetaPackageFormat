@@ -109,11 +109,13 @@ Two keys cooperate:
 - **`SOURCE`** (object) — a content-addressed locator describing how to *obtain* the bytes if the local `PATH` is
   absent. Fully specified in [chapter 14](14-content-addressing.md). Shape:
   ```json
-  "SOURCE": { "TYPE": "ipfs", "CID": "Qm…", "PATH": "optional override of the local path" }
+  "SOURCE": { "TYPE": "ipfs", "CID": "Qm…", "SIZE": 1058013184, "PATH": "optional override of the local path" }
   ```
   - `SOURCE.PATH`, if present, **overrides** the top-level `PATH` as the local location.
   - `SOURCE.TYPE: "ipfs"` + `CID` means "fetch this CID to the local path." `SOURCE.TYPE: "path"` (the default) means
     local-only, no remote.
+  - `SOURCE.SIZE` (optional, integer bytes) is the payload size stamped at mint alongside the `CID` — a download
+    total/ETA hint, not an integrity check. See [chapter 14](14-content-addressing.md).
 
 **Resolution rule (invariant I8).** A file present at the resolved local path is authoritative and is used as-is. The
 `SOURCE`/`CID` is consulted **only** when that local file is missing — to fetch it. A node with neither a present local

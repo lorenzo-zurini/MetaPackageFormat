@@ -11,13 +11,14 @@ Any `Content` node (chapter 5) and any tile's `COVER` (chapter 3) MAY carry a `S
 
 ```json
 "SOURCE": { "TYPE": "ipfs", "CID": "QmRVRg1spGsV96NuKv7HH27kwhnPKwadNnBp3ZyarDPFwY",
-            "PATH": "optional local-path override" }
+            "SIZE": 1058013184, "PATH": "optional local-path override" }
 ```
 
 | `SOURCE` field | Meaning |
 |----------------|---------|
 | `TYPE` | the content backend. `"ipfs"` = fetch by `CID`; `"path"` (the default if no SOURCE) = local-only. |
 | `CID` | for `"ipfs"`: the content identifier (hash) of the bytes. Both the *address to fetch from* and the *integrity check*. |
+| `SIZE` | optional; the payload byte size of the content (a plain file's size, or the recursive sum of a directory's files). Stamped at mint alongside the `CID`. It is a *hint*, not an integrity check — it lets a client show a real download percentage/ETA and a pre-fetch "this is N GB" total **instantly**, without walking the DAG. Absent ⇒ the size is discovered the old way (a DAG stat / gateway HEAD). |
 | `PATH` | optional; overrides the layer's top-level `PATH` as the local file location. |
 
 The pairing of a **local `PATH`** with a **content `CID`** is the heart of the model:
