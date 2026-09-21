@@ -72,7 +72,7 @@ The indexing algorithm, precisely:
 
 ```
 function BuildNodeIndex(libraryRoots):
-    index = {}                                  # LABEL -> node
+    index = {}                                  # CID handle -> node
     for root in libraryRoots:
         if not isDirectory(root): continue
         for bundle in immediateSubdirectories(root):
@@ -82,18 +82,24 @@ function BuildNodeIndex(libraryRoots):
                 # A file holds ONE node or an ARRAY of them (ch. 2 §2.2).
                 for entry in (json is array ? json : [json]):
                     node = ParseNode(entry, file, bundle)
-                    if node is null: continue    # no LABEL ⇒ not a node, ignore
-                    if node.LABEL in index:
-                        warn("duplicate LABEL, keeping first-seen")
+                    if node is null: continue    # no TYPE ⇒ not a node, ignore
+                    key = node.CID                # the stored CID handle; else a synthetic per-node key
+                    if key is empty: key = synthetic(file, entry)
+                    if key in index:
+                        warn("duplicate node handle, keeping first-seen")
+                        index[synthetic(file, entry)] = node   # re-key the loser — never drop it
                         continue                 # invariant I1: first-seen wins
-                    index[node.LABEL] = node
+                    index[key] = node
     return index
 ```
 
-`ParseNode` reads the fields in [chapter 2 §2.2](02-nodes.md), applies defaults, expands the node's payload into the
-layers the runtime consumes, and records the source file and bundle directory. A JSON entry that is not an object, or
-lacks a non-empty string `LABEL`, yields no node and is silently skipped (it may be unrelated data living in the
-bundle).
+Two builders exist and MUST agree on identity: this fast **working-tree** index keys each node by its stored `CID`
+handle (what the editor and the on-disk graph reference), while the **frozen** index re-derives each node's real CID
+and keys by *that*. For an unedited tree the two coincide; a stored handle that differs from the derived CID is simply
+a node edited-but-not-yet-re-minted. `ParseNode` reads the fields in [chapter 2 §2.2](02-nodes.md), applies defaults,
+expands the node's payload into the layers the runtime consumes, and records the source file and bundle directory. A
+JSON entry that is not an object, or lacks a string `TYPE`, yields no node and is silently skipped (it may be unrelated
+data living in the bundle). `LABEL` is never a key here — it is cosmetic.
 
 **`ParseNode` MUST be total.** A node file is untrusted input — it arrives from a peer, or from an author's typo — and
 indexing happens at startup, so an exception escaping here takes the whole runtime down before it can be used to
@@ -106,10 +112,14 @@ at any depth, a malformed `EDITS`) MUST therefore be **indexed carrying its erro
 - Indexed-with-an-error, it contributes **no layers**, validation names it ([ch. 15](15-validation.md)), and
   resolution treats it as missing so a launch that would route through it is refused rather than quietly doing less.
 
-**Duplicate ids (invariant I1).** If two files declare the same `LABEL`, the **first one seen wins** and the second is
-dropped with a warning. Scan order across roots is therefore observable; an implementation SHOULD make it deterministic
-(e.g. roots in a configured order, bundles and files sorted). Authors MUST treat `LABEL` collisions as errors to avoid
-depending on scan order. (One legitimate use of shadowing: a user's *local* package overriding a source's copy of the
+**Duplicate handles (invariant I1).** A `CID` handle is a content hash, so a collision only happens on a **stale** stored
+CID (a node edited but not re-minted) or a **forged** one (an untrusted received block claiming a local node's CID). The
+**first one seen wins** the handle and the loser is **re-keyed under a synthetic key, never dropped** (dropping it would
+vanish a real node — a library legitimately holds many nodes that share a cosmetic `LABEL`). Scan order across roots is
+therefore observable; an implementation SHOULD make it deterministic (e.g. roots in a configured order, bundles and files
+sorted) AND scan trusted local roots before untrusted received ones, so a received block can never shadow a local handle.
+A shared `LABEL` is **not** a collision — cosmetic labels repeat freely. (One legitimate use of handle shadowing: a
+user's *local* package overriding a source's copy of the
 same id — see §4.5.)
 
 ## 4.4 Distribution: sources
