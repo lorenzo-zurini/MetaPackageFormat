@@ -50,12 +50,12 @@ A runner needs *binaries* to do its job — the Proton tree, the emulator execut
 **build**, and they are supplied by the runner's **`PARENTS`** (ordinary `Content` nodes).
 
 ```json
-{ "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec",
+{ "LABEL": "ge-proton10-30", "TYPE": "DeclareExec",
   "PARENTS": ["geproton_build"],             // ← the build lives here
   "HOST": "linux64", "GUEST": ["win32", "win64"],
   "PATH": "%RunnerMount%/proton" }
 
-{ "NODE_ID": "geproton_build", "TYPE": "Content", "FORM": "zip",
+{ "LABEL": "geproton_build", "TYPE": "Content", "FORM": "zip",
   "PATH": "GE-Proton10-30.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
 ```
 

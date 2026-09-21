@@ -24,7 +24,7 @@ A node with no payload. It contributes nothing of its own and exists to gather o
 referrer can depend on the whole set with one edge.
 
 ```json
-{ "NODE_ID": "morrowind_data", "TYPE": "Group",
+{ "LABEL": "morrowind_data", "TYPE": "Group",
   "PARENTS": ["morrowind_textures_hd", "morrowind_bloodmoon", "morrowind_tribunal"] }
 ```
 
@@ -43,12 +43,12 @@ One type, two readings, decided by a single field:
 
 ```jsonc
 // launchable: needs win32, provides nothing
-{ "NODE_ID": "aoe2_tc", "TYPE": "DeclareExec", "PARENTS": ["aoe2_tc_content", "aoe2"],
+{ "LABEL": "aoe2_tc", "TYPE": "DeclareExec", "PARENTS": ["aoe2_tc_content", "aoe2"],
   "HOST": "win32", "PATH": "age2_x1/age2_x1.exe",
   "LABEL": "The Conquerors", "RECOMMENDED": true }
 
 // runner: needs linux64, provides win32+win64
-{ "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["geproton_build"],
+{ "LABEL": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["geproton_build"],
   "HOST": "linux64", "GUEST": ["win32", "win64"],
   "PATH": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%Content%"],
   "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%" }, "ENV_REMOVE": ["LD_LIBRARY_PATH"],
@@ -67,7 +67,7 @@ at the **top** of the overlay, so a launchable variant is the natural home for o
 A pure-metadata node: no content, no edits. It makes a **presentable library tile** — a *game*.
 
 ```jsonc
-{ "NODE_ID": "aoe2", "TYPE": "DeclareLibraryItem",
+{ "LABEL": "aoe2", "TYPE": "DeclareLibraryItem",
   "UID": "749", "TITLE": "Age of Empires II",
   "COVER": { "PATH": "cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
   "META": { "DEVELOPER": "Ensemble Studios", "SERIES": "Age of Empires" } }
@@ -76,7 +76,7 @@ A pure-metadata node: no content, no edits. It makes a **presentable library til
 | Field | Type | Meaning |
 |-------|------|---------|
 | `UID` | string | Stable identity for *the game*. Keys saved state, settings and the content root inside a prefix. **Required**: a tile with no `UID` MUST fail validation — see [ch. 15](15-validation.md). |
-| `TITLE` | string | The tile's name. Falls back to the `NODE_ID` if absent. |
+| `TITLE` | string | The tile's name. Falls back to the `LABEL` if absent. |
 | `COVER` | object | `{ "PATH": …, "SOURCE": { "TYPE": "ipfs", "CID": … } }`. Cover CIDs participate in publishing/seeding like content ([ch. 14](14-content-addressing.md)). |
 | `META` | object | Free-form descriptive metadata (release date, developer, series, external ids…). Implementations MUST ignore keys they do not know. |
 

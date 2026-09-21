@@ -38,7 +38,7 @@ multi-gigabyte game is "installed" by mounting one zip, with no extraction step 
 > enforce it, and the editor offers a one-click **re-store** on a node whose zip is compressed.)
 
 ```json
-{ "NODE_ID": "aom_content", "TYPE": "Content", "FORM": "zip", "PATH": "aom.zip",
+{ "LABEL": "aom_content", "TYPE": "Content", "FORM": "zip", "PATH": "aom.zip",
   "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
 ```
 
@@ -48,7 +48,7 @@ For content that is naturally one file: a ROM, a single patched executable, a lo
 node's target directory keeping its own basename.
 
 ```json
-{ "NODE_ID": "starvoyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" }
+{ "LABEL": "starvoyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" }
 ```
 
 With no `TARGET`, this lands at the content root as `StarVoyager.sfc`.
@@ -61,7 +61,7 @@ that a `dir` node should be converted to a STORE `zip` before publishing. It sti
 iterate before sealing content into a zip. (VidyaGod surfaces a one-click **→ zip** conversion on the node itself.)
 
 ```json
-{ "NODE_ID": "aom_wip", "TYPE": "Content", "FORM": "dir", "PATH": "game_files/" }
+{ "LABEL": "aom_wip", "TYPE": "Content", "FORM": "dir", "PATH": "game_files/" }
 ```
 
 ### `delta` — content expressed as a diff of other content
@@ -74,7 +74,7 @@ makes 900 versions of one game ship as one chain instead of 900 archives.
 in the overlay. That is what a chain is, and it is why the overwhelming majority of deltas declare no base at all:
 
 ```json
-{ "NODE_ID": "mc_1_20_2", "TYPE": "Content", "FORM": "delta",
+{ "LABEL": "mc_1_20_2", "TYPE": "Content", "FORM": "delta",
   "PATH": "1.20.2.vgdelta", "TARGET": "%PrefixRoot%/drive_c/minecraft",
   "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
 ```
@@ -134,7 +134,7 @@ subdirectory with `TARGET`:
   correctly under every runner.
 
 ```json
-{ "NODE_ID": "mw_hd_textures", "TYPE": "Content", "FORM": "zip", "PATH": "hd_textures.zip",
+{ "LABEL": "mw_hd_textures", "TYPE": "Content", "FORM": "zip", "PATH": "hd_textures.zip",
   "TARGET": "%PrefixRoot%/drive_c/%PackageUID%/Data Files/Textures" }
 ```
 

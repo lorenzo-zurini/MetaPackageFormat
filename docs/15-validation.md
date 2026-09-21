@@ -12,9 +12,9 @@ cross-references) and applies the rules below.
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **PARENTS resolve** | error | Every `NODE_ID` in `PARENTS` MUST exist in the graph. A reference to a missing node is an error. |
+| **PARENTS resolve** | error | Every `LABEL` in `PARENTS` MUST exist in the graph. A reference to a missing node is an error. |
 | **Acyclic PARENTS** | error | The `PARENTS` graph reachable from a node MUST be acyclic (invariant I2). A cycle is an error. (The runtime still completes by breaking the back-edge, but the package is malformed.) |
-| **NODE_ID uniqueness** | (enforced at index) | Duplicate ids are dropped first-seen-wins at index time (chapter 4) with a diagnostic; a validator MAY additionally report cross-repo collisions. |
+| **LABEL uniqueness** | (enforced at index) | Duplicate ids are dropped first-seen-wins at index time (chapter 4) with a diagnostic; a validator MAY additionally report cross-repo collisions. |
 
 ## 15.2 Payload rules
 

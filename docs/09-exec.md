@@ -35,7 +35,7 @@ special case for the ends.
 ## 9.2 A launchable
 
 ```json
-{ "NODE_ID": "aom_game", "TYPE": "DeclareExec", "PARENTS": ["aom_registry", "aom"],
+{ "LABEL": "aom_game", "TYPE": "DeclareExec", "PARENTS": ["aom_registry", "aom"],
   "HOST": "win32", "PATH": "aom.exe",
   "ARGS": ["xres=%ScreenWidth%", "yres=%ScreenHeight%"] }
 ```
@@ -71,7 +71,7 @@ mechanism behind the **native terminal** (chapter 11) and behind native Linux ga
 `CONTENT_ROOT` and no prefix.
 
 ```json
-{ "NODE_ID": "native-passthrough", "TYPE": "DeclareExec",
+{ "LABEL": "native-passthrough", "TYPE": "DeclareExec",
   "HOST": "linux64", "GUEST": ["linux64"], "PATH": "%Content%", "ARGS": [] }
 ```
 
@@ -103,7 +103,7 @@ this and is specified in [chapter 11](11-runner-chaining.md).
 
 **Proton (Wine-family, prefix):**
 ```json
-{ "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["geproton_build"],
+{ "LABEL": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["geproton_build"],
   "HOST": "linux64", "GUEST": ["win32", "win64"],
   "PATH": "%RunnerMount%/proton",
   "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
@@ -115,7 +115,7 @@ this and is specified in [chapter 11](11-runner-chaining.md).
 
 **umu (Wine-family, slightly different layout):**
 ```json
-{ "NODE_ID": "umu", "TYPE": "DeclareExec",
+{ "LABEL": "umu", "TYPE": "DeclareExec",
   "HOST": "linux64", "GUEST": ["win32", "win64"],
   "PATH": "umu-run",
   "ARGS": ["C:\\%PackageUID%\\%ContentPath%"],
@@ -127,13 +127,13 @@ this and is specified in [chapter 11](11-runner-chaining.md).
 
 **A native-Linux emulator (no prefix, content at root):**
 ```json
-{ "NODE_ID": "snes9x", "TYPE": "DeclareExec", "HOST": "linux64", "GUEST": ["snes"],
+{ "LABEL": "snes9x", "TYPE": "DeclareExec", "HOST": "linux64", "GUEST": ["snes"],
   "PATH": "snes9x", "ARGS": ["-fullscreen", "%Content%"] }
 ```
 
 **A win32-only emulator meant to be nested under Wine (build-relative exe, no prefix):**
 ```json
-{ "NODE_ID": "vortexemu", "TYPE": "DeclareExec", "HOST": "win32", "GUEST": ["vortex"],
+{ "LABEL": "vortexemu", "TYPE": "DeclareExec", "HOST": "win32", "GUEST": ["vortex"],
   "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
 ```
 

@@ -24,13 +24,13 @@ The simplest case: content whose platform *is* the machine platform. The chain i
 ```jsonc
 [
   // the content
-  { "NODE_ID": "mylinuxgame_content", "TYPE": "Content", "FORM": "zip", "PATH": "mylinuxgame.zip" },
+  { "LABEL": "mylinuxgame_content", "TYPE": "Content", "FORM": "zip", "PATH": "mylinuxgame.zip" },
 
   // the tile — carries no content, and is a PARENT of the launchable
-  { "NODE_ID": "mylinuxgame", "TYPE": "DeclareLibraryItem", "UID": "1234", "TITLE": "My Linux Game" },
+  { "LABEL": "mylinuxgame", "TYPE": "DeclareLibraryItem", "UID": "1234", "TITLE": "My Linux Game" },
 
   // the launchable — no GUEST, so it is the terminal link: the thing you run
-  { "NODE_ID": "mylinuxgame_game", "TYPE": "DeclareExec",
+  { "LABEL": "mylinuxgame_game", "TYPE": "DeclareExec",
     "PARENTS": ["mylinuxgame_content", "mylinuxgame"],
     "HOST": "linux64", "PATH": "mygame", "ARGS": ["--fullscreen"] }
 ]
@@ -52,25 +52,25 @@ prefix, content at the root, pristine runtime plus whatever the runner's keep-se
 
 ```jsonc
 [
-  { "NODE_ID": "aom_content", "TYPE": "Content", "FORM": "zip",
+  { "LABEL": "aom_content", "TYPE": "Content", "FORM": "zip",
     "PATH": "aom.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
 
   // a user knob (bool), exposed as %WIDESCREEN% (raw "1"/"0") and rendered as a dword at the registry use-site
-  { "NODE_ID": "aom_var_widescreen", "TYPE": "CustomVar", "PARENTS": ["aom_content"],
+  { "LABEL": "aom_var_widescreen", "TYPE": "CustomVar", "PARENTS": ["aom_content"],
     "KEY": "WIDESCREEN", "DEFAULT": "1",
     "UI": { "LABEL": "Widescreen UI", "CONTROL": "bool" } },
 
   // a base registry default (overridable by the user once they change it in-game)
-  { "NODE_ID": "aom_registry", "TYPE": "RegEdit", "PARENTS": ["aom_var_widescreen"],
+  { "LABEL": "aom_registry", "TYPE": "RegEdit", "PARENTS": ["aom_var_widescreen"],
     "EDITS": [ { "ARCHITECTURE": ["32"],
                  "HKCU": { "Software": { "Microsoft": { "Microsoft Games": { "Age of Mythology": {
                      "Widescreen": "%WIDESCREEN:dword%" } } } } } } ] },   // → dword:00000001
 
-  { "NODE_ID": "aom", "TYPE": "DeclareLibraryItem", "UID": "7804", "TITLE": "Age of Mythology",
+  { "LABEL": "aom", "TYPE": "DeclareLibraryItem", "UID": "7804", "TITLE": "Age of Mythology",
     "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
     "META": { "UMUID": "266840" } },
 
-  { "NODE_ID": "aom_game", "TYPE": "DeclareExec", "PARENTS": ["aom_registry", "aom"],
+  { "LABEL": "aom_game", "TYPE": "DeclareExec", "PARENTS": ["aom_registry", "aom"],
     "HOST": "win32", "PATH": "aom.exe",
     "ARGS": ["xres=%ScreenWidth%", "yres=%ScreenHeight%"] }
 ]
@@ -99,11 +99,11 @@ hypothetical homebrew ROM.)
 
 ```jsonc
 [
-  { "NODE_ID": "star_voyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" },
+  { "LABEL": "star_voyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" },
 
-  { "NODE_ID": "star_voyager", "TYPE": "DeclareLibraryItem", "UID": "8500", "TITLE": "Star Voyager" },
+  { "LABEL": "star_voyager", "TYPE": "DeclareLibraryItem", "UID": "8500", "TITLE": "Star Voyager" },
 
-  { "NODE_ID": "star_voyager_game", "TYPE": "DeclareExec",
+  { "LABEL": "star_voyager_game", "TYPE": "DeclareExec",
     "PARENTS": ["star_voyager_rom", "star_voyager"],
     "HOST": "snes", "PATH": "StarVoyager.sfc" }
 ]
@@ -132,17 +132,17 @@ emulator is shipped as a runner; here it's embedded in the game's bundle to also
 ```jsonc
 // vortex_quest.json — Vortex content; declares no runner, just the platform it needs
 [
-  { "NODE_ID": "vortex_quest_rom", "TYPE": "Content", "FORM": "file", "PATH": "VortexQuest.vtx" },
-  { "NODE_ID": "vortex_quest", "TYPE": "DeclareLibraryItem", "UID": "9001", "TITLE": "Vortex Quest" },
-  { "NODE_ID": "vortex_quest_game", "TYPE": "DeclareExec",
+  { "LABEL": "vortex_quest_rom", "TYPE": "Content", "FORM": "file", "PATH": "VortexQuest.vtx" },
+  { "LABEL": "vortex_quest", "TYPE": "DeclareLibraryItem", "UID": "9001", "TITLE": "Vortex Quest" },
+  { "LABEL": "vortex_quest_game", "TYPE": "DeclareExec",
     "PARENTS": ["vortex_quest_rom", "vortex_quest"],
     "HOST": "vortex", "PATH": "VortexQuest.vtx" }
 ]
 
 // vortexemu_win.json — an embedded runner: VortexEmu is win32-only
 [
-  { "NODE_ID": "vortexemu_win_build", "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" },
-  { "NODE_ID": "vortexemu_win", "TYPE": "DeclareExec", "PARENTS": ["vortexemu_win_build"],
+  { "LABEL": "vortexemu_win_build", "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" },
+  { "LABEL": "vortexemu_win", "TYPE": "DeclareExec", "PARENTS": ["vortexemu_win_build"],
     "HOST": "win32", "GUEST": ["vortex"],
     "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
 ]
@@ -169,19 +169,19 @@ metadata and no content; each variant `PARENTS` it and hangs its own content cha
 
 ```jsonc
 // aoe2.json — the GAME TILE: presentable, carries no content, not launchable itself
-{ "NODE_ID": "aoe2", "TYPE": "DeclareLibraryItem", "UID": "1001", "TITLE": "Age of Empires II" }
+{ "LABEL": "aoe2", "TYPE": "DeclareLibraryItem", "UID": "1001", "TITLE": "Age of Empires II" }
 
 // aoe2_fe.json — the default variant. The PATCH is a CHILD of the base, which is what orders them.
 [
-  { "NODE_ID": "aoe2_fe_patch", "TYPE": "Content", "FORM": "zip", "PATH": "fe_patch.zip",
+  { "LABEL": "aoe2_fe_patch", "TYPE": "Content", "FORM": "zip", "PATH": "fe_patch.zip",
     "PARENTS": ["aoe2_base"] },
-  { "NODE_ID": "aoe2_fe", "TYPE": "DeclareExec", "PARENTS": ["aoe2_fe_patch", "aoe2"],
+  { "LABEL": "aoe2_fe", "TYPE": "DeclareExec", "PARENTS": ["aoe2_fe_patch", "aoe2"],
     "HOST": "win32", "PATH": "age2_x1/age2_x1.5.exe",
     "LABEL": "Forgotten Empires", "RECOMMENDED": true }
 ]
 
 // aoe2_gog.json — another edition of the SAME tile
-{ "NODE_ID": "aoe2_gog", "TYPE": "DeclareExec", "PARENTS": ["aoe2_gog_base", "aoe2"],
+{ "LABEL": "aoe2_gog", "TYPE": "DeclareExec", "PARENTS": ["aoe2_gog_base", "aoe2"],
   "HOST": "win32", "PATH": "empires2.exe", "LABEL": "GOG edition" }
 ```
 
@@ -201,34 +201,34 @@ closure order, with no mod-manager construct.
 
 ```jsonc
 [
-  { "NODE_ID": "morrowind_base", "TYPE": "Content", "FORM": "zip",
+  { "LABEL": "morrowind_base", "TYPE": "Content", "FORM": "zip",
     "PATH": "morrowind.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
 
   // register the base master in the load order (idempotent, ordered)
-  { "NODE_ID": "morrowind_base_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_base"],
+  { "LABEL": "morrowind_base_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_base"],
     "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
     "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Morrowind.esm" } ] },
 
   // an OPTIONAL expansion (off by default). Its cfg line is a CHILD of the base's, so it comes after.
-  { "NODE_ID": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
+  { "LABEL": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
     "PATH": "tribunal.zip", "PARENTS": ["morrowind_base_cfg"],
     "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-  { "NODE_ID": "morrowind_tribunal_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_tribunal"],
+  { "LABEL": "morrowind_tribunal_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_tribunal"],
     "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
     "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Tribunal.esm" } ] },
 
   // another OPTIONAL expansion, after Tribunal
-  { "NODE_ID": "morrowind_bloodmoon", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
+  { "LABEL": "morrowind_bloodmoon", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
     "PATH": "bloodmoon.zip", "PARENTS": ["morrowind_tribunal_cfg"],
     "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-  { "NODE_ID": "morrowind_bloodmoon_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_bloodmoon"],
+  { "LABEL": "morrowind_bloodmoon_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_bloodmoon"],
     "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
     "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Bloodmoon.esm" } ] },
 
-  { "NODE_ID": "morrowind", "TYPE": "DeclareLibraryItem",
+  { "LABEL": "morrowind", "TYPE": "DeclareLibraryItem",
     "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
 
-  { "NODE_ID": "morrowind_game", "TYPE": "DeclareExec",
+  { "LABEL": "morrowind_game", "TYPE": "DeclareExec",
     "PARENTS": ["morrowind_bloodmoon_cfg", "morrowind"],
     "HOST": "win32", "PATH": "Morrowind.exe", "LABEL": "GOTY" }
 ]
@@ -257,25 +257,25 @@ runner is just a `DeclareExec` with a non-empty `GUEST`.
 
 ```jsonc
 // native-passthrough — the universal terminal
-{ "NODE_ID": "native-passthrough", "TYPE": "DeclareExec",
+{ "LABEL": "native-passthrough", "TYPE": "DeclareExec",
   "HOST": "linux64", "GUEST": ["linux64"], "PATH": "%Content%", "ARGS": [] }
 
 // ge-proton10-30 — Wine-family, generates a prefix; build on a content parent
 [
-  { "NODE_ID": "geproton_build", "TYPE": "Content", "FORM": "zip",
+  { "LABEL": "geproton_build", "TYPE": "Content", "FORM": "zip",
     "PATH": "GE-Proton10-30.zip", "TARGET": "", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
 
-  { "NODE_ID": "geproton_var_log", "TYPE": "CustomVar", "PARENTS": ["geproton_build"],
+  { "LABEL": "geproton_var_log", "TYPE": "CustomVar", "PARENTS": ["geproton_build"],
     "KEY": "PROTON_LOG", "DEFAULT": "0",
     "UI": { "LABEL": "Proton logging", "CONTROL": "enum",
             "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } },
 
-  { "NODE_ID": "proton_keep_users", "TYPE": "DeclarePersist", "PARENTS": ["geproton_var_log"],
+  { "LABEL": "proton_keep_users", "TYPE": "DeclarePersist", "PARENTS": ["geproton_var_log"],
     "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
-  { "NODE_ID": "proton_keep_hkcu", "TYPE": "DeclarePersist", "PARENTS": ["proton_keep_users"],
+  { "LABEL": "proton_keep_hkcu", "TYPE": "DeclarePersist", "PARENTS": ["proton_keep_users"],
     "SCOPE": "registry", "PATH": "HKCU" },
 
-  { "NODE_ID": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["proton_keep_hkcu"],
+  { "LABEL": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["proton_keep_hkcu"],
     "HOST": "linux64", "GUEST": ["win32", "win64"],
     "PATH": "%RunnerMount%/proton",
     "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
@@ -286,7 +286,7 @@ runner is just a `DeclareExec` with a non-empty `GUEST`.
 ]
 
 // snes9x — a native-Linux emulator (one bridge hop for SNES content)
-{ "NODE_ID": "snes9x", "TYPE": "DeclareExec",
+{ "LABEL": "snes9x", "TYPE": "DeclareExec",
   "HOST": "linux64", "GUEST": ["snes"], "PATH": "snes9x", "ARGS": ["-fullscreen", "%Content%"] }
 ```
 
@@ -294,7 +294,7 @@ A *cloned terminal* that wraps every launch in `gamescope` (chapter 11 §11.3) i
 select as the terminal step:
 
 ```jsonc
-{ "NODE_ID": "native-gamescope", "TYPE": "DeclareExec",
+{ "LABEL": "native-gamescope", "TYPE": "DeclareExec",
   "HOST": "linux64", "GUEST": ["linux64"], "PATH": "gamescope", "ARGS": ["-f", "--"] }
 ```
 

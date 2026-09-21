@@ -7,8 +7,8 @@ each section is runnable once the previous ones are.
 ## 19.1 Indexing & the graph
 
 - [ ] **MUST** scan library roots two levels deep (root → bundles → top-level `.json` files), parse each file, and treat
-      a file with a non-empty string `NODE_ID` as a node; ignore the rest. (ch. 4)
-- [ ] **MUST** key nodes by `NODE_ID` globally and resolve duplicates first-seen-wins with a diagnostic (invariant I1).
+      a file with a string `TYPE` as a node; ignore the rest. (ch. 4)
+- [ ] **MUST** key nodes by **CID** (identity); within an authoring tree, resolve `LABEL` handles and DENY a `LABEL` claimed by two different contents with a diagnostic (invariant I1). Identical duplicates dedupe.
 - [ ] **MUST** apply every field default exactly as in chapter 2 §2.2, and ignore unknown fields.
 - [ ] **MUST** record each node's bundle directory and resolve relative `PATH`/`SOURCE.PATH`/`COVER.PATH` against *that
       node's* bundle (not the launchable's). (ch. 4 §4.1)

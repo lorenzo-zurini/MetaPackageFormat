@@ -71,7 +71,7 @@ A node referenced as a parent is a **hard dependency** unless it declares `TOGGL
 toggle state. This is how DLC, mods and feature flags are modelled:
 
 ```json
-{ "NODE_ID": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off",
+{ "LABEL": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off",
   "FORM": "zip", "PATH": "tribunal.zip", "PARENTS": ["morrowind_base"] }
 ```
 

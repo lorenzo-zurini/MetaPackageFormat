@@ -52,7 +52,7 @@ The node names the target file and the pass; `EDITS` holds the edits to make to 
 | `VALUE` | entry | the value to write (see per-mode meaning) |
 
 ```json
-{ "NODE_ID": "morrowind_ini", "TYPE": "FileEdit", "PARENTS": ["morrowind_content"],
+{ "LABEL": "morrowind_ini", "TYPE": "FileEdit", "PARENTS": ["morrowind_content"],
   "FILE": "drive_c/Morrowind/Morrowind.ini", "OVERRIDE": true,
   "EDITS": [ { "MODE": "ConfigWrite", "KEY": "Resolution=", "VALUE": "%ScreenWidth%x%ScreenHeight%" },
              { "MODE": "AppendLine",  "VALUE": "GameFile1=Tribunal.esm" } ] }
@@ -125,7 +125,7 @@ key's *default* value. Drive them from a `CustomVar` rendered at the use site �
 **Do not write `Wow6432Node` yourself** — the runtime re-inserts WoW64 redirection based on `ARCHITECTURE`.
 
 ```json
-{ "NODE_ID": "sh2ee_registry", "TYPE": "RegEdit", "PARENTS": ["sh2ee_content"],
+{ "LABEL": "sh2ee_registry", "TYPE": "RegEdit", "PARENTS": ["sh2ee_content"],
   "EDITS": [
     { "ARCHITECTURE": ["64"],
       "HKCU": { "Software": { "nipkow": { "SH2EEsetup": {
@@ -155,7 +155,7 @@ joined into the `WINEDLLOVERRIDES` environment variable for the launch. Only mea
 | `OVERRIDES` | object of `dll name → order string`: `"n,b"` (native then builtin), `"b,n"`, `"n"`, `"b"`, `"d"` (disabled) |
 
 ```json
-{ "NODE_ID": "asiloader_overrides", "TYPE": "DllOverride",
+{ "LABEL": "asiloader_overrides", "TYPE": "DllOverride",
   "OVERRIDES": { "d3d8": "n,b", "dinput8": "n,b" } }
 ```
 
@@ -197,7 +197,7 @@ Writes `REPLACE` (hex) at the site. `len(REPLACE) ≤ len(EXPECT)`; a shorter `R
 to the `EXPECT` length. The No-CD primitive.
 
 ```json
-{ "NODE_ID": "game_nocd", "TYPE": "BinaryPatch", "PARENTS": ["game_content"],
+{ "LABEL": "game_nocd", "TYPE": "BinaryPatch", "PARENTS": ["game_content"],
   "FILE": "%PrefixRoot%/drive_c/%PackageUID%/GAME.EXE",
   "EDITS": [ { "MODE": "Replace", "OFFSET": "0x44a45c", "EXPECT": "01", "REPLACE": "00",
                "COMMENT": "skip the CD presence check" } ] }

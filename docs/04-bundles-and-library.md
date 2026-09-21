@@ -6,7 +6,7 @@ many sources.
 ## 4.1 Bundles
 
 A **bundle** is a directory containing one or more node `.json` files and the loose content those nodes reference (zips,
-ROMs, cover images, generated prefixes). A bundle is purely a *file grouping* — it has no `NODE_ID`, no metadata of its
+ROMs, cover images, generated prefixes). A bundle is purely a *file grouping* — it has no `LABEL`, no metadata of its
 own, and no semantic role. It exists so that related files (a launchable, its content nodes, and the bytes they point at)
 sit together and can be copied/shared/deleted as a unit.
 
@@ -72,7 +72,7 @@ The indexing algorithm, precisely:
 
 ```
 function BuildNodeIndex(libraryRoots):
-    index = {}                                  # NODE_ID -> node
+    index = {}                                  # LABEL -> node
     for root in libraryRoots:
         if not isDirectory(root): continue
         for bundle in immediateSubdirectories(root):
@@ -82,17 +82,17 @@ function BuildNodeIndex(libraryRoots):
                 # A file holds ONE node or an ARRAY of them (ch. 2 §2.2).
                 for entry in (json is array ? json : [json]):
                     node = ParseNode(entry, file, bundle)
-                    if node is null: continue    # no NODE_ID ⇒ not a node, ignore
-                    if node.NODE_ID in index:
-                        warn("duplicate NODE_ID, keeping first-seen")
+                    if node is null: continue    # no LABEL ⇒ not a node, ignore
+                    if node.LABEL in index:
+                        warn("duplicate LABEL, keeping first-seen")
                         continue                 # invariant I1: first-seen wins
-                    index[node.NODE_ID] = node
+                    index[node.LABEL] = node
     return index
 ```
 
 `ParseNode` reads the fields in [chapter 2 §2.2](02-nodes.md), applies defaults, expands the node's payload into the
 layers the runtime consumes, and records the source file and bundle directory. A JSON entry that is not an object, or
-lacks a non-empty string `NODE_ID`, yields no node and is silently skipped (it may be unrelated data living in the
+lacks a non-empty string `LABEL`, yields no node and is silently skipped (it may be unrelated data living in the
 bundle).
 
 **`ParseNode` MUST be total.** A node file is untrusted input — it arrives from a peer, or from an author's typo — and
@@ -106,9 +106,9 @@ at any depth, a malformed `EDITS`) MUST therefore be **indexed carrying its erro
 - Indexed-with-an-error, it contributes **no layers**, validation names it ([ch. 15](15-validation.md)), and
   resolution treats it as missing so a launch that would route through it is refused rather than quietly doing less.
 
-**Duplicate ids (invariant I1).** If two files declare the same `NODE_ID`, the **first one seen wins** and the second is
+**Duplicate ids (invariant I1).** If two files declare the same `LABEL`, the **first one seen wins** and the second is
 dropped with a warning. Scan order across roots is therefore observable; an implementation SHOULD make it deterministic
-(e.g. roots in a configured order, bundles and files sorted). Authors MUST treat `NODE_ID` collisions as errors to avoid
+(e.g. roots in a configured order, bundles and files sorted). Authors MUST treat `LABEL` collisions as errors to avoid
 depending on scan order. (One legitimate use of shadowing: a user's *local* package overriding a source's copy of the
 same id — see §4.5.)
 

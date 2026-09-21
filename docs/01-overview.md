@@ -5,7 +5,7 @@
 MPF has exactly one structural primitive. Every concept that other formats model with distinct constructs — a game, an
 edition, a dependency, a mod, an optional add-on, an emulator, a runtime, a config option — is, in MPF, **a node**.
 
-A node is a small JSON object with a globally-unique identity (`NODE_ID`). It does exactly two things:
+A node is a small JSON object with a globally-unique identity (`LABEL`). It does exactly two things:
 
 1. **It is one layer.** Its `TYPE` says which — files to overlay (`Content`), a registry write (`RegEdit`), a config
    patch (`FileEdit`), a byte patch (`BinaryPatch`), a DLL policy (`DllOverride`), durable state (`DeclarePersist`), a user
@@ -50,7 +50,7 @@ which may span bundles.
 
 Resolving and running a launchable proceeds in well-defined phases. Each is specified in detail later; this is the map.
 
-1. **Index** the graph: scan every library root's bundles, parse each `.json` with a `NODE_ID`, key by id
+1. **Index** the graph: scan every library root's bundles, parse each `.json` with a `LABEL`, key by id
    ([ch. 4](04-bundles-and-library.md)).
 2. **Resolve the content closure** of the chosen launchable: walk `PARENTS` **upward**, apply `TOGGLE`/`EXCLUDE`/`WHEN`
    gating and the hierarchy gate, topologically order the survivors ([ch. 12](12-resolution.md)).
@@ -96,7 +96,7 @@ this?* Only if the answer is genuinely "none" does the format grow.
 
 A conforming implementation MUST preserve these properties. They are referenced by later chapters.
 
-- **I1 — Global identity.** `NODE_ID` is unique across the whole graph. On a duplicate, first-seen wins and the duplicate
+- **I1 — Global identity.** `LABEL` is unique across the whole graph. On a duplicate, first-seen wins and the duplicate
   is dropped with a diagnostic ([ch. 4](04-bundles-and-library.md)).
 - **I2 — Acyclic selection.** `PARENTS` edges MUST form a DAG. Cycles are reported; resolution still completes by
   breaking the back-edge ([ch. 12](12-resolution.md)).

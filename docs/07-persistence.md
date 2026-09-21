@@ -13,7 +13,7 @@ durable target; there is no exclude axis and no policy flag. The runtime is **pr
 ## 7.1 The `DeclarePersist` primitive
 
 ```jsonc
-{ "NODE_ID": "quake_saves", "TYPE": "DeclarePersist", "PARENTS": ["quake_content"],
+{ "LABEL": "quake_saves", "TYPE": "DeclarePersist", "PARENTS": ["quake_content"],
   "SCOPE": "file",                       // "file" (default) or "registry"
   "PATH":  "drive_c/Game/Saves",         // the runtime source to persist
   "TARGET": "Saves",                     // the durable subdir name under the instance
@@ -75,8 +75,8 @@ keep the user-profile tree and the user hive:
 
 ```jsonc
 // for the Proton runner (CONTENT_ROOT "pfx/drive_c/…")
-{ "NODE_ID": "proton_keep_users", "TYPE": "DeclarePersist", "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" }
-{ "NODE_ID": "proton_keep_hkcu",  "TYPE": "DeclarePersist", "SCOPE": "registry", "PATH": "HKCU" }
+{ "LABEL": "proton_keep_users", "TYPE": "DeclarePersist", "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" }
+{ "LABEL": "proton_keep_hkcu",  "TYPE": "DeclarePersist", "SCOPE": "registry", "PATH": "HKCU" }
 ```
 
 So by default a typical game saves to `…/users/<user>/Documents`, `Saved Games`, `AppData`, and the registry — **all

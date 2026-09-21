@@ -234,7 +234,7 @@ operand   := %KEY%   (→ its value)  |  "quoted"  |  bare-word
           "CHOICES": [ {"LABEL":"Host","VALUE":"host"}, {"LABEL":"Join","VALUE":"join"} ] } }
 { "TYPE": "CustomVar", "KEY": "JOIN_ADDR", "DEFAULT": "", "WHEN": "%NETMODE% == join",
   "UI": { "LABEL": "Host address", "CONTROL": "text" } }
-{ "NODE_ID": "game_host_reg", "TYPE": "RegEdit", "WHEN": "%NETMODE% == host",
+{ "LABEL": "game_host_reg", "TYPE": "RegEdit", "WHEN": "%NETMODE% == host",
   "EDITS": [ { "ARCHITECTURE": ["32"],
                "HKCU": { "Software": { "Game": { "Hosting": "%TRUE:dword%" } } } } ] }
 ```

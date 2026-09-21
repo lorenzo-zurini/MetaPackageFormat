@@ -133,7 +133,7 @@ The chapters build on each other; read them in order the first time.
 | 01 | [Overview & design model](docs/01-overview.md) | The everything-is-a-node philosophy; goals; invariants. |
 | 02 | [The Node object](docs/02-nodes.md) | Every field of a node, its type, default and meaning. |
 | 03 | [Node types](docs/03-roles.md) | The ten `TYPE`s; launchable vs runner; tiles and variants. |
-| 04 | [Bundles, the library & indexing](docs/04-bundles-and-library.md) | On-disk layout, repos, NODE_ID uniqueness, index building. |
+| 04 | [Bundles, the library & indexing](docs/04-bundles-and-library.md) | On-disk layout, repos, LABEL uniqueness (within a tree), index building. |
 | 05 | [`Content` nodes](docs/05-layers.md) | `FORM` zip / dir / file / delta, PATH+SOURCE, TARGET, SUBMOUNTS. |
 | 06 | [Edit nodes](docs/06-edit-layers.md) | `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride` (+ the OVERRIDE pass model). |
 | 07 | [Persistence](docs/07-persistence.md) | The one `Persist` primitive: `KEEP` / `DROP`, runner keep-sets. |

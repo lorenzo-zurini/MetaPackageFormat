@@ -67,7 +67,7 @@ function ResolveChain(graph, start, goal, launch):
     runners = [ r in graph.runners
                 if RunnerAvailable(r) ]                 # PATH-resolvable OR ships a build (ch.10 §10.6)
     sort runners better-first by:                       # tie-break, applied at each BFS step
-        RECOMMENDED, then package-local (same bundle as `launch`), then NODE_ID
+        RECOMMENDED, then package-local (same bundle as `launch`), then LABEL
 
     # 1. Honor a pinned chain if one is saved/requested and forms a valid path to `goal`.
     if pinnedChain validates as a connected path start→…→goal over `runners`:
@@ -204,13 +204,13 @@ The Windows-only VortexEmu emulator, shipped as a runner (its build on a content
 
 ```json
 // vortexemu_win.json  (a runner — VortexEmu is a win32 program)
-{ "NODE_ID": "vortexemu_win",
+{ "LABEL": "vortexemu_win",
   "PARENTS": ["vortexemu_win_build"],
   "TYPE": "DeclareExec", "HOST": "win32", "GUEST": ["vortex"],
   "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
 
 // vortexemu_win_build.json  (its build: the win32 binary)
-{ "NODE_ID": "vortexemu_win_build",
+{ "LABEL": "vortexemu_win_build",
   "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" }
 ```
 

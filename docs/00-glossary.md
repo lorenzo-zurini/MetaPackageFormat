@@ -3,12 +3,15 @@
 Terms are defined here once and used with these exact meanings throughout the spec. Capitalized JSON keys (e.g.
 `PARENTS`) are field names; `code font` lower-case words (e.g. `runner`) are identity/type values.
 
-**Node** — the atomic unit of the format, and **one layer**. One JSON object with a globally-unique `NODE_ID`, a
-`TYPE`, that type's payload hoisted directly onto it, and `PARENTS` edges. There is no `ROLE` field and no `LAYERS`
-array: what a node *is* **is** its `TYPE`. See [chapter 02](02-nodes.md).
+**Node** — the atomic unit of the format, and **one layer**. One JSON object with a `TYPE`, that type's payload
+hoisted directly onto it, and `PARENTS` edges. Its **identity is its CID** — the content hash of its canonical
+dag-json block, computed recursively over the CIDs it links. An optional `LABEL` gives it a pretty, human name that
+also serves as its **intra-tree authoring handle**. There is no `NODE_ID`, no `ROLE` field and no `LAYERS` array:
+what a node *is* **is** its `TYPE`; who it *is* **is** its CID. See [chapter 02](02-nodes.md).
 
-**Node graph** — the union of every node discoverable by an implementation, keyed by `NODE_ID`. A single flat namespace;
-edges are `NODE_ID` references in `PARENTS` (and platform edges implied by a runner's `HOST`/`GUEST`). See
+**Node graph** — the union of every node discoverable by an implementation, **keyed by CID**. Edges are CID links
+in `PARENTS` (and platform edges implied by a runner's `HOST`/`GUEST`). Within a single authoring tree, edges are
+written as `LABEL` handles and resolved to CIDs at freeze; across bundles they are CIDs already. See
 [chapter 04](04-bundles-and-library.md).
 
 **Type** — the node's `TYPE` field: one of `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride`, `DeclarePersist`,
