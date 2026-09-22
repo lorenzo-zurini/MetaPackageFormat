@@ -70,11 +70,11 @@ A `CustomVar` is a node that declares a variable, exposed as a `%KEY%` token. It
 re-declaring the same `KEY` overrides an earlier one — that is the override mechanism (§8.5). It is **not** a content
 payload; the runtime resolves it into the variable map and never mounts it.
 
-A `CustomVar` is **one primitive** whose role is implied by its facets:
+A `CustomVar` **node** holds a `VARS` list (§2.2 batched-item model); each entry declares one variable. A lone
+variable is a `VARS` of one. The fields below describe one `VARS` entry:
 
 | Field | Meaning |
 |-------|---------|
-| `TYPE` | `"CustomVar"` |
 | `KEY` | the bare token name → `%KEY%`. MUST NOT contain `:`. |
 | `DEFAULT` | the value: the fixed value for a binding, or the user-overridable initial for an option. May itself contain `%tokens%` (a **computed** variable, expanded against the map as it stands). |
 | `WHEN` | *optional.* A **condition** (§8.8) gating the variable: when it does not hold, the var resolves to `""` (empty) **and** its UI control is hidden. So a var can be active only in a certain mode — the data-driven `enableIf`. |
@@ -97,19 +97,20 @@ The `UI` facet (when present):
 Examples:
 
 ```jsonc
-// a user option (enum), grouped, with a dependent option
-{ "TYPE": "CustomVar", "KEY": "RENDERER", "DEFAULT": "dxvk",
-  "UI": { "LABEL": "Renderer", "CONTROL": "enum", "GROUP": "Graphics",
-          "CHOICES": [ {"LABEL":"DXVK (Vulkan)","VALUE":"dxvk"}, {"LABEL":"WineD3D","VALUE":"wined3d"} ] } }
-{ "TYPE": "CustomVar", "KEY": "VRAM", "DEFAULT": "1024",
-  "UI": { "LABEL": "VRAM (MB)", "CONTROL": "int", "GROUP": "Graphics", "WHEN": "%RENDERER% == dxvk", "MIN": 64, "MAX": 8192 } }
-
-// an internal binding (no UI) — e.g. a value a game passes to a shared package
-{ "TYPE": "CustomVar", "KEY": "dgvoodoo_dir", "DEFAULT": "" }
-
-// a secret rotated each launch
-{ "TYPE": "CustomVar", "KEY": "CDKEY",
-  "UI": { "LABEL": "CD Key", "CONTROL": "secret", "POOL": ["N9UBI4…","1YREOT…","JAXDO1…"] } }
+// One CustomVar node batching several related variables in its VARS list.
+{ "TYPE": "CustomVar", "LABEL": "graphics_vars", "VARS": [
+    // a user option (enum), grouped, with a dependent option
+    { "KEY": "RENDERER", "DEFAULT": "dxvk",
+      "UI": { "LABEL": "Renderer", "CONTROL": "enum", "GROUP": "Graphics",
+              "CHOICES": [ {"LABEL":"DXVK (Vulkan)","VALUE":"dxvk"}, {"LABEL":"WineD3D","VALUE":"wined3d"} ] } },
+    { "KEY": "VRAM", "DEFAULT": "1024",
+      "UI": { "LABEL": "VRAM (MB)", "CONTROL": "int", "GROUP": "Graphics", "WHEN": "%RENDERER% == dxvk", "MIN": 64, "MAX": 8192 } },
+    // an internal binding (no UI) — e.g. a value a game passes to a shared package
+    { "KEY": "dgvoodoo_dir", "DEFAULT": "" },
+    // a secret rotated each launch
+    { "KEY": "CDKEY",
+      "UI": { "LABEL": "CD Key", "CONTROL": "secret", "POOL": ["N9UBI4…","1YREOT…","JAXDO1…"] } }
+] }
 ```
 
 > **Design note.** Earlier MPF used a single `VARTYPE` that conflated the value's domain, its UI control, **and** a

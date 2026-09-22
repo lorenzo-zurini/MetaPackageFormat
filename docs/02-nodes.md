@@ -72,12 +72,33 @@ Two fields are **derived, not authored** (an implementation computes them at ind
   node's own bundle directory** — which makes cross-bundle references correct (a runner's build content resolves
   against the runner's bundle even when pulled into a game's closure). See [ch. 5 §5.2](05-layers.md).
 
-### A file may hold more than one node
+### One node per file
 
-The canonical layout is one node per file, named after the `LABEL`. A `.json` file MAY instead contain a **JSON array**
-of node objects; an indexer MUST accept both. This keeps a twenty-node chain from becoming twenty files when the author
-would rather keep it together. Entries in such a file that are not nodes MUST be preserved verbatim by any tool that
-rewrites it.
+Each node lives in its own `.json` file, named after its `LABEL`. An indexer MUST also accept a file containing a
+**JSON array** of node objects (a legacy grouping); tools that rewrite a package SHOULD emit one node per file.
+Entries in a file that are not nodes MUST be preserved verbatim by any tool that rewrites it.
+
+### A node batches homogeneous items
+
+A node holds exactly **one `TYPE`**, and that type's payload is a **list of homogeneous items** — "one meaningful
+change per node." This is uniform across the format:
+
+| TYPE | Item list | Each item |
+|------|-----------|-----------|
+| `VFSLayer` (was `Content`) | `LAYERS` | `{FORM, PATH, TARGET, SOURCE, WHEN?, TOGGLE?, SUBMOUNTS?, BASE_TARGETS?}` |
+| `CustomVar` | `VARS` | `{KEY, DEFAULT?, COMMENT?, UI?, WHEN?}` |
+| `DeclarePersist` | `PERSISTS` | `{SCOPE, PATH, TARGET?, CLOUD?, WHEN?}` |
+| `RegEdit` / `FileEdit` / `BinaryPatch` | `EDITS` | per edit-layer schema (see §6) |
+| `DllOverride` | `OVERRIDES` | `dll → resolution-order` map |
+
+A lone item is simply a list of one. The node-level `WHEN` gates the whole node and is **AND-ed** with any per-item
+`WHEN`. Item order is significant where the type says so (VFS mount/precedence order); a variable's value is resolved
+in a global key namespace independent of declaration order (§8). This is **homogeneous** batching — a node never mixes
+types or roles (contrast the retired two-tier package node); it is the same list model the edit layers always used,
+extended to the rest.
+
+> **`Content` was renamed `VFSLayer`.** The node `TYPE` is `VFSLayer`; its `LAYERS` entries keep the former `FORM`
+> vocabulary (§5). (Unrelated: the IPFS/storage *category* label "Content" is not a node type and is unaffected.)
 
 ## 2.3 A representative chain (single-variant game)
 

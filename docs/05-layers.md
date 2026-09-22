@@ -1,7 +1,13 @@
-# 05 · `Content` nodes
+# 05 · `VFSLayer` nodes
 
-A `Content` node contributes **files** to the runtime overlay. It is the only type that does, and it is the bulk of any
-real package.
+A `VFSLayer` node (formerly `Content`) contributes **files** to the runtime overlay. It is the only type that does, and
+it is the bulk of any real package.
+
+A `VFSLayer` node holds a **`LAYERS`** list (§2.2 batched-item model); each entry is one mount layer, and the fields
+described in this chapter (`FORM`, `PATH`, `SOURCE`, `TARGET`, `SUBMOUNTS`, `BASE_TARGETS`, and a per-entry `WHEN`)
+belong to a `LAYERS` **entry**. `LAYERS` order is mount/precedence order (§5.5). A lone layer is a `LAYERS` of one.
+The examples below show single fields for brevity; on disk they sit inside a `LAYERS` entry, e.g.
+`{ "TYPE": "VFSLayer", "LABEL": "aom_content", "LAYERS": [ { "FORM": "zip", "PATH": "aom.zip", … } ] }`.
 
 The other payload-bearing types are covered elsewhere: the edit types `RegEdit`/`FileEdit`/`BinaryPatch`/`DllOverride`
 in [chapter 6](06-edit-layers.md), `Persist` in [chapter 7](07-persistence.md), `CustomVar` in

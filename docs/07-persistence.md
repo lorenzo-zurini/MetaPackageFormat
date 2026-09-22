@@ -12,12 +12,16 @@ durable target; there is no exclude axis and no policy flag. The runtime is **pr
 
 ## 7.1 The `DeclarePersist` primitive
 
+A `DeclarePersist` **node** holds a `PERSISTS` list (§2.2 batched-item model); each entry is one persist. The
+facets below describe one `PERSISTS` entry.
+
 ```jsonc
-{ "LABEL": "quake_saves", "TYPE": "DeclarePersist", "PARENTS": ["quake_content"],
-  "SCOPE": "file",                       // "file" (default) or "registry"
-  "PATH":  "drive_c/Game/Saves",         // the runtime source to persist
-  "TARGET": "Saves",                     // the durable subdir name under the instance
-  "CLOUD": true }                        // include in Cloud Saves (default true)
+{ "LABEL": "quake_saves", "TYPE": "DeclarePersist", "PARENTS": ["quake_content"], "PERSISTS": [
+  { "SCOPE": "file",                     // "file" (default) or "registry"
+    "PATH":  "drive_c/Game/Saves",       // the runtime source to persist
+    "TARGET": "Saves",                   // the durable subdir name under the instance
+    "CLOUD": true }                      // include in Cloud Saves (default true)
+] }
 ```
 
 | Facet | Meaning |
@@ -27,9 +31,9 @@ durable target; there is no exclude axis and no policy flag. The runtime is **pr
 | `TARGET` | the durable subdir name (one path segment) under the instance the state maps to. Defaults to `PATH`'s last segment; **required** when `PATH` is empty (there is no leaf to default from). |
 | `CLOUD` | whether this target is eligible for Cloud Saves (chapter 16). Default `true`; set `false` for machine-specific state (a shader cache, a GPU-tuned config) that must not sync across machines. |
 
-**One node = one persist.** A game persisting three locations declares three `DeclarePersist` nodes. This is the
-deliberate replacement for the earlier plural `KEEP`/`DROP` arrays — a keep is a node, so it composes, carries its own
-`WHEN`, and reads in the graph like every other layer.
+**One meaningful change = one node.** A game persisting three locations declares one `DeclarePersist` node whose
+`PERSISTS` list has three entries (each with its own optional `WHEN`). This is the deliberate replacement for the
+earlier plural `KEEP`/`DROP` arrays — the node composes and reads in the graph like every other layer.
 
 Because every persist maps to a **named** `TARGET`, the durable store is a set of named sibling directories that never
 includes the instance's own config file — so a sandboxed game can never read or tamper the instance metadata beside its
