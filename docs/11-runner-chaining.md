@@ -205,16 +205,11 @@ The Windows-only VortexEmu emulator, shipped as a runner (its build on a content
 ```json
 // vortexemu_win.json  (a runner — VortexEmu is a win32 program)
 { "LABEL": "vortexemu_win",
-  "PARENTS": ["vortexemu_win_build"],
-  "TYPE": "DeclareExec", "HOST": "win32", "GUEST": ["vortex"],
-  "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
-
-// vortexemu_win_build.json  (its build: the win32 binary)
-{ "LABEL": "vortexemu_win_build",
-  "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" }
+  "LAYERS": [ { "FORM": "file", "PATH": "vortexemu.exe" } ],
+  "ENTRYPOINTS": [ { "HOST": "win32", "GUEST": ["vortex"], "PATH": "vortexemu.exe", "ARGS": ["%Content%"] } ] }
 ```
 
-Launch a Vortex game (its `DeclareExec` has `HOST: "vortex"`, `PATH: "VortexQuest.vtx"`). Because the only route
+Launch a Vortex game (its entry has `HOST: "vortex"`, `PATH: "VortexQuest.vtx"`). Because the only route
 from `vortex` to `linux64` runs through win32, the runtime resolves the chain **automatically** — nothing is pinned:
 
 1. Resolves `[vortexemu_win, ge-proton10-30, native-passthrough]` (shortest, and only, path).

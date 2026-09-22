@@ -7,16 +7,15 @@ A `VFSLayer` node holds a **`LAYERS`** list (§2.2 batched-item model); each ent
 described in this chapter (`FORM`, `PATH`, `SOURCE`, `TARGET`, `SUBMOUNTS`, `BASE_TARGETS`, and a per-entry `WHEN`)
 belong to a `LAYERS` **entry**. `LAYERS` order is mount/precedence order (§5.5). A lone layer is a `LAYERS` of one.
 The examples below show single fields for brevity; on disk they sit inside a `LAYERS` entry, e.g.
-`{ "TYPE": "VFSLayer", "LABEL": "aom_content", "LAYERS": [ { "FORM": "zip", "PATH": "aom.zip", … } ] }`.
+`{ "LABEL": "aom_content", "LAYERS": [ { "FORM": "zip", "PATH": "aom.zip", … } ] }`.
 
-The other payload-bearing types are covered elsewhere: the edit types `RegEdit`/`FileEdit`/`BinaryPatch`/`DllOverride`
-in [chapter 6](06-edit-layers.md), `Persist` in [chapter 7](07-persistence.md), `CustomVar` in
-[chapter 8](08-variables.md), and `DeclareExec`/`DeclareLibraryItem` in [chapter 9](09-exec.md) /
-[chapter 3 §3.3](03-roles.md).
+The other sections are covered elsewhere: `REGEDITS`/`FILEEDITS`/`PATCHES`/`DLLOVERRIDES` in
+[chapter 6](06-edit-layers.md), `PERSISTS` in [chapter 7](07-persistence.md), `VARS` in [chapter 8](08-variables.md),
+`ENTRYPOINTS` in [chapter 9](09-exec.md) and `TILE` in [chapter 3 §3.2](03-roles.md). A node may carry any subset.
 
 Any node MAY carry a **`WHEN`** condition ([chapter 8 §8.8](08-variables.md#88-when--conditional-layers)): when it does
-not hold, the node is **inert** — its payload is not applied, though it remains in the graph and its `PARENTS` are still
-reached. This is how the format expresses conditional, data-driven behaviour.
+not hold, the node is **inert** — its payload is not applied, though it remains in the graph and its `OVER` is still
+reached. A single `LAYERS` entry may carry its own `WHEN` too (ANDed with the node's).
 
 ## 5.1 `FORM` — the four shapes of content
 
@@ -44,8 +43,8 @@ multi-gigabyte game is "installed" by mounting one zip, with no extraction step 
 > enforce it, and the editor offers a one-click **re-store** on a node whose zip is compressed.)
 
 ```json
-{ "LABEL": "aom_content", "TYPE": "Content", "FORM": "zip", "PATH": "aom.zip",
-  "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
+{ "LABEL": "aom_content", "LAYERS": [ { "FORM": "zip", "PATH": "aom.zip",
+  "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ] }
 ```
 
 ### `file` — a single loose file
@@ -54,7 +53,7 @@ For content that is naturally one file: a ROM, a single patched executable, a lo
 node's target directory keeping its own basename.
 
 ```json
-{ "LABEL": "starvoyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" }
+{ "LABEL": "starvoyager_rom", "LAYERS": [ { "FORM": "file", "PATH": "StarVoyager.sfc" } ] }
 ```
 
 With no `TARGET`, this lands at the content root as `StarVoyager.sfc`.
@@ -67,7 +66,7 @@ that a `dir` node should be converted to a STORE `zip` before publishing. It sti
 iterate before sealing content into a zip. (VidyaGod surfaces a one-click **→ zip** conversion on the node itself.)
 
 ```json
-{ "LABEL": "aom_wip", "TYPE": "Content", "FORM": "dir", "PATH": "game_files/" }
+{ "LABEL": "aom_wip", "LAYERS": [ { "FORM": "dir", "PATH": "game_files/" } ] }
 ```
 
 ### `delta` — content expressed as a diff of other content
@@ -80,9 +79,9 @@ makes 900 versions of one game ship as one chain instead of 900 archives.
 in the overlay. That is what a chain is, and it is why the overwhelming majority of deltas declare no base at all:
 
 ```json
-{ "LABEL": "mc_1_20_2", "TYPE": "Content", "FORM": "delta",
-  "PATH": "1.20.2.vgdelta", "TARGET": "%PrefixRoot%/drive_c/minecraft",
-  "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
+{ "LABEL": "1.20.2", "OVER": ["1.20.1"],
+  "LAYERS": [ { "FORM": "delta", "PATH": "1.20.2.vgdelta", "TARGET": "%PrefixRoot%/drive_c/minecraft",
+                "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ] }
 ```
 
 `BASE_TARGETS` names a **different** base, and is only needed when the delta is not over the thing it mounts onto:
@@ -140,8 +139,9 @@ subdirectory with `TARGET`:
   correctly under every runner.
 
 ```json
-{ "LABEL": "mw_hd_textures", "TYPE": "Content", "FORM": "zip", "PATH": "hd_textures.zip",
-  "TARGET": "%PrefixRoot%/drive_c/%PackageUID%/Data Files/Textures" }
+{ "LABEL": "mw_hd_textures", "OVER": ["GOTY"],
+  "LAYERS": [ { "FORM": "zip", "PATH": "hd_textures.zip",
+                "TARGET": "%PrefixRoot%/drive_c/%PackageUID%/Data Files/Textures" } ] }
 ```
 
 For `FORM: "file"`, `TARGET` is the directory the single file is placed into (the file keeps its basename). For `zip`,

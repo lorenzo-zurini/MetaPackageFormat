@@ -15,13 +15,18 @@ each section is runnable once the previous ones are.
 
 ## 19.2 Resolution
 
-- [ ] **MUST** resolve a launchable's content closure by the two-phase algorithm of chapter 12: BFS enable pass
-      (`TOGGLE` on/off, symmetric `EXCLUDE` first-kept-wins, explicit-choice-beats-default, the hierarchy
-      gate) then post-order topological emission (parents first, launch node last).
-- [ ] **MUST** tolerate `PARENTS` cycles by breaking the back-edge and completing (invariant I2), and a validator **MUST**
+- [ ] **MUST** resolve a launchable's closure by the algorithm of chapter 12: plain requirements walked first
+      (`TOGGLE` on/off, `NOT` first-kept-wins, explicit-choice-beats-default, the hierarchy gate), any-of groups
+      deferred and satisfied by an already-kept member, then post-order topological emission (requirements
+      first, launch node last).
+- [ ] **MUST** keep selection and closure apart (invariant I10): grafts are offered against the SELECTED set
+      (identity-bearing requirements selected, substance by mounting, `NOT` against selected), to a fixpoint; a
+      node inside the launchable's own composition is never a graft; execution runs a selected node's entry.
+- [ ] **MUST** mount selected applicable grafts above the base closure in instance precedence, ties by key.
+- [ ] **MUST** tolerate `OVER` cycles by breaking the back-edge and completing (invariant I2), and a validator **MUST**
       report them as errors.
-- [ ] **MUST** treat resolved closure order as overlay priority (later = higher; a child wins over its parents), and
-      MUST NOT treat a node's `PARENTS` list order as a priority tie-break (invariant **I9**).
+- [ ] **MUST** treat resolved order as overlay priority (later = higher; a dependant wins over what it is over), and
+      MUST NOT treat unrelated nodes as ordered (invariant **I9**).
 
 ## 19.3 Platforms & runner chains
 
@@ -87,9 +92,9 @@ each section is runnable once the previous ones are.
 ## 19.8 Validation
 
 - [ ] **SHOULD** implement the validator of chapter 15: graph integrity (errors), STORE-zip + VFS-path (errors),
-      a launchable's `PATH` case-exactness + cross-layer case collisions + a missing tile `UID` + an ambiguous tile
-      (errors), and the various warnings (dir content, runner
-      layers, EXCLUDE symmetry, missing host/runner, prefix-without-drive_c).
+      unknown vocabulary + empty sections (errors), a launchable's `PATH` case-exactness + cross-layer case
+      collisions + a missing tile `UID` + a self-`PARENTUID` (errors), and the various warnings (dir content, UID
+      title/cover agreement, missing NOT target, no identity, missing host/runner, prefix-without-drive_c).
 
 ## 19.9 Operations
 

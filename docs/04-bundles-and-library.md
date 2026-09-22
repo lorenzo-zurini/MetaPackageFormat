@@ -21,9 +21,9 @@ sit together and can be copied/shared/deleted as a unit.
 └── USERDATA/                          ← per-package durable saves (ch. 7) — created at runtime
 ```
 
-A bundle MAY contain any number of nodes of any `TYPE`. A "game package" is typically one tile, one launchable and
-their content chain; a "runner package" is a `DeclareExec` with `GUEST` plus its build content node(s). Nothing
-prevents one bundle from holding many launchables (e.g. a multi-game collection).
+A bundle MAY contain any number of nodes. A "game package" is typically a launchable (carrying its `TILE`) over its
+content chain, plus its grafts; a "runner package" is a node with a `GUEST` entry plus its build. Nothing prevents
+one bundle from holding many launchables (e.g. a multi-game collection, or 903 Minecraft versions).
 
 A `.json` file in a bundle holds **one node or a JSON array of them** ([ch. 2 §2.2](02-nodes.md)); an indexer MUST
 accept both. Since a chain of twenty nodes is the normal shape now, keeping one chain in one array file is common —
@@ -38,7 +38,7 @@ into a published default on the node (`POS`) and a local override outside the bu
 
 ### Relative-path resolution
 
-Every relative path written inside a node — a `Content` node's `PATH`, a `SOURCE.PATH`, a tile's `COVER.PATH` —
+Every relative path written inside a node — a layer's `PATH`, a `SOURCE.PATH`, a `TILE.COVER.PATH` —
 resolves against **the bundle directory of the node that declares it**, not against the launchable being run. This is essential for cross-bundle
 composition: when a game's closure pulls in a runner whose build layer says `PATH: "GE-Proton10-30.zip"`, that path
 resolves against the *runner's* bundle, wherever the runner lives. (VidyaGod: each node records its `BundleDir`;

@@ -18,8 +18,8 @@ graph of small, globally-referenceable JSON nodes. A SNES ROM, a Windows game, a
 Wine/Proton runtime, a mod, an optional expansion, a configuration knob, a single registry write: all of them are
 *nodes*. The format is the graph and the rules for resolving, composing and executing it.
 
-There is exactly one structural primitive and it is deliberately small: **a node is one layer**. It has an id, a `TYPE`,
-that type's payload, and `PARENTS`. Nothing nests. Order is not an array index — it is an edge.
+There is exactly one structural primitive and it is deliberately small: **a node is one meaningful change**. It has a CID,
+any subset of the payload sections, and the one edge `OVER`. Nothing nests, nothing has a type. Order is not an array index — it is an edge.
 
 This repository is the **definitive specification** of that format. It is implementation-independent: the format is
 defined here, not in any one program. The reference implementation is [**VidyaGod**](https://github.com/lorenzo-zurini),
@@ -56,7 +56,7 @@ Existing formats each bake in assumptions the others can't shed:
 MPF's bet is that all of these collapse into **one graph model**:
 
 > A piece of runnable software is a **graph of nodes**, where each node is exactly **one layer** — files, a registry
-> edit, a config patch, a persistence rule, a knob, a declaration of what to run — and each node's `PARENTS` say both
+> edit, a config patch, a persistence rule, a knob, a declaration of what to run — and each node's `OVER` says both
 > what it depends on and what is applied before it. "What it runs on" is just an edge in a **platform graph** of
 > runners. "How to obtain it" is a **content-addressed source** on each node.
 
@@ -79,8 +79,8 @@ native-Linux build:
             ┌──────────────────────────────────────────────────────────┐
             │                    THE GLOBAL NODE GRAPH                    │
             │                                                            │
-   runner ──┤   vortex_quest_game  (DeclareExec, HOST = "vortex")        │
-   edges    │        │ PARENTS                                           │
+   runner ──┤   Vortex Quest  (ENTRYPOINTS, HOST = "vortex")           │
+   edges    │        │ OVER                                              │
    GUEST→HOST│       ▼                                                   │
             │   vortex_quest_rom   (Content, FORM "file": the ROM)       │
             └──────────────────────────────────────────────────────────┘
@@ -102,24 +102,25 @@ happens only when there's no shorter route.) Add an ARM runner tomorrow and ARM 
 
 ---
 
-## The ten node types
+## The node: sections, not types
 
-| `TYPE` | The node is… |
-|--------|--------------|
-| `Content` | files mounted into the runtime — a zip, a directory, a single file, or a binary delta over one |
-| `RegEdit` | registry keys and values written into the prefix, per architecture |
-| `FileEdit` | text edits applied to a file in the runtime |
-| `BinaryPatch` | byte patches over the **pristine** executable, each guarded by an `EXPECT` check |
-| `DllOverride` | which DLLs resolve native vs builtin |
-| `Persist` | what survives the run: `KEEP` promotes, `DROP` makes ephemeral |
-| `CustomVar` | a variable the player sets before launch, substituted as `%KEY%` wherever it is used |
-| `DeclareExec` | **what to run.** No `GUEST` ⇒ a launchable; with `GUEST` ⇒ a runner providing those platforms |
-| `DeclareLibraryItem` | the library tile — and the **parent** of the launchables it groups |
-| `Group` | pure composition: no payload, exists only to gather `PARENTS` under one name |
+| section | The node carries… |
+|---------|-------------------|
+| `LAYERS` | files mounted into the runtime — a zip, a directory, a single file, or a binary delta over one |
+| `REGEDITS` | registry keys and values written into the prefix, per architecture |
+| `FILEEDITS` | text edits applied to a file in the runtime |
+| `PATCHES` | byte patches over the **pristine** executable, each guarded by an `EXPECT` check |
+| `DLLOVERRIDES` | which DLLs resolve native vs builtin |
+| `PERSISTS` | what survives the run |
+| `VARS` | variables the player sets before launch, substituted as `%KEY%` wherever they are used |
+| `ENTRYPOINTS` | **what to run** — each entry a variant. No `GUEST` ⇒ a launchable; with `GUEST` ⇒ a runner providing those platforms |
+| `TILE` | the identity of a title: `UID` (one card), `PARENTUID` (nesting), `TITLE`, `COVER`. Carried by launchables; inherited through `OVER` |
+| *(none)* | a plain node: pure composition, exists only to be `OVER` other nodes under one name |
 
-Plural payloads batch *within* a type — a `RegEdit` carries a whole hive tree, a `BinaryPatch` carries every patch to
-one executable — so granularity is a graph question, not a payload question. Split a node when something needs to depend
-on part of it.
+A node carries any subset of these — *one meaningful change*: a widescreen fix that is a byte patch, an ini edit and
+a knob is ONE node with three sections. Plural payloads batch *within* a section — `REGEDITS` carries a whole hive
+tree, `PATCHES` every patch to one executable — so granularity is a graph question, not a payload question. Split a
+node when something needs to depend on part of it.
 
 ---
 
@@ -132,16 +133,16 @@ The chapters build on each other; read them in order the first time.
 | — | [Glossary](docs/00-glossary.md) | Every term used normatively. |
 | 01 | [Overview & design model](docs/01-overview.md) | The everything-is-a-node philosophy; goals; invariants. |
 | 02 | [The Node object](docs/02-nodes.md) | Every field of a node, its type, default and meaning. |
-| 03 | [Node types](docs/03-roles.md) | The ten `TYPE`s; launchable vs runner; tiles and variants. |
+| 03 | [Roles](docs/03-roles.md) | Derived, never declared: launchable, runner, identity, substance, canonical, graft; tiles and variants. |
 | 04 | [Bundles, the library & indexing](docs/04-bundles-and-library.md) | On-disk layout, repos, LABEL uniqueness (within a tree), index building. |
-| 05 | [`Content` nodes](docs/05-layers.md) | `FORM` zip / dir / file / delta, PATH+SOURCE, TARGET, SUBMOUNTS. |
-| 06 | [Edit nodes](docs/06-edit-layers.md) | `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride` (+ the OVERRIDE pass model). |
-| 07 | [Persistence](docs/07-persistence.md) | The one `Persist` primitive: `KEEP` / `DROP`, runner keep-sets. |
-| 08 | [Variables & CustomVar](docs/08-variables.md) | The `%TOKEN%` engine, the full token table, user-facing knobs. |
-| 09 | [Invocation](docs/09-exec.md) | `DeclareExec`: a launchable (no GUEST) and a runner (GUEST) are one type. |
+| 05 | [`LAYERS`](docs/05-layers.md) | `FORM` zip / dir / file / delta, PATH+SOURCE, TARGET, SUBMOUNTS. |
+| 06 | [Edit sections](docs/06-edit-layers.md) | `REGEDITS`, `FILEEDITS`, `PATCHES`, `DLLOVERRIDES` (+ the OVERRIDE pass model). |
+| 07 | [Persistence](docs/07-persistence.md) | `PERSISTS`: one entry per durable file or registry key, runner keep-sets. |
+| 08 | [Variables & `VARS`](docs/08-variables.md) | The `%TOKEN%` engine, the full token table, user-facing knobs. |
+| 09 | [Invocation](docs/09-exec.md) | `ENTRYPOINTS`: a launchable entry (no GUEST) and a runner entry (GUEST) are one shape; execution is not transitive. |
 | 10 | [Platforms & runners](docs/10-platforms-and-runners.md) | Platform tokens, the GUEST→HOST graph, the runner build model. |
 | 11 | [Runner daisy-chaining](docs/11-runner-chaining.md) | Shortest-chain resolution, the native terminal, cross-namespace nesting. |
-| 12 | [Dependency resolution](docs/12-resolution.md) | The PARENTS closure, TOGGLE/EXCLUDE, load order. |
+| 12 | [Resolution](docs/12-resolution.md) | Selection ≠ closure: the OVER closure, any-of groups, NOT, grafts and the offered set, precedence, conflicts, the instance. |
 | 13 | [The runtime model](docs/13-runtime-model.md) | The single overlay mount, layer stacking order, prefixes, case rules. |
 | 14 | [Content addressing & distribution](docs/14-content-addressing.md) | The SOURCE block, hydrate/dehydrate/publish/seed over IPFS. |
 | 15 | [Validation](docs/15-validation.md) | Every rule a validator must enforce (errors vs. warnings). |
@@ -161,13 +162,20 @@ generations are **obsolete** and are not described here except as historical not
 |-----|-------|-------------|
 | 1 | one monolithic `MANIFEST.json` with `SUBGAMES`/`COMPONENTS` arrays | the graph was implicit and un-addressable |
 | 2 | a node with a `ROLE` and an ordered `LAYERS[]` array | identity collapsed into `Declare*` layers, and then the array itself became the problem: nothing could reference, reorder or depend on a single layer |
-| **3** | **a node is one layer; `TYPE` on the node, payload hoisted onto it, order carried by `PARENTS`** | current |
+| **3** | a node is one layer; `TYPE` on the node, payload hoisted onto it, order carried by `PARENTS` | superseded |
+| **4** | **one pluripotent node kind, one edge `OVER` (CNF), tiles on the variants, selection ≠ closure, grafts** | current |
 
 What generation 3 changed, beyond flattening: `DeclareExec` and `DeclareRunner` unified (a launchable is a runner that
 provides nothing, so the chain needs no special case for its ends); `TOGGLE` replaced the never-independent
 `OPTIONAL`+`DEFAULT` pair; the registry became a tree instead of a flat path plus a value map; and
-`DeclareLibraryItem` became a node in its own right and the **parent** of the launchables it groups, which is what made
-"a tile must have a UID" and "a launchable reaches exactly one tile" statable rules at all.
+`DeclareLibraryItem` became a node in its own right and the **parent** of the launchables it groups.
+
+What generation 4 changed: the types went away — a node is *pluripotent*, carrying any subset of the payload sections,
+and what it *is* (launchable, runner, substance, graft) is derived from what it carries and what it is `OVER`. The
+edges collapsed into one, `OVER`, read as a conjunction of requirements (a ref, an any-of group, a `NOT`). The tile
+moved onto the launchables themselves (same `UID` = one card; the variants are the nodes). And the rule that makes
+mods work: **selection ≠ closure** — what the user chose is judged for offers and executed; what it is made of only
+mounts. Nothing travels along the chain.
 
 Where this spec and any older material disagree, **this spec wins**.
 

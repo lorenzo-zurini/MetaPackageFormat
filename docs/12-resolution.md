@@ -1,142 +1,152 @@
-# 12 · Dependency resolution
+# 12 · Resolution: selection ≠ closure
 
-Resolving a launchable (or a runner) means turning its `PARENTS` graph into an **ordered list of nodes** — the *closure*
-— after deciding which optional nodes are on and which mutually-exclusive ones win. The order is the overlay priority
-(chapter 13). This chapter specifies the algorithm exactly; an implementation must reproduce its observable results.
+Resolving a launch means turning the graph into an **ordered list of nodes** — the *mount* — from the user's
+**choices**. Two sets, two rules, and everything the format promises about mods follows from keeping them apart:
+
+- **selected** — what the user *chose*: the launchable picked from the card, one member per any-of group, the
+  grafts ticked (and those the author pre-ticked with `TOGGLE: "on"`).
+- **closure** — what the selected nodes are *made of*: everything reachable from them through plain `OVER`
+  entries, transitively. This is what mounts.
+
+| question | answered against |
+|----------|------------------|
+| what mounts | the **closure** of the selected set |
+| which grafts are offered / applicable | the **selected** set — never the closure |
+| what runs | an entrypoint of a **selected** node — never one under it |
+
+A plain `OVER` entry is therefore *never a choice and never a branch point*. `1.16.5 OVER [1.16.4]` puts 1.16.4's
+bytes under you; a mod `OVER [1.16.4]` is a sibling branch off a node you did not choose — not a mod for you — and
+1.16.4's entrypoint is not offered. *Nothing travels along the chain.*
 
 ## 12.1 What resolution produces
 
-`ResolveNodeOrder(graph, launchNodeId, toggles) → [nodeId, …]`
+`ResolveNodeOrder(graph, launchNodeId, toggles) → [nodeId, …]` — the launchable's own closure, topologically
+ordered **requirements before dependants**, the launch node **last** (highest overlay priority). `toggles` is
+`nodeKey → bool`: the user's explicit choices, keyed by the node's key (its CID; a label resolves too). Any
+reference missing from the graph is reported.
 
-- Input: the graph, the node to resolve, and a `toggles` map (`nodeId → bool`) of explicit user choices for optional
-  nodes.
-- Output: the topologically-ordered list of enabled nodes — **parents before children**, so the launch node is **last**
-  (highest overlay priority). Runners are *not* excluded by this function (a runner's build is resolved by calling it on
-  the runner node); the launch pipeline filters runner nodes out of the *content* closure separately.
-- Also reports any `PARENTS` id missing from the graph (for diagnostics).
+`ResolveGraftOrder(graph, launchNodeId, toggles, baseOrder, precedence) → [nodeId, …]` — the nodes that mount
+**above** that closure: every selected, applicable graft with its own substance beneath it, in instance
+precedence. The launch mounts `baseOrder` then this, in that order.
 
-## 12.2 The two phases
-
-Resolution is a breadth-first *enable* pass followed by a depth-first *order* pass.
+## 12.2 The closure
 
 ```
 function ResolveNodeOrder(graph, launchId, toggles):
-    if launchId not in graph: report missing; return []
-
-    # ---- Phase 1: determine the ENABLED set (BFS over PARENTS) ----
-    enabled = { launchId }
-    kept    = { launchId }                         # for symmetric EXCLUDE (first-kept wins)
-    frontier = [ launchId ]
-    while frontier not empty:
-        cur = frontier.popFront()
-        node = graph[cur]
-        # consider EXPLICITLY-toggled-on parents first, so an explicit choice wins an EXCLUDE.
-        # The LIST ORDER carries no priority (invariant I9) — this sort is only about EXCLUDE.
-        parents = stableSort(node.PARENTS, key = explicitlyOn(toggles) first)
-        for pid in parents:
-            if pid in enabled: continue
-            p = graph[pid]; if p is null: report missing; continue
-            on = toggles[pid] if present else (p.TOGGLE != "off")
-            if not on: continue                    # off ⇒ skip (and its subtree, see §12.5)
-            if conflicts(p, kept): continue        # EXCLUDE (§12.4)
-            enabled.add(pid); kept.add(pid); frontier.pushBack(pid)
-
-    # ---- Phase 2: topologically order the enabled subgraph (post-order DFS) ----
-    order = []; visited = {}; onStack = {}
-    function emit(id):
-        if id in visited: return
-        if id in onStack: warn("cycle through " + id); return   # break back-edge (invariant I2)
-        onStack.add(id)
-        for pid in graph[id].PARENTS:
-            if pid in enabled: emit(pid)           # parents first
-        onStack.remove(id); visited.add(id)
-        order.append(id)
-    emit(launchId)
-    return order
+    enabled = { launchId }; frontier = [ launchId ]; pending = []
+    loop:
+        while frontier not empty:
+            node = graph[frontier.popFront()]
+            plain = [ e for e in node.OVER if e is a ref ]              # any-of groups are DEFERRED (below)
+            pending += [ e for e in node.OVER if e is a group ]
+            for pid in stableSort(plain, explicitlyOn(toggles) first):  # an explicit choice is kept before a
+                consider(pid)                                           # conflicting DEFAULT-on sibling
+        if pending empty: break
+        group = pending.popFront()
+        pick = a member already in enabled                              # kept through ANY other route wins
+             ‖ an explicitly toggled-on member ‖ the first member the graph has
+        consider(pick)                                                  # ...then walk what it pulled in
+    function consider(pid):
+        p = graph[pid]; if missing or unlowerable: report; return
+        if p.TOGGLE present and not (toggles[pid] if present else p.TOGGLE == "on"): return
+        if p excludes an enabled node, or an enabled node excludes p: return      # NOT: first-kept wins
+        enabled.add(pid); frontier.pushBack(pid)
+    return postOrderDFS(launchId, following OVER in list order, restricted to enabled)   # cycles broken, warned
 ```
 
-(VidyaGod: `ManifestModel::ResolveNodeOrder`.)
+- **`TOGGLE` inside the closure** is an optional module: present ⇒ toggleable, value = the author's default; the
+  user's toggles are authoritative in both directions. An off node is not descended into, so its private
+  requirements drop with it (the *hierarchy gate*).
+- **An any-of group** is a choice. It is resolved only after every plain requirement has been walked, so a member
+  already kept through another route satisfies it without a second pick; with nothing kept, an explicit toggle
+  picks, else the first present member — deterministic, and never two. On a *launchable* this is the version
+  selector the picker shows.
+- **`NOT`** is one-sided in the file and symmetric in effect: a candidate is dropped if it excludes a kept node
+  **or** a kept node excludes it; explicitly toggled-on candidates are considered first, so an explicit choice
+  beats a conflicting default.
+- **The gating map must be the same on every walk.** Any pass that re-walks a closure MUST use the user's
+  toggles, never a map reconstructed from a default-gated walk (which never visits an off-by-default node).
 
-## 12.3 `TOGGLE` — on and off
+## 12.3 Order = priority
 
-A node referenced as a parent is a **hard dependency** unless it declares `TOGGLE: "off"`, which makes it a **toggle**:
+The emitted order is the overlay stacking order: earlier = lower priority, later = higher; a node is always
+emitted after everything it is `OVER`, so **a dependant wins over its requirements**; the launchable sits on top of
+its own closure; grafts sit above that. Among a node's own entries, list order is the tie-break (later = higher).
+Within one node the engine applies kinds in phases — VFS mount → binary patches → post-VFS file edits → registry
+— so a pluripotent node needs no internal order.
 
-- A `TOGGLE: "off"` node is on iff the user's `toggles` map says so; absent a choice, it is off.
-- A `TOGGLE: "on"` node (the default) is on whenever it is reached, but the user MAY still switch it off — the toggles
-  map is authoritative in both directions.
-- An **off** node does not enter the closure, so its payload is not applied and its own parents are not pulled in
-  (§12.5).
+## 12.4 Grafts — the offered set
 
-`TOGGLE` lives on the *node*, not on the `PARENTS` edge — so the same node referenced by two parents has one consistent
-toggle state. This is how DLC, mods and feature flags are modelled:
+A **graft** is a node of the launchable's title (same UID, own or inherited — [ch. 3 §3.2](03-roles.md)) that is
+**not part of the launchable's own composition** (not reachable from it through `OVER`) and is `OVER` something.
+Launchables and runners are never grafts (they are variants); substance is never a graft (it has no title).
 
-```json
-{ "LABEL": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off",
-  "FORM": "zip", "PATH": "tribunal.zip", "PARENTS": ["morrowind_base"] }
-```
+A graft is **applicable** iff every requirement holds against the **selected set**:
 
-The implementation surfaces the set of reachable toggleable nodes as the user-facing toggle list (VidyaGod:
-`OptionalNodes`). Runner nodes are excluded from that list.
+| requirement | holds when |
+|-------------|------------|
+| a plain ref to a node **with identity** | that node is *selected* — the launchable, or a selected graft |
+| a plain ref to a node **without identity** (substance) | always — substance is satisfied by *mounting*, it is not a choice |
+| an any-of group | some member holds by the rules above |
+| `{ "NOT": x }` | `x` is *not* selected |
 
-> **The gating map must be the same on every walk.** Any pass that re-walks a closure (to collect a runner's
-> prefix-assembly content, say) MUST gate it with the user's toggles, not with a map reconstructed from a
-> default-gated walk. A default-gated walk never visits an off-by-default node, so a node the user switched **on**
-> gets no entry and is gated off again — a toggle that can only ever turn things off.
+**Selection follows identity.** Selecting a node selects the nodes it takes its identity from: a tile-carrying
+launchable selects only itself (what is under it is made-of); a tile-less launchable graft (Forge `OVER [1.16.5]`,
+SKSE `OVER [[640, 659]]`) selects what it inherits through — a plain entry as-is, a group by choice. So picking
+Forge is "1.16.5 with Forge", and 1.16.5's mods are offered alongside Forge's.
 
-## 12.4 `EXCLUDE` — mutual exclusion (pick-one)
+**Fixpoint.** Ticking a graft can make another applicable (`tex` → `tex-hd OVER [tex]`) and can trip another's
+`NOT`; the selected set is the least fixpoint of "selected = launchable ∪ { ticked grafts applicable against
+selected }". An implementation iterates until nothing changes and reports, per graft, *applicable*, *selected*,
+and — when blocked — the first unsatisfied requirement (the UI shows "needs X").
 
-`EXCLUDE` lists node ids this node cannot coexist with. It is **symmetric** by intent — both nodes should list each other;
-a validator warns if only one does. When resolution would enable two mutually-exclusive nodes, **first-kept wins**: the
-one already in the `kept` set blocks the later one.
+**Scope.** Candidates are the hydrated, localised library only; a received CATALOG stub never grafts.
 
-Two subtleties make this behave well:
+## 12.5 The graft order
 
-- **Explicit choice beats a default.** In phase 1, a node's parents are stable-sorted so that *explicitly toggled-on*
-  parents are considered before others. So if option A is `TOGGLE: "on"` and the user explicitly turns on its excluded
-  sibling B, B is considered first and kept, and A is dropped — the user's choice wins rather than being silently
-  overridden by A's default.
-- **Symmetric check.** `conflicts(p, kept)` is true if `p` excludes any kept node **or** any kept node excludes `p`.
+Selected applicable grafts mount above the base closure in **instance precedence** (higher = later = wins at a
+conflict), ties by key so an untouched instance is reproducible. Each graft's own closure is emitted beneath it
+(its substance, its private ancestors); nodes already in the base mount or already emitted are never repeated.
+A graft's identity-bearing requirements are selected by construction, so descending into them never pulls a
+second copy of the game.
 
-Use `EXCLUDE` for "choose exactly one" sets (renderer backends, mutually incompatible mods, edition-specific patches).
+## 12.6 Conflicts
 
-## 12.5 The hierarchy gate
+Conflicts are **detected, never declared by pairs**. Two grafts conflict when they provide the **same target path
+with different content** (layers), **overlapping ranges on one file** (patches), or **the same key with a different
+value** (file edits, registry, DLL overrides). Identical bytes never conflict; an appended line never conflicts;
+`VARS` override by closure order *by design*. A graft overlapping the canonical is not a conflict — that is the
+point. Archives are opaque (authors are encouraged to unpack). Resolution is the instance's: **per-mod
+precedence** in bulk, **per-file winners** as sparse exceptions.
 
-Resolution only **descends into nodes it keeps**: a node that is toggled off is never visited, so *its* unique parents
-are not pulled in either. A subtree that exists only to support an off node is naturally dropped with it.
-Conversely, a node reachable through *another* kept path stays (it isn't orphaned just because one route to it was
-disabled). This "you get a node's ancestors only if you kept the node" rule is the **hierarchy gate**, and it falls out of
-the BFS pushing onto the frontier only nodes it enabled.
+## 12.7 The instance
 
-## 12.6 Order = priority
+The **instance** is the loadout — local configuration, not a node: the selected set (keyed by node CID; author
+defaults from `TOGGLE`), the entrypoint `(node, label)`, precedence, winners, variable overrides, its own saves.
+Permutations are instances. A mod update is a new CID: a graft `OVER` the old CID becomes unsatisfied and unticks
+until a node names the new one — re-selection is the honest cost of CID-keyed compatibility.
 
-The emitted order is the overlay stacking order: **earlier = lower priority, later = higher**, with the launch node last
-and highest. A node is always emitted after every node it depends on, so **a child wins over its parents**. Concretely:
+## 12.8 Cycles
 
-- A base content node is a mod node's parent → the mod's files override the base's. *That is the load order* — no
-  separate mod-ordering construct exists.
-- The launchable is the terminal node of its chain and sits on top of everything — the place for variant-specific
-  overrides.
-- **`PARENTS` list order is NOT a tie-break.** Two parents of the same node are unordered with respect to each other
-  (invariant **I9**, [ch. 2 §2.4](02-nodes.md)). An implementation is deterministic — VidyaGod does a post-order DFS in
-  list order, so the same graph always resolves the same way — but a package MUST NOT rely on it. If two nodes write
-  the same thing and the order matters, **make one a parent of the other**. A validator MUST report such an unordered
-  write conflict, and MUST do so over a *resolved closure*: two nodes that never meet in any closure are not in
-  conflict, and a whole-library scan reports dozens of collisions that cannot happen.
+`OVER` MUST be acyclic. If a cycle exists, resolution still completes: the order pass detects the back-edge,
+reports it, and skips that edge. A validator MUST report cycles as errors ([ch. 15](15-validation.md)).
 
-(Edit nodes add two more tiers — base edits below the user's writable layer, OVERRIDE edits above everything — see
-chapters 6 and 13.)
+## 12.9 Worked examples
 
-## 12.7 Cycles (invariant I2)
+**Wipeout XL.** Two launchables `OVER` one pristine; the widescreen fix is one graft `OVER [["sp", "mp"]]` with
+`TOGGLE: "on"`. Pick *Single Player* → selected `{sp}` → the graft is applicable (sp ∈ its group) and pre-ticked →
+mount: pristine → sp → widescreen (its patches over the composed exe, its ini edit post-VFS, its 93 knobs in the
+sheet). Pick *Multiplayer* → same graft, same rule. The 200fps mode is a second graft, `TOGGLE` absent: offered,
+unticked; ticked by the user it mounts above, its variable node pulled in beneath as substance.
 
-`PARENTS` MUST be acyclic. If a cycle exists, resolution still completes: the depth-first order pass detects the back-edge
-(a node already on the recursion stack), reports it, and skips that edge so emission terminates. A validator MUST report
-cycles as errors (chapter 15); the runtime tolerates them defensively rather than hanging.
+**Minecraft.** Pick *1.16.5* → the delta chain mounts beneath (bytes); *Play* runs 1.16.5's own entry; a mod
+`OVER [1.12.2]` is not offered. Pick *Forge 36.2* (`OVER [1.16.5]`, no tile) → selects Forge and 1.16.5 → *Biomes
+O' Plenty* `OVER [1.16.5, forge-36]` becomes applicable; run *Forge* or 1.16.5's *Play*.
 
-## 12.8 Modules (legacy term)
-
-Generation-1 manifests used a `MODULES` array (with `REQUIRED`/`DEFAULT`/`EXCLUDE`/`PARENTCOMPONENT`) on a variant to
-select components. The node graph subsumes this: a "module" is just a `TOGGLE: "off"` content node, `REQUIRED` is an
-ordinary parent, `EXCLUDE` is unchanged, and the `PARENTCOMPONENT` chain is ordinary `PARENTS`. New packages use nodes;
-the term "module" survives only in older material and in some UI labels (and in `--module <id>=on|off`).
+**Skyrim.** Pick *SKSE* (`OVER [[640, 659]]`) → choose 640 → `{skse, 640}`. Offered: `tex OVER [[640, 659]]` ✓,
+`quest OVER [640, skse, NOT old-quest]` ✓, `old-quest` ✓, `tex-hd OVER [tex]` (needs tex), `ab-patch OVER [modA,
+modB, 640]` (needs modA, modB). Tick tex → tex-hd offered. Tick old-quest → quest unticks (its `NOT`); tick quest →
+old-quest unticks. plugins.txt is the composed file: each ticked mod's `FILEEDITS` *AppendLine* in precedence
+order — no generator.
 
 Next: [The runtime model](13-runtime-model.md).

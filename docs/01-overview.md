@@ -6,24 +6,26 @@ MPF has exactly one structural primitive. Every concept that other formats model
 edition, a dependency, a mod, an optional add-on, an emulator, a runtime, a config option — is, in MPF, **a node**.
 
 A node is a small JSON object whose identity is **exclusively its CID** (the content hash of its frozen block); it
-carries a stored `CID` **handle** that references point to, and an optional, purely-cosmetic `LABEL`. It does exactly
-two things:
+carries a stored `CID` **handle** that references point to, and an optional, purely-cosmetic `LABEL`. There is
+**one node kind** and it does exactly two things:
 
-1. **It is one layer.** Its `TYPE` says which — files to overlay (`Content`), a registry write (`RegEdit`), a config
-   patch (`FileEdit`), a byte patch (`BinaryPatch`), a DLL policy (`DllOverride`), durable state (`DeclarePersist`), a user
-   knob (`CustomVar`), what to run (`DeclareExec`), a library tile (`DeclareLibraryItem`), or nothing at all (`Group`).
-   That type's payload sits **directly on the node**. There is no `ROLE` field, and no `LAYERS` array.
-2. **It selects other nodes**, by listing their ids in `PARENTS`. This is how composition, dependencies, variants,
-   options *and order* are expressed: a parent is applied before its child. Edges carry no attributes; selection
-   attributes (toggleable? mutually exclusive? conditional?) live on the *selected* node.
+1. **It is one meaningful change.** Any subset of the payload sections — files to overlay (`LAYERS`), byte patches
+   (`PATCHES`), config edits (`FILEEDITS`), registry writes (`REGEDITS`), a DLL policy (`DLLOVERRIDES`), user knobs
+   (`VARS`), durable state (`PERSISTS`) — plus two facets: what to run (`ENTRYPOINTS`) and which title it is
+   (`TILE`). A change may span kinds. A node with no payload is just a node. There is no `TYPE`, no `ROLE`.
+2. **It is `OVER` other nodes.** The one edge — "I am made of you; you are under me" — a conjunction of
+   requirements: a ref, an any-of group, an exclusion (`NOT`). This is how composition, dependencies, compatibility,
+   exclusion, identity *and order* are expressed. The edge points newer → older: the older side never enumerates
+   what builds on it, so nothing that grows is ever listed.
 
-Nothing else is a first-class concept. There is no separate "package object," no "installer," no "variant table," no
-"runner registry schema," and no ordered array inside a node. There is the graph, and the rules for walking it.
+Nothing else is a first-class concept. There is no package object, no installer, no variant table, no runner
+registry, no tile node, no second edge. There is the graph, and the rules for walking it.
 
-> **Order is an edge.** A node that used to carry twenty layers in a list is twenty nodes in a chain. This is not a
-> cosmetic change: it means a mod can depend on *one* of those layers, a capture can be parented at *one* point in the
-> chain, and "these two writes are unordered" becomes a statement the format can make — and a validator can check —
-> rather than an accident of array position.
+> **Selection ≠ closure.** What the user *chooses* (a launchable, a version, ticked mods) and what those are *made
+> of* (everything under them) are different sets. A mod is offered against the choices, a mount is built from the
+> closure, and execution runs a chosen node's entry — never one under it. This is what lets a version chain carry
+> bytes without carrying mods, and lets a mod attach to any of several versions without either side listing the
+> other. See [ch. 12](12-resolution.md).
 
 > **Design consequence.** Because there is one primitive, every feature is expressed by *composing* nodes rather than by
 > *adding* format constructs. The format stays small while the expressible space stays large. New capabilities tend to
@@ -36,11 +38,9 @@ files and loose content for one logical product, e.g. a game and its base conten
 
 ```
 [9001] Vortex Quest/
-├── vortex_quest.json           # DeclareLibraryItem — the tile
-├── vortex_quest_game.json      # DeclareExec — the launchable (the tile is its parent)
-├── vortex_quest_rom.json       # Content — FORM "file", the ROM
+├── Vortex Quest.json           # the launchable: TILE + ENTRYPOINTS + LAYERS (the ROM), in one node
 ├── VortexQuest.vtx             # the ROM bytes
-└── VortexQuest_Cover.png       # cover art referenced by COVER
+└── VortexQuest_Cover.png       # cover art referenced by TILE.COVER
 ```
 
 But a "package" has fuzzy edges *by design*: its launchable's closure can reference content nodes in *other* bundles
@@ -54,8 +54,9 @@ Resolving and running a launchable proceeds in well-defined phases. Each is spec
 
 1. **Index** the graph: scan every library root's bundles, parse each `.json` node, key by its CID handle
    ([ch. 4](04-bundles-and-library.md)).
-2. **Resolve the content closure** of the chosen launchable: walk `PARENTS` **upward**, apply `TOGGLE`/`EXCLUDE`/`WHEN`
-   gating and the hierarchy gate, topologically order the survivors ([ch. 12](12-resolution.md)).
+2. **Resolve the mount**: the closure of the selected set — walk `OVER` from the chosen launchable, apply
+   `TOGGLE`/`NOT`/`WHEN` gating and the hierarchy gate, choose any-of members, topologically order the survivors —
+   then the selected, applicable grafts above it in instance precedence ([ch. 12](12-resolution.md)).
 3. **Resolve the runner chain**: BFS the platform graph from the launchable's `HOST` to the machine platform, appending
    the native terminal ([ch. 11](11-runner-chaining.md)).
 4. **Resolve variables & persistence**: expand `%TOKEN%`s, resolve `CustomVar` knobs, decide what state persists
@@ -73,15 +74,19 @@ Resolving and running a launchable proceeds in well-defined phases. Each is spec
 
 These are *not* features the format special-cases. They are shapes of the one graph:
 
-- **Mods with automatic load order** — a mod is a `Content` node that `PARENTS` the base. Overlay priority follows the
-  resolved order, so "a child wins over its parents" *is* the load order. `TOGGLE: "off"` makes a mod a toggle.
-- **Optional DLC / expansions** — a `TOGGLE: "off"` content node (or `"on"` to be on out of the box); `EXCLUDE` makes a
-  set of them mutually exclusive (pick-one).
-- **Multi-edition games** — several launchable (`DeclareExec`) nodes that `PARENTS` one library-tile (`DeclareLibraryItem`)
-  node; the library groups them under that tile, the user picks a variant, each variant resolves its own closure.
+- **Mods, at any scale** — a mod is a node `OVER` the version(s) it works on: a **graft**. Nobody lists it; it is
+  offered to whoever selects a version it names, mounts above the game when ticked, and a graft can be `OVER` a
+  graft (an HD pack over a texture mod, a compat patch `OVER [modA, modB, game]`). A thousand-mod Skyrim is a
+  thousand grafts and one instance; a hundred configurations are a hundred instances over one pool.
+- **Optional DLC / expansions** — a `TOGGLE`'d node inside the composition, or an expansion with its own `TILE` and
+  `PARENTUID` nesting under the main game; `NOT` makes a set mutually exclusive (pick-one).
+- **Multi-edition and multi-version games** — several launchables carrying the same `TILE.UID`; the library groups
+  them under one card, the user picks a variant (node × entrypoint), each resolves its own closure. Minecraft is
+  903 launchables, each with its own entrypoint, each `OVER` the previous version's bytes — and nothing else.
+- **Mod loaders** — a launchable graft (SKSE, Forge) `OVER [["640", "659"]]`: picked from the card like any variant,
+  its any-of group is the version choice, and picking it selects the version too.
 - **Authoring by capture** — run an installer on a live runtime built from any point of a chain, and the files and
-  registry it wrote become *new nodes parented at that point*. Nothing has to be spliced into an existing node, because
-  a node is only one layer.
+  registry it wrote become *new nodes `OVER` that point*. Nothing has to be spliced into an existing node.
 - **Cross-platform execution & ARM** — a runner is an edge in a platform graph; running anything anywhere is shortest-path
   over runner edges. New platforms are new runners, not new format.
 - **P2P distribution & portable installs** — every payload carries a content-addressed `SOURCE`; an install is "fetch the
@@ -102,7 +107,7 @@ A conforming implementation MUST preserve these properties. They are referenced 
   construction — a content hash; a placeholder before first mint). `LABEL` is cosmetic and MAY repeat. On a duplicate
   *handle* (a stale or forged stored CID), first-seen wins; the loser is re-keyed, never dropped, so no node vanishes
   ([ch. 4](04-bundles-and-library.md)).
-- **I2 — Acyclic selection.** `PARENTS` edges MUST form a DAG. Cycles are reported; resolution still completes by
+- **I2 — Acyclic composition.** Positive `OVER` refs MUST form a DAG. Cycles are reported; resolution still completes by
   breaking the back-edge ([ch. 12](12-resolution.md)).
 - **I3 — Single overlay.** The entire runtime is ONE overlay mount at the runtime path. Resolved closure order =
   overlay priority, lowest first; the launchable — the terminal node of its chain — is highest
@@ -120,9 +125,14 @@ A conforming implementation MUST preserve these properties. They are referenced 
   non-lazily and verifies them gone before deleting any ephemeral tree ([ch. 13](13-runtime-model.md)).
 - **I8 — Content addressing is advisory-to-present, authoritative-to-fetch.** A locally-present file at a node's path is
   authoritative; the `SOURCE` `CID` is consulted only to obtain a missing file ([ch. 14](14-content-addressing.md)).
-- **I9 — Sibling order is unspecified.** Two parents of the same node are not ordered with respect to each other. An
-  implementation MUST be deterministic, but a package MUST NOT depend on which of two unrelated nodes writes last; if
-  the order matters, it must be an edge ([ch. 2 §2.4](02-nodes.md)).
+- **I9 — Unrelated order is unspecified.** Two nodes with no `OVER` relation are not ordered with respect to each
+  other. An implementation MUST be deterministic, but a package MUST NOT depend on which of two unrelated nodes
+  writes last; if the order matters, it must be an edge — or, for grafts, the instance's precedence.
+- **I10 — Selection ≠ closure.** A plain `OVER` entry is never a choice and never a branch point. Grafts are judged
+  against the selected set, mounts are built from the closure, execution runs a selected node's entry. Nothing
+  travels along a chain except bytes ([ch. 12](12-resolution.md)).
+- **I11 — Nothing enumerates what grows.** Every edge points newer → older; a library never lists the games that use
+  it, a version never lists its mods, a tile never lists its variants. Grouping and offering are derived.
 
 ## 1.6 Relationship to the reference implementation
 

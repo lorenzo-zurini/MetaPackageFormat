@@ -1,304 +1,241 @@
 # 17 · Worked examples
 
-Complete, copy-pasteable node sets that exercise the whole spec. Each shows the bundle layout and the resolved behavior.
-Comments (`//`) are for the reader; strip them for real JSON.
+Complete node sets that exercise the whole spec, each with the behaviour it resolves to. Comments (`//`) are for the
+reader; strip them for real JSON. Refs are written as readable handles; in a real tree they are CIDs.
 
-Throughout, the runner library (Proton, the native terminal, emulators) is assumed to live in a separate bundle — see
-[§17.7](#177-the-runner-library).
+Throughout, the runner library (Proton, the native terminal, emulators) lives in a separate bundle — see
+[§17.8](#178-the-runner-library).
 
-Read every chain **bottom-up**: a node's `PARENTS` are what must be applied before it, so the launchable is always the
-last node of its chain and the highest-priority layer of its runtime.
+Read every graph **bottom-up**: a node's `OVER` is what must be mounted before it; the launchable sits above its own
+closure, and grafts above that.
 
 ---
 
-## 17.1 A native Linux game
+## 17.1 A native Linux game — one node
 
-The simplest case: content whose platform *is* the machine platform. The chain is just the native terminal.
+The simplest case: content whose platform *is* the machine platform. Content, tile and entrypoint are ONE node.
 
 ```
 [1234] My Linux Game/
-├── mylinuxgame.json           // holds the whole chain as a JSON array
+├── My Linux Game.json
 └── mylinuxgame.zip            // STORE zip of the game tree, exe at the root
 ```
 
 ```jsonc
-[
-  // the content
-  { "LABEL": "mylinuxgame_content", "TYPE": "Content", "FORM": "zip", "PATH": "mylinuxgame.zip" },
-
-  // the tile — carries no content, and is a PARENT of the launchable
-  { "LABEL": "mylinuxgame", "TYPE": "DeclareLibraryItem", "UID": "1234", "TITLE": "My Linux Game" },
-
-  // the launchable — no GUEST, so it is the terminal link: the thing you run
-  { "LABEL": "mylinuxgame_game", "TYPE": "DeclareExec",
-    "PARENTS": ["mylinuxgame_content", "mylinuxgame"],
-    "HOST": "linux64", "PATH": "mygame", "ARGS": ["--fullscreen"] }
-]
+{ "LABEL": "My Linux Game",
+  "TILE": { "UID": "1234", "TITLE": "My Linux Game" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "mylinuxgame.zip" } ],
+  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "linux64", "PATH": "mygame", "ARGS": ["--fullscreen"] } ] }
 ```
 
-**Resolves to:** chain `[native-passthrough]`; the terminal runs `%Content%` = `<runtime>/mygame --fullscreen`. No
-prefix, content at the root, pristine runtime plus whatever the runner's keep-set persists.
+**Resolves to:** chain `[native-passthrough]`; the terminal runs `<runtime>/mygame --fullscreen`.
 
 ---
 
-## 17.2 A Windows game under Proton (with a knob and a registry default)
+## 17.2 A Windows game under Proton, with a knob and a registry default
 
 ```
 [7804] Age of Mythology/
-├── aom.json
+├── Age of Mythology.json
+├── aom_config.json
 ├── aom.zip
 └── AoM_Cover.jpg
 ```
 
 ```jsonc
-[
-  { "LABEL": "aom_content", "TYPE": "Content", "FORM": "zip",
-    "PATH": "aom.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+// aom_config.json — one meaningful change: a knob AND the registry default that reads it
+{ "LABEL": "aom_config",
+  "VARS": [ { "KEY": "WIDESCREEN", "DEFAULT": "1", "UI": { "LABEL": "Widescreen UI", "CONTROL": "bool" } } ],
+  "REGEDITS": [ { "ARCHITECTURE": ["32"],
+                  "HKCU": { "Software": { "Microsoft": { "Microsoft Games": { "Age of Mythology": {
+                      "Widescreen": "%WIDESCREEN:dword%" } } } } } } ] }
 
-  // a user knob (bool), exposed as %WIDESCREEN% (raw "1"/"0") and rendered as a dword at the registry use-site
-  { "LABEL": "aom_var_widescreen", "TYPE": "CustomVar", "PARENTS": ["aom_content"],
-    "KEY": "WIDESCREEN", "DEFAULT": "1",
-    "UI": { "LABEL": "Widescreen UI", "CONTROL": "bool" } },
-
-  // a base registry default (overridable by the user once they change it in-game)
-  { "LABEL": "aom_registry", "TYPE": "RegEdit", "PARENTS": ["aom_var_widescreen"],
-    "EDITS": [ { "ARCHITECTURE": ["32"],
-                 "HKCU": { "Software": { "Microsoft": { "Microsoft Games": { "Age of Mythology": {
-                     "Widescreen": "%WIDESCREEN:dword%" } } } } } } ] },   // → dword:00000001
-
-  { "LABEL": "aom", "TYPE": "DeclareLibraryItem", "UID": "7804", "TITLE": "Age of Mythology",
-    "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-    "META": { "UMUID": "266840" } },
-
-  { "LABEL": "aom_game", "TYPE": "DeclareExec", "PARENTS": ["aom_registry", "aom"],
-    "HOST": "win32", "PATH": "aom.exe",
-    "ARGS": ["xres=%ScreenWidth%", "yres=%ScreenHeight%"] }
-]
+// Age of Mythology.json — the launchable, OVER its config
+{ "LABEL": "Age of Mythology", "OVER": ["aom_config"],
+  "TILE": { "UID": "7804", "TITLE": "Age of Mythology",
+            "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+            "META": { "UMUID": "266840" } },
+  "LAYERS": [ { "FORM": "zip", "PATH": "aom.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%",
+                "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/aom.exe",
+                     "ARGS": ["xres=%ScreenWidth%", "yres=%ScreenHeight%"] } ] }
 ```
 
 **Resolves to:** chain `[ge-proton10-30, native-passthrough]`; Proton generates a prefix, content mounts at
-`pfx/drive_c/7804`, the launch command (terminal forwards Proton) is
-`proton waitforexitandrun C:\7804\aom.exe xres=1920 yres=1080`. The `WIDESCREEN` knob resolves (default on →
-`dword:00000001`) and is baked into the default-data hive; if the user later changes it in-game, their writable-layer
-value shadows the default next launch.
-
-Note `ARGS` is **two array elements**, not one string: each is one argv entry and nothing re-splits them.
+`pfx/drive_c/7804`, the command is `proton waitforexitandrun C:\7804\aom.exe xres=1920 yres=1080`. `WIDESCREEN`
+resolves (default on → `dword:00000001`) into the default-data hive.
 
 ---
 
 ## 17.3 A console ROM via a native emulator
 
-A console (here SNES) that *does* have a native-Linux emulator — the chain is one bridge hop. (`StarVoyager` is a
-hypothetical homebrew ROM.)
-
-```
-[8500] Star Voyager/
-├── star_voyager.json
-└── StarVoyager.sfc
-```
-
 ```jsonc
-[
-  { "LABEL": "star_voyager_rom", "TYPE": "Content", "FORM": "file", "PATH": "StarVoyager.sfc" },
-
-  { "LABEL": "star_voyager", "TYPE": "DeclareLibraryItem", "UID": "8500", "TITLE": "Star Voyager" },
-
-  { "LABEL": "star_voyager_game", "TYPE": "DeclareExec",
-    "PARENTS": ["star_voyager_rom", "star_voyager"],
-    "HOST": "snes", "PATH": "StarVoyager.sfc" }
-]
+{ "LABEL": "Star Voyager",
+  "TILE": { "UID": "8500", "TITLE": "Star Voyager" },
+  "LAYERS": [ { "FORM": "file", "PATH": "StarVoyager.sfc" } ],
+  "ENTRYPOINTS": [ { "HOST": "snes", "PATH": "StarVoyager.sfc" } ] }
 ```
 
-**Resolves to:** with a native-Linux `snes9x` runner (`GUEST:["snes"], HOST:"linux64"`) installed, the shortest chain is
-`[snes9x, native-passthrough]` and the terminal runs `snes9x -fullscreen <runtime>/StarVoyager.sfc`. One bridge hop, no
-prefix. Because a native runner exists, there's no reason to chain onward — contrast §17.4, where one doesn't.
+**Resolves to:** with a native `snes9x` runner (`GUEST: ["snes"], HOST: "linux64"`), the chain is
+`[snes9x, native-passthrough]`: `snes9x -fullscreen <runtime>/StarVoyager.sfc`.
 
 ---
 
 ## 17.4 A cross-platform daisy chain (a console with only a Windows emulator)
 
-The cross-namespace example (chapter 11). The *Vortex* is a hypothetical console whose **only** emulator, *VortexEmu*, is
-a Windows program — so the route to `linux64` runs through win32, and the runtime derives the chain automatically. The
-emulator is shipped as a runner; here it's embedded in the game's bundle to also show the embedded-runner shape.
-
-```
-[9001] Vortex Quest/
-├── vortex_quest.json
-├── vortexemu_win.json
-├── VortexQuest.vtx               // the game ROM
-└── vortexemu.exe                 // the win32 emulator build
-```
+The *Vortex* is a hypothetical console whose only emulator is a Windows program.
 
 ```jsonc
-// vortex_quest.json — Vortex content; declares no runner, just the platform it needs
-[
-  { "LABEL": "vortex_quest_rom", "TYPE": "Content", "FORM": "file", "PATH": "VortexQuest.vtx" },
-  { "LABEL": "vortex_quest", "TYPE": "DeclareLibraryItem", "UID": "9001", "TITLE": "Vortex Quest" },
-  { "LABEL": "vortex_quest_game", "TYPE": "DeclareExec",
-    "PARENTS": ["vortex_quest_rom", "vortex_quest"],
-    "HOST": "vortex", "PATH": "VortexQuest.vtx" }
-]
+// Vortex Quest.json
+{ "LABEL": "Vortex Quest", "TILE": { "UID": "9001", "TITLE": "Vortex Quest" },
+  "LAYERS": [ { "FORM": "file", "PATH": "VortexQuest.vtx" } ],
+  "ENTRYPOINTS": [ { "HOST": "vortex", "PATH": "VortexQuest.vtx" } ] }
 
-// vortexemu_win.json — an embedded runner: VortexEmu is win32-only
-[
-  { "LABEL": "vortexemu_win_build", "TYPE": "Content", "FORM": "file", "PATH": "vortexemu.exe" },
-  { "LABEL": "vortexemu_win", "TYPE": "DeclareExec", "PARENTS": ["vortexemu_win_build"],
-    "HOST": "win32", "GUEST": ["vortex"],
-    "PATH": "vortexemu.exe", "ARGS": ["%Content%"] }
-]
+// vortexemu_win.json — a runner that is itself win32 content: build + entry in one node
+{ "LABEL": "vortexemu_win",
+  "LAYERS": [ { "FORM": "file", "PATH": "vortexemu.exe" } ],
+  "ENTRYPOINTS": [ { "HOST": "win32", "GUEST": ["vortex"], "PATH": "vortexemu.exe", "ARGS": ["%Content%"] } ] }
 ```
 
 No pin is needed — `vortex → win32 → linux64` is the only route. The runtime resolves
-`[vortexemu_win, ge-proton10-30, native-passthrough]`, mounts `vortexemu.exe` at
-`pfx/drive_c/9001/__runner_vortexemu_win__/vortexemu.exe` and the ROM at `pfx/drive_c/9001/VortexQuest.vtx`, derives
-Proton's guest template from its `CONTENT_ROOT`, and execs:
-
-```
-proton waitforexitandrun "C:\9001\__runner_vortexemu_win__\vortexemu.exe" "C:\9001\VortexQuest.vtx"
-```
-
-`vortex → win32 → linux64`, one process. Note the emulator's `PATH` is a *build-relative* `vortexemu.exe` (it runs
-inside Wine, not from the host `PATH`), and the runner is "available" because it ships a build (chapter 10 §10.6).
+`[vortexemu_win, ge-proton10-30, native-passthrough]` and execs
+`proton waitforexitandrun "C:\9001\__runner_vortexemu_win__\vortexemu.exe" "C:\9001\VortexQuest.vtx"`.
 
 ---
 
-## 17.5 A multi-variant game (two editions, one tile)
+## 17.5 A multi-variant game (two editions, one card) and an expansion
 
-Two launchables grouped under one library-tile node via a `PARENTS` edge — no `GAME` string. The tile carries the
-metadata and no content; each variant `PARENTS` it and hangs its own content chain off itself.
+Two launchables carrying the same `TILE.UID` are one card; the user picks a variant. An expansion is its own
+title, `OVER` the base, nesting under it by `PARENTUID`.
 
 ```jsonc
-// aoe2.json — the GAME TILE: presentable, carries no content, not launchable itself
-{ "LABEL": "aoe2", "TYPE": "DeclareLibraryItem", "UID": "1001", "TITLE": "Age of Empires II" }
+// aoe2_base.json — the pristine game: content only (the canonical)
+{ "LABEL": "aoe2_base", "LAYERS": [ { "FORM": "zip", "PATH": "aoe2.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ] }
 
-// aoe2_fe.json — the default variant. The PATCH is a CHILD of the base, which is what orders them.
-[
-  { "LABEL": "aoe2_fe_patch", "TYPE": "Content", "FORM": "zip", "PATH": "fe_patch.zip",
-    "PARENTS": ["aoe2_base"] },
-  { "LABEL": "aoe2_fe", "TYPE": "DeclareExec", "PARENTS": ["aoe2_fe_patch", "aoe2"],
-    "HOST": "win32", "PATH": "age2_x1/age2_x1.5.exe",
-    "LABEL": "Forgotten Empires", "RECOMMENDED": true }
-]
+// Vanilla.json
+{ "LABEL": "Vanilla", "OVER": ["aoe2_base"],
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings" },
+  "ENTRYPOINTS": [ { "LABEL": "Vanilla", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/empires2.exe" } ] }
 
-// aoe2_gog.json — another edition of the SAME tile
-{ "LABEL": "aoe2_gog", "TYPE": "DeclareExec", "PARENTS": ["aoe2_gog_base", "aoe2"],
-  "HOST": "win32", "PATH": "empires2.exe", "LABEL": "GOG edition" }
+// Forgotten Empires v2.2.json — a patch over the base, same card, RECOMMENDED
+{ "LABEL": "Forgotten Empires v2.2", "OVER": ["aoe2_base"],
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "fe_patch.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
+  "ENTRYPOINTS": [ { "LABEL": "Forgotten Empires", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.5.exe", "RECOMMENDED": true } ] }
+
+// The Conquerors.json — an EXPANSION: its own card, nested under the main game, the base underneath
+{ "LABEL": "The Conquerors", "OVER": ["aoe2_base"],
+  "TILE": { "UID": "749-conq", "PARENTUID": "749", "TITLE": "Age of Empires II - The Conquerors" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "conquerors.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
+  "ENTRYPOINTS": [ { "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.exe" } ] }
 ```
 
-**Behavior:** the library shows **one** "Age of Empires II" tile (both variants reach `aoe2` through `PARENTS`); opening
-it offers two variants, "Forgotten Empires" (pre-selected, `RECOMMENDED`) and "GOG edition". Each variant inherits the
-tile's metadata (field-level composition down the closure) and resolves its own content closure and chain.
-
-Note how the patch overrides the base: **`aoe2_fe_patch` lists `aoe2_base` as a parent**, so it is applied after it. It
-is *not* enough to list them in that order on `aoe2_fe` — two parents of one node are unordered (invariant **I9**).
+**Behavior:** the library shows *Age of Kings* with two variants (Forgotten Empires pre-selected) and *The
+Conquerors* nested under it. A mod `OVER ["Vanilla"]` is offered only under Age of Kings; `OVER [["Vanilla",
+"The Conquerors"]]` under both. Nothing under Conquerors leaks into its card: an AoK mod is not a Conquerors mod.
 
 ---
 
-## 17.6 A game with optional expansions and automatic load order
+## 17.6 Expansions as grafts, with automatic load order
 
-`TOGGLE: "off"` content + `AppendLine` = a toggleable expansion that registers itself in the game's load-order file, in
-closure order, with no mod-manager construct.
+Optional expansions are **grafts**: nobody lists them, each is `OVER` the launchable, each registers itself in the
+game's load-order file with an appended line. Ordering among grafts is the instance's precedence.
 
 ```jsonc
-[
-  { "LABEL": "morrowind_base", "TYPE": "Content", "FORM": "zip",
-    "PATH": "morrowind.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+// GOTY.json — the launchable
+{ "LABEL": "GOTY", "TILE": { "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "morrowind.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
+                   "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Morrowind.esm" } ] } ],
+  "ENTRYPOINTS": [ { "LABEL": "GOTY", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/Morrowind.exe" } ] }
 
-  // register the base master in the load order (idempotent, ordered)
-  { "LABEL": "morrowind_base_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_base"],
-    "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
-    "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Morrowind.esm" } ] },
+// Tribunal.json — a graft: files + its cfg line, one node. TOGGLE absent ⇒ offered, unticked.
+{ "LABEL": "Tribunal", "OVER": ["GOTY"],
+  "LAYERS": [ { "FORM": "zip", "PATH": "tribunal.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
+                   "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Tribunal.esm" } ] } ] }
 
-  // an OPTIONAL expansion (off by default). Its cfg line is a CHILD of the base's, so it comes after.
-  { "LABEL": "morrowind_tribunal", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
-    "PATH": "tribunal.zip", "PARENTS": ["morrowind_base_cfg"],
-    "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-  { "LABEL": "morrowind_tribunal_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_tribunal"],
-    "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
-    "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Tribunal.esm" } ] },
+// Bloodmoon.json — another graft; it NEEDS Tribunal (a plain requirement on a graft = must be selected)
+{ "LABEL": "Bloodmoon", "OVER": ["GOTY", "Tribunal"],
+  "LAYERS": [ { "FORM": "zip", "PATH": "bloodmoon.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
+                   "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Bloodmoon.esm" } ] } ] }
 
-  // another OPTIONAL expansion, after Tribunal
-  { "LABEL": "morrowind_bloodmoon", "TYPE": "Content", "TOGGLE": "off", "FORM": "zip",
-    "PATH": "bloodmoon.zip", "PARENTS": ["morrowind_tribunal_cfg"],
-    "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-  { "LABEL": "morrowind_bloodmoon_cfg", "TYPE": "FileEdit", "PARENTS": ["morrowind_bloodmoon"],
-    "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
-    "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Bloodmoon.esm" } ] },
-
-  { "LABEL": "morrowind", "TYPE": "DeclareLibraryItem",
-    "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
-
-  { "LABEL": "morrowind_game", "TYPE": "DeclareExec",
-    "PARENTS": ["morrowind_bloodmoon_cfg", "morrowind"],
-    "HOST": "win32", "PATH": "Morrowind.exe", "LABEL": "GOTY" }
-]
+// Two mutually exclusive texture packs, each a graft with a NOT
+{ "LABEL": "Textures HD", "OVER": ["GOTY", { "NOT": "Textures Vanilla+" }], "LAYERS": [ … ] }
+{ "LABEL": "Textures Vanilla+", "OVER": ["GOTY"], "LAYERS": [ … ] }
 ```
 
-**Behavior:** the prelaunch UI shows Tribunal and Bloodmoon as toggles (off by default). Enable both → they enter the
-closure in chain order → their `AppendLine`s run in order → `openmw.cfg` ends with exactly:
-
-```
-content=Morrowind.esm
-content=Tribunal.esm
-content=Bloodmoon.esm
-```
-
-Disable Tribunal → the node is skipped, and so is everything reachable *only* through it (the hierarchy gate, ch. 12
-§12.5) — but `morrowind_bloodmoon` is still reached, because its own chain still leads back to a kept node. Its line
-never appears, its files never mount. The load order is a *consequence* of the graph, not a feature.
-(Mutually-exclusive expansions would add `EXCLUDE` to make a pick-one set.)
+**Behavior:** the prelaunch sheet offers Tribunal (tickable) and Bloodmoon ("needs Tribunal", greyed). Tick both →
+both mount above GOTY, Tribunal before Bloodmoon (Bloodmoon is `OVER` it) → `openmw.cfg` ends with exactly
+`content=Morrowind.esm`, `content=Tribunal.esm`, `content=Bloodmoon.esm`. Untick Tribunal → Bloodmoon is no longer
+applicable and unticks with it. Tick *Textures HD* → *Vanilla+* unticks (the `NOT` is symmetric in effect). The load
+order is a *consequence* of the graph and the instance, not a feature.
 
 ---
 
-## 17.7 The runner library
+## 17.7 Skyrim at scale — versions, a loader, a thousand mods
 
-The shared runners every game routes through. A separate bundle/repo (`VidyaGodRunners`), one bundle per runner. A
-runner is just a `DeclareExec` with a non-empty `GUEST`.
+```jsonc
+{ "LABEL": "1.6.640", "TILE": { "UID": "skyrimse", "TITLE": "Skyrim Special Edition" }, "LAYERS": [ … ],
+  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "win64", "PATH": "…/SkyrimSE.exe" } ] }
+{ "LABEL": "1.6.659", "TILE": { "UID": "skyrimse", "TITLE": "Skyrim Special Edition" }, "LAYERS": [ … ],
+  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "win64", "PATH": "…/SkyrimSE.exe" } ] }
+
+// a launchable graft: the loader, on either version — picked from the card; the group is the version choice
+{ "LABEL": "SKSE 2.2.6", "OVER": [["1.6.640", "1.6.659"]], "LAYERS": [ … ],
+  "ENTRYPOINTS": [ { "LABEL": "SKSE", "HOST": "win64", "PATH": "…/skse64_loader.exe" } ] }
+
+{ "LABEL": "tex",      "OVER": [["1.6.640", "1.6.659"]], "LAYERS": [ … ] }              // works on two versions
+{ "LABEL": "tex-hd",   "OVER": ["tex"], "LAYERS": [ … ] }                               // a graft on a graft
+{ "LABEL": "ab-patch", "OVER": ["modA", "modB", "1.6.640"], "LAYERS": [ … ] }           // only when both are on
+{ "LABEL": "quest",    "OVER": ["1.6.640", "SKSE 2.2.6", { "NOT": "old-quest" }],
+  "LAYERS":    [ { "FORM": "file", "PATH": "quest.esp", "TARGET": "…/Data" } ],
+  "FILEEDITS": [ { "FILE": "…/plugins.txt", "EDITS": [ { "MODE": "AppendLine", "VALUE": "*quest.esp" } ] } ] }
+```
+
+Pick *SKSE* → choose 1.6.640 → selected `{SKSE, 1.6.640}`. Offered: tex, quest, old-quest; blocked: tex-hd (needs
+tex), ab-patch (needs modA, modB). Tick tex → tex-hd offered; tex and tex-hd both provide `rock01.dds` with
+different bytes → a conflict is reported; the instance ranks tex-hd above tex, or names a winner for that file.
+Tick old-quest → quest unticks. `plugins.txt` is the composed file, one appended line per ticked mod in precedence
+order. A hundred such configurations are a hundred instances over one pool of nodes; a mod update is a new CID that
+the user re-selects.
+
+---
+
+## 17.8 The runner library
+
+A runner is a node with an entry that has `GUEST`; its build is its own `LAYERS` (or what it is `OVER`).
 
 ```jsonc
 // native-passthrough — the universal terminal
-{ "LABEL": "native-passthrough", "TYPE": "DeclareExec",
-  "HOST": "linux64", "GUEST": ["linux64"], "PATH": "%Content%", "ARGS": [] }
+{ "LABEL": "native-passthrough",
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["linux64"], "PATH": "%Content%", "ARGS": [] } ] }
 
-// ge-proton10-30 — Wine-family, generates a prefix; build on a content parent
-[
-  { "LABEL": "geproton_build", "TYPE": "Content", "FORM": "zip",
-    "PATH": "GE-Proton10-30.zip", "TARGET": "", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
+// GE-Proton 10-30 — Wine-family, generates a prefix; build, knob, keep-set and entry in one node
+{ "LABEL": "GE-Proton 10-30",
+  "LAYERS": [ { "FORM": "zip", "PATH": "GE-Proton10-30.zip", "TARGET": "", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "VARS": [ { "KEY": "PROTON_LOG", "DEFAULT": "0",
+              "UI": { "LABEL": "Proton logging", "CONTROL": "enum", "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } } ],
+  "PERSISTS": [ { "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
+                { "SCOPE": "registry", "PATH": "HKCU" } ],
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["win32", "win64"],
+                     "PATH": "%RunnerMount%/proton",
+                     "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
+                     "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "PROTON_LOG": "%PROTON_LOG%" },
+                     "ENV_REMOVE": ["LD_LIBRARY_PATH"],
+                     "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true } ] }
 
-  { "LABEL": "geproton_var_log", "TYPE": "CustomVar", "PARENTS": ["geproton_build"],
-    "KEY": "PROTON_LOG", "DEFAULT": "0",
-    "UI": { "LABEL": "Proton logging", "CONTROL": "enum",
-            "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } },
-
-  { "LABEL": "proton_keep_users", "TYPE": "DeclarePersist", "PARENTS": ["geproton_var_log"],
-    "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
-  { "LABEL": "proton_keep_hkcu", "TYPE": "DeclarePersist", "PARENTS": ["proton_keep_users"],
-    "SCOPE": "registry", "PATH": "HKCU" },
-
-  { "LABEL": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["proton_keep_hkcu"],
-    "HOST": "linux64", "GUEST": ["win32", "win64"],
-    "PATH": "%RunnerMount%/proton",
-    "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
-    "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%",
-             "PROTON_LOG": "%PROTON_LOG%" },
-    "ENV_REMOVE": ["LD_LIBRARY_PATH"],
-    "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true }
-]
-
-// snes9x — a native-Linux emulator (one bridge hop for SNES content)
-{ "LABEL": "snes9x", "TYPE": "DeclareExec",
-  "HOST": "linux64", "GUEST": ["snes"], "PATH": "snes9x", "ARGS": ["-fullscreen", "%Content%"] }
+// snes9x — a native-Linux emulator
+{ "LABEL": "snes9x", "LAYERS": [ … ],
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["snes"], "PATH": "snes9x", "ARGS": ["-fullscreen", "%Content%"] } ] }
 ```
 
-A *cloned terminal* that wraps every launch in `gamescope` (chapter 11 §11.3) is just another native runner the user can
-select as the terminal step:
+A *cloned terminal* that wraps every launch in `gamescope` is just another native runner:
 
 ```jsonc
-{ "LABEL": "native-gamescope", "TYPE": "DeclareExec",
-  "HOST": "linux64", "GUEST": ["linux64"], "PATH": "gamescope", "ARGS": ["-f", "--"] }
+{ "LABEL": "native-gamescope",
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["linux64"], "PATH": "gamescope", "ARGS": ["-f", "--"] } ] }
 ```
-
-Selected as the terminal, it composes `gamescope -f -- <whatever the chain produced>` — wrapping the game, or Proton, or
-Proton-wrapping-an-emulator, uniformly.
 
 Next: [Reference implementation map](18-reference-implementation.md).

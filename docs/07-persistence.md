@@ -12,11 +12,10 @@ durable target; there is no exclude axis and no policy flag. The runtime is **pr
 
 ## 7.1 The `DeclarePersist` primitive
 
-A `DeclarePersist` **node** holds a `PERSISTS` list (§2.2 batched-item model); each entry is one persist. The
-facets below describe one `PERSISTS` entry.
+A node's `PERSISTS` section is a list; each entry is one persist. The facets below describe one entry.
 
 ```jsonc
-{ "LABEL": "quake_saves", "TYPE": "DeclarePersist", "PARENTS": ["quake_content"], "PERSISTS": [
+{ "LABEL": "quake_saves", "OVER": ["quake_content"], "PERSISTS": [
   { "SCOPE": "file",                     // "file" (default) or "registry"
     "PATH":  "drive_c/Game/Saves",       // the runtime source to persist
     "TARGET": "Saves",                   // the durable subdir name under the instance
@@ -79,8 +78,8 @@ keep the user-profile tree and the user hive:
 
 ```jsonc
 // for the Proton runner (CONTENT_ROOT "pfx/drive_c/…")
-{ "LABEL": "proton_keep_users", "TYPE": "DeclarePersist", "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" }
-{ "LABEL": "proton_keep_hkcu",  "TYPE": "DeclarePersist", "SCOPE": "registry", "PATH": "HKCU" }
+"PERSISTS": [ { "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
+              { "SCOPE": "registry", "PATH": "HKCU" } ]
 ```
 
 So by default a typical game saves to `…/users/<user>/Documents`, `Saved Games`, `AppData`, and the registry — **all

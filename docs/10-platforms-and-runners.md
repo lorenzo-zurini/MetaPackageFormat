@@ -24,12 +24,11 @@ hosts are supported. The format already supports any host token; only detection 
 
 ## 10.3 Runners as platform-graph edges
 
-A runner is a `DeclareExec` node that declares:
+A runner is a node whose `ENTRYPOINTS` entry declares:
 
 ```json
-{ "TYPE": "DeclareExec",
-  "HOST": "<the platform the runner itself runs on>",
-  "GUEST": ["<platform it can run>", "<…>"], … }
+{ "ENTRYPOINTS": [ { "HOST": "<the platform the runner itself runs on>",
+                     "GUEST": ["<platform it can run>", "<…>"], … } ] }
 ```
 
 This is a set of **directed edges** `guest → host`: for each `g` in `GUEST`, the runner is an edge from `g` to `HOST`.
@@ -44,25 +43,19 @@ Read it as "this runner *consumes* guest-platform content and *produces* a host-
 The union of all available runners' edges is the **platform graph**. Running content is finding a path through it from
 the content's platform to the machine platform (chapter 11).
 
-## 10.4 The runner build comes from PARENTS
+## 10.4 The runner build is content
 
 A runner needs *binaries* to do its job — the Proton tree, the emulator executable. Those bytes are the runner's
-**build**, and they are supplied by the runner's **`PARENTS`** (ordinary `Content` nodes).
+**build**: the `LAYERS` of the runner node itself, or of what it is `OVER` (a shared Wine tree, a DXVK build).
 
 ```json
-{ "LABEL": "ge-proton10-30", "TYPE": "DeclareExec",
-  "PARENTS": ["geproton_build"],             // ← the build lives here
-  "HOST": "linux64", "GUEST": ["win32", "win64"],
-  "PATH": "%RunnerMount%/proton" }
-
-{ "LABEL": "geproton_build", "TYPE": "Content", "FORM": "zip",
-  "PATH": "GE-Proton10-30.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } }
+{ "LABEL": "GE-Proton 10-30", "OVER": ["dxvk_2_4"],
+  "LAYERS": [ { "FORM": "zip", "PATH": "GE-Proton10-30.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["win32", "win64"], "PATH": "%RunnerMount%/proton" } ] }
 ```
 
-The runner's build is the runner's content closure (its `PARENTS`, resolved like any closure — chapter 12), **minus the
-runner node itself**. This keeps the runner's description separable from its (large) bytes and puts the heavy,
-shareable, content-addressed content on ordinary `Content` nodes (so a Proton build is fetched/seeded/deduplicated
-exactly like a game).
+The runner's build is the runner's closure resolved like any closure (chapter 12). Heavy, shareable bytes stay
+content-addressed and deduplicated exactly like a game's: a Proton build is fetched and seeded like anything else.
 
 ## 10.5 Which content builds the runner, and which assembles the prefix
 

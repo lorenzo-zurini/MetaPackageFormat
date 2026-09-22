@@ -1,116 +1,94 @@
-# 03 · Node types
+# 03 · What a node is
 
-A node has **no `ROLE` field**. What a node *is* — content, a registry edit, a launchable, a library tile — **is its
-`TYPE`**. Ten types, and the payload of each sits directly on the node:
+A node has **no `TYPE`**. What a node *is* is derived from what it carries and where it sits in the graph — never
+stored, never declared, never in disagreement with the payload:
 
-| `TYPE` | The node is… | Payload chapter |
-|--------|--------------|-----------------|
-| **`Content`** | files mounted into the runtime — a zip, a directory, a single file, or a binary delta over one | [ch. 5](05-layers.md) |
-| **`RegEdit`** | registry keys and values written into the prefix, per architecture | [ch. 6 §6.1](06-edit-layers.md) |
-| **`FileEdit`** | text edits applied to a file in the runtime | [ch. 6 §6.3](06-edit-layers.md) |
-| **`BinaryPatch`** | byte patches over the **pristine** executable, each guarded by an `EXPECT` check | [ch. 6 §6.4](06-edit-layers.md) |
-| **`DllOverride`** | which DLLs resolve native vs builtin | [ch. 6 §6.2](06-edit-layers.md) |
-| **`Persist`** | what survives the run: `KEEP` promotes paths/registry keys, `DROP` makes them ephemeral | [ch. 7](07-persistence.md) |
-| **`CustomVar`** | a variable the player sets before launch, substituted as `%KEY%` wherever it is used | [ch. 8](08-variables.md) |
-| **`DeclareExec`** | **what to run.** No `GUEST` ⇒ a launchable; with `GUEST` ⇒ a runner providing those platforms | [ch. 9](09-exec.md) |
-| **`DeclareLibraryItem`** | the library tile: title, UID, cover — and the **parent** of the launchables it groups | §3.3 below |
-| **`Group`** | pure composition: no payload, exists only to gather `PARENTS` under one name | §3.1 below |
+| A node is… | iff | See |
+|------------|-----|-----|
+| **launchable** | it carries `ENTRYPOINTS` with an entry that has no `GUEST` | [ch. 9](09-exec.md) |
+| **a runner** | it carries an `ENTRYPOINTS` entry with a non-empty `GUEST` | [ch. 9](09-exec.md), [ch. 11](11-runner-chaining.md) |
+| **a title** (a tile of its own) | it carries `TILE` | §3.2 |
+| **content / a mutator** | it carries any payload section | [ch. 5](05-layers.md), [ch. 6](06-edit-layers.md) |
+| **a plain node** | it carries no payload — composition only | §3.1 |
+| **a graft** | nothing in the launchable's composition lists it, and it is `OVER` something of the title | [ch. 12 §12.5](12-resolution.md) |
+| **substance** (a library) | it reaches no `TILE` at all — it belongs to no title | §3.3 |
+| **canonical** | a lint, not a kind: pristine content + `ENTRYPOINTS` + `TILE` and nothing else | [ch. 15](15-validation.md) |
 
-This is the conclusion of "everything is a node": there is one primitive — the layer — and a node **is** one.
+This is the conclusion of "everything is a node": one primitive, one edge, and every role a *reading* of them.
 
-## 3.1 `Group` — the building block that carries nothing
+## 3.1 The plain node
 
-A node with no payload. It contributes nothing of its own and exists to gather other nodes under one name, so that a
-referrer can depend on the whole set with one edge.
+A node with no payload contributes nothing of its own and exists to gather other nodes under one name:
 
 ```json
-{ "LABEL": "morrowind_data", "TYPE": "Group",
-  "PARENTS": ["morrowind_textures_hd", "morrowind_bloodmoon", "morrowind_tribunal"] }
+{ "LABEL": "morrowind_data",
+  "OVER": ["morrowind_textures_hd", "morrowind_bloodmoon", "morrowind_tribunal"] }
 ```
 
-`Group` is not cosmetic, and an implementation MUST NOT optimise it away: something points at it by name. Dropping a
-payload-less node makes every referrer *silently lose an edge* rather than dangle — the failure has no diagnostic, and
-the package just quietly does less.
+It is not cosmetic and an implementation MUST NOT optimise it away: something points at it. Dropping a payload-less
+node makes every referrer *silently lose an edge* rather than dangle.
 
-## 3.2 `DeclareExec` — launchable **and** runner
+## 3.2 `TILE` — identity lives on the variants
 
-One type, two readings, decided by a single field:
+There is no tile node. A **launchable carries its own `TILE`**, and the launcher, the catalog and the share sheet
+**group by `UID`**: one UID = one card. Everything else inherits its identity through `OVER`.
 
-- **No `GUEST`** (absent or empty) ⇒ the node is a **launchable**: an entry point. `HOST` is the platform its content
-  *needs*, and the runtime derives the runner chain to reach it ([ch. 11](11-runner-chaining.md)).
-- **`GUEST` non-empty** ⇒ the node is a **runner**: a program that runs `GUEST`-platform content while itself being a
-  `HOST`-platform program — a directed edge `GUEST → HOST`.
-
-```jsonc
-// launchable: needs win32, provides nothing
-{ "LABEL": "aoe2_tc", "TYPE": "DeclareExec", "PARENTS": ["aoe2_tc_content", "aoe2"],
-  "HOST": "win32", "PATH": "age2_x1/age2_x1.exe",
-  "LABEL": "The Conquerors", "RECOMMENDED": true }
-
-// runner: needs linux64, provides win32+win64
-{ "LABEL": "ge-proton10-30", "TYPE": "DeclareExec", "PARENTS": ["geproton_build"],
-  "HOST": "linux64", "GUEST": ["win32", "win64"],
-  "PATH": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%Content%"],
-  "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%" }, "ENV_REMOVE": ["LD_LIBRARY_PATH"],
-  "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true }
-```
-
-The two used to be separate types (`DeclareExec` with a `PLATFORM`, `DeclareRunner` with `HOST`+`GUEST`), which said
-the same thing twice: *a launchable is a runner that provides nothing*. Unifying them is why chaining needs no special
-case for the ends of the chain. Full field reference in [chapter 9](09-exec.md).
-
-A launchable does **not** name a runner — it states `HOST`, and the runtime *derives* the chain. Its own payload sits
-at the **top** of the overlay, so a launchable variant is the natural home for overrides.
-
-## 3.3 `DeclareLibraryItem` — the library tile (a game)
-
-A pure-metadata node: no content, no edits. It makes a **presentable library tile** — a *game*.
-
-```jsonc
-{ "LABEL": "aoe2", "TYPE": "DeclareLibraryItem",
-  "UID": "749", "TITLE": "Age of Empires II",
-  "COVER": { "PATH": "cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
-  "META": { "DEVELOPER": "Ensemble Studios", "SERIES": "Age of Empires" } }
+```json
+{ "LABEL": "1.16.5", "OVER": ["…v1.16.4"],
+  "TILE": { "UID": "minecraft", "TITLE": "Minecraft", "COVER": { "PATH": "cover.png", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } },
+  "LAYERS": [ { "FORM": "delta", "PATH": "1.16.5.vgdelta", "TARGET": "…" } ],
+  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "java8", "PATH": "", "ARGS": ["-cp", "%MC_CP%", "net.minecraft.client.main.Main"] } ] }
 ```
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `UID` | string | Stable identity for *the game*. Keys saved state, settings and the content root inside a prefix. **Required**: a tile with no `UID` MUST fail validation — see [ch. 15](15-validation.md). |
-| `TITLE` | string | The tile's name. Falls back to the `LABEL` if absent. |
-| `COVER` | object | `{ "PATH": …, "SOURCE": { "TYPE": "ipfs", "CID": … } }`. Cover CIDs participate in publishing/seeding like content ([ch. 14](14-content-addressing.md)). |
-| `META` | object | Free-form descriptive metadata (release date, developer, series, external ids…). Implementations MUST ignore keys they do not know. |
+| `UID` | string | Stable identity for *the title*. Keys saved state, settings and the content root inside a prefix, and is the card the node appears under. **Required** on a `TILE`. |
+| `PARENTUID` | string | The UID of the **main game** this title nests under: an expansion (*The Conquerors* under *Age of Kings*). A main game has none. Never its own UID. |
+| `TITLE` | string | The card's name. Falls back to `LABEL`. |
+| `COVER` | object \| string | `{ "PATH": …, "SOURCE": { "TYPE": "ipfs", "CID": … } }` (or a bare filename while authoring). Cover CIDs are published and seeded like content. |
+| `META` | object | Free-form descriptive metadata. Implementations MUST ignore keys they do not know. |
 
-A tile is **never launchable on its own**. To launch, a `DeclareExec` node must reach it through `PARENTS`.
+**Identity is derived** (`DeriveIdentity`): a node's identity is its own `TILE.UID` if it carries one, else the
+**union** of its positive `OVER` requirements' identities, in `OVER` order — a mod `OVER [["aok", "conq"]]` belongs
+to both titles; a node reaching no tile has none (it is substance). A node with its own `TILE` is its own identity
+**and nothing under it leaks upward**: *Conquerors* `OVER [aok, conq-disc]` is Conquerors only, so an AoK mod does
+not appear under Conquerors, and a mod `OVER [conq]` belongs to Conquerors only. A total conversion is the same
+shape: its own `TILE`, the base game underneath.
 
-## 3.4 Variants & games — grouping is a graph edge
+Nodes sharing one UID SHOULD agree on `TITLE`/`COVER` (validators warn); a launchable that reaches no tile appears
+under no card (validators warn; a runner legitimately has none).
 
-Several launchables that are *the same game in different editions/versions* are grouped into **one tile**: the user
-opens the tile and picks a **variant**. Grouping is a **`PARENTS` edge to the game's `DeclareLibraryItem` node** — there
-is no `GAME` string:
+**Sharing** follows: a share is a set of **root CIDs**; the receiver reads each root's `TILE` — or its game's, one
+`OVER` hop away — and lands it under the same card. The same UID means the same card on every machine, so a mod
+shared alone lands under its game by itself. See [ch. 4](04-bundles-and-library.md).
 
-- A **game** is a `DeclareLibraryItem` node. It carries no content.
-- A **variant** is a `DeclareExec` node that has that tile as a `PARENTS` ancestor. So the tile is a parent of *only the
-  exec nodes*; each variant's content chain hangs off the variant separately. Variants **inherit** the tile's metadata
-  (it composes down the closure) and contribute their own `LABEL`/`RECOMMENDED`.
-- A single-variant game is the same shape with one exec — the tile stays its own node.
-- Within a tile, `RECOMMENDED: true` marks the default variant; else the implementation picks deterministically.
+## 3.3 Substance — libraries the games declare
 
+A library (dgVoodoo, a codec stack, a mod loader's runtime) carries no `TILE` and is `OVER` nothing: **it cannot
+know every game in existence**, so the game side declares it. A node with no identity is never listed under a
+card and never a choice; it is *substance*, pulled into a mount by whatever names it:
+
+```json
+{ "LABEL": "dgVoodoo 2.81", "LAYERS": […], "DLLOVERRIDES": { "d3d8": "n,b" }, "VARS": […] }
+
+{ "LABEL": "GL wrapper", "OVER": ["…tonic", "…dgvoodoo"], "TOGGLE": "on",
+  "VARS": [ { "KEY": "DGVOODOO_TARGET", "DEFAULT": "…" } ], "FILEEDITS": [ … ] }
 ```
-        aoe2  (DeclareLibraryItem — the tile)
-       ╱  │  ╲                ← a PARENT of the exec nodes
- aoe2_aok aoe2_tc aoe2_fe     (DeclareExec, no GUEST — the variants)
-    │       │       │         ← + their own content chains
-  …content chain, unchanged, hangs off each variant…
-```
 
-**The direction is deliberate and final.** The tile is upstream so that a variant *inherits* it, and so that the
-launchable — the thing you actually run — stays the terminal node of its chain. A launchable that reaches two different
-tiles is an **ambiguous tile** and MUST fail validation: nothing can decide which game it belongs to.
+The library is shared by content (every game names the same CID), never by enumeration; a library update is a new
+CID that each game's node moves to on its own schedule.
 
-(VidyaGod links variants to their tile via the nearest `DeclareLibraryItem` ancestor — `ManifestModel::LinkGames`.)
+## 3.4 Variants — (node, entrypoint)
 
-> *Historical note.* Generation-1 manifests used a `ROLE` field with `SUBGAMES`→`VARIANTS` nesting and a `GROUP`/`GAME`
-> string. Roles collapsed into `Declare*` layers; then layers collapsed into nodes and the layer's `TYPE` became the
-> node's. Grouping was a graph edge throughout.
+A launchable's `ENTRYPOINTS` entries are its **variants**: *Play*, *Multiplayer*, *Editor*. Several launchables
+under one UID are variants of the card too: the picker lists launchables × entrypoints. A launchable that is a
+graft (SKSE `OVER [["640", "659"]]`, Forge `OVER ["1.16.5"]`) is picked from the card like any other; its any-of
+group is the version choice. `RECOMMENDED: true` on an entry marks the default. Execution is **never transitive**: a
+version under the one you picked contributes no entrypoint.
+
+> *Historical note.* Generation 1 had a `ROLE`; generation 2 collapsed roles into `Declare*` layers and layers into
+> typed nodes (`DeclareExec`, `DeclareLibraryItem`, `Group`, ten `TYPE`s in all) with `PARENTS`/`EXCLUDE`/`LIBRARYITEM`
+> edges. Generation 3 — this one — collapsed the types into one pluripotent node and the edges into `OVER`. Each step
+> removed a construct the previous one had needed only because of the step before it.
 
 Next: [Bundles, the library & indexing](04-bundles-and-library.md).

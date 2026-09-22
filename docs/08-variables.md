@@ -98,7 +98,7 @@ Examples:
 
 ```jsonc
 // One CustomVar node batching several related variables in its VARS list.
-{ "TYPE": "CustomVar", "LABEL": "graphics_vars", "VARS": [
+{ "LABEL": "graphics_vars", "VARS": [
     // a user option (enum), grouped, with a dependent option
     { "KEY": "RENDERER", "DEFAULT": "dxvk",
       "UI": { "LABEL": "Renderer", "CONTROL": "enum", "GROUP": "Graphics",
@@ -198,11 +198,12 @@ silent-substitution model hid:
 - on `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride` → the payload is not applied at all;
 - on `DeclarePersist` → the persist does not enter the persistence policy (nothing is kept for it).
 
-`WHEN` is **not** accepted on `DeclareExec` or `DeclareLibraryItem`. Those payloads become the node's *identity*
-when the graph is indexed — before any variable exists to evaluate against — so a condition there could only be
-ignored, and a declaration nothing honours is worse than no declaration. Validators MUST reject it and point at
-`TOGGLE`, which is the mechanism for "this node is opt-in". The node is still inert in the sense that matters:
-its `PARENTS` remain reachable either way, because `WHEN` gates the payload, not the edge.
+`WHEN` is **not** accepted on an `ENTRYPOINTS` entry, and a node-level `WHEN` on a node with no payload (a plain
+node, or one carrying only `TILE`/`ENTRYPOINTS`) is an error: those facets become the node's *identity* when the
+graph is indexed — before any variable exists to evaluate against — so a condition there could only be ignored,
+and a declaration nothing honours is worse than no declaration. Validators MUST reject it and point at `TOGGLE`,
+which is the mechanism for "this node is opt-in". `WHEN` gates the payload, not the edge: the node's `OVER` remains
+reachable either way.
 
 This is how the format expresses *data-driven logic* — "this only applies when that" — the building block for
 replacing an external launcher with declarative data (e.g. one `%NETMODE%` = `host`/`join`, with the join address,
@@ -230,14 +231,14 @@ operand   := %KEY%   (→ its value)  |  "quoted"  |  bare-word
   validator error (§8.7) — so a typo cannot silently disable gating.
 
 ```jsonc
-{ "TYPE": "CustomVar", "KEY": "NETMODE", "DEFAULT": "host",
-  "UI": { "LABEL": "Network", "CONTROL": "enum",
-          "CHOICES": [ {"LABEL":"Host","VALUE":"host"}, {"LABEL":"Join","VALUE":"join"} ] } }
-{ "TYPE": "CustomVar", "KEY": "JOIN_ADDR", "DEFAULT": "", "WHEN": "%NETMODE% == join",
-  "UI": { "LABEL": "Host address", "CONTROL": "text" } }
-{ "LABEL": "game_host_reg", "TYPE": "RegEdit", "WHEN": "%NETMODE% == host",
-  "EDITS": [ { "ARCHITECTURE": ["32"],
-               "HKCU": { "Software": { "Game": { "Hosting": "%TRUE:dword%" } } } } ] }
+{ "LABEL": "netplay", "OVER": ["game_content"],
+  "VARS": [ { "KEY": "NETMODE", "DEFAULT": "host",
+              "UI": { "LABEL": "Network", "CONTROL": "enum",
+                      "CHOICES": [ {"LABEL":"Host","VALUE":"host"}, {"LABEL":"Join","VALUE":"join"} ] } },
+            { "KEY": "JOIN_ADDR", "DEFAULT": "", "WHEN": "%NETMODE% == join",
+              "UI": { "LABEL": "Host address", "CONTROL": "text" } } ],
+  "REGEDITS": [ { "WHEN": "%NETMODE% == host", "ARCHITECTURE": ["32"],
+                  "HKCU": { "Software": { "Game": { "Hosting": "%TRUE:dword%" } } } } ] }
 ```
 
 (VidyaGod: `VarSubst::EvaluateCondition` / `ConditionParses`; gated in `ResolveCustomVariables` and the layer

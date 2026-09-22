@@ -1,118 +1,105 @@
 # Glossary
 
 Terms are defined here once and used with these exact meanings throughout the spec. Capitalized JSON keys (e.g.
-`PARENTS`) are field names; `code font` lower-case words (e.g. `runner`) are identity/type values.
+`OVER`) are field names; `code font` lower-case words (e.g. `runner`) are derived readings of a node.
 
-**Node** — the atomic unit of the format, and **one layer**. One JSON object with a `TYPE`, that type's payload
-hoisted directly onto it, and `PARENTS` edges. Its **identity is EXCLUSIVELY its CID** — the content hash of its
-canonical dag-json block, computed recursively over the CIDs it links. Its **authoring handle** is a stored `CID`
-field (the CID it last minted to, or a placeholder like `"draft-7"` before first publish) that references point to;
-it is stripped at freeze, so it is never part of identity and never ships. An optional `LABEL` gives it a pretty,
-human name that is **purely cosmetic** — never a key, may repeat freely. There is no `NODE_ID`, no `ROLE` field and
-no `LAYERS` array: what a node *is* **is** its `TYPE`; who it *is* **is** its CID. See [chapter 02](02-nodes.md).
+**Node** — the atomic unit of the format. One JSON object: facets (`CID` handle, `LABEL`, `WHEN`, `TOGGLE`,
+`PUBLISH`), a `TILE`, `ENTRYPOINTS`, any subset of the payload sections, and the one edge `OVER`. Its **identity is
+EXCLUSIVELY its CID** — the content hash of its canonical dag-json block, computed recursively over the CIDs it
+links. Its **authoring handle** is a stored `CID` field (the CID it last minted to, or a placeholder before first
+publish) that references point to; it is stripped at freeze. `LABEL` is **purely cosmetic** — never a key, may
+repeat. There is no `TYPE`: what a node *is* is derived from what it carries. See [chapter 02](02-nodes.md).
 
-**Node graph** — the union of every node discoverable by an implementation, **keyed by CID**. Edges are CID links
-in `PARENTS`/`LIBRARYITEM` (and platform edges implied by a runner's `HOST`/`GUEST`). In an authoring tree these
-edges are the targets' stored `CID` handles (placeholders before the first mint) and resolve to the derived CIDs at
-freeze; across bundles they are CIDs already. See [chapter 04](04-bundles-and-library.md).
+**One meaningful change** — the granularity of a node: a widescreen fix that is a byte patch, an ini edit and a
+knob is ONE node carrying three sections. A node may span kinds; the engine applies kinds in phases.
 
-**Type** — the node's `TYPE` field: one of `Content`, `RegEdit`, `FileEdit`, `BinaryPatch`, `DllOverride`, `DeclarePersist`,
-`CustomVar`, `DeclareExec`, `DeclareLibraryItem`, `Group`. It selects both what the node does and which payload fields
-it carries. See [chapter 03](03-roles.md).
+**Section** — one of the payload arrays a node may carry: `LAYERS` (files), `PATCHES` (byte patches), `FILEEDITS`
+(text edits), `REGEDITS` (registry), `DLLOVERRIDES` (DLL policy), `VARS` (knobs), `PERSISTS` (durable state). And the
+two facets: `ENTRYPOINTS` (what to run) and `TILE` (which title). See [chapters 05](05-layers.md)–[09](09-exec.md).
 
-**Chain** — a run of nodes each of which is the next one's parent. What used to be one node's ordered `LAYERS` array is
-now a chain: the order is the edges. Nodes in a chain are applied parent-first.
+**`OVER`** — the one edge: "I am made of you; you are under me." A conjunction of requirements — a ref (must be
+present), an any-of group `[…]` (one must be present), an exclusion `{"NOT": …}` (must not be selected). Direction
+newer → older; the older side never enumerates what builds on it. See [chapter 02 §2.3](02-nodes.md).
 
-**Launchable** — a `DeclareExec` node **with no `GUEST`**: an entry point the user can start (a game, a tool, an
-edition). It declares the `HOST` platform its content needs and the target to run. See [chapter 09](09-exec.md).
+**Node graph** — the union of every node discoverable by an implementation, keyed by CID; the edges are the CID
+refs in `OVER` (plus platform edges implied by a runner's `HOST`/`GUEST`). In an authoring tree refs are the
+targets' stored `CID` handles and resolve to derived CIDs at freeze. See [chapter 04](04-bundles-and-library.md).
 
-**Runner** — a `DeclareExec` node **with a non-empty `GUEST`**: an executor that runs content of one or more *guest*
-platforms while itself running on a *host* platform. Wine/Proton, an emulator, or a native pass-through. Its runnable
-payload (its *build*) comes from its `PARENTS`. Launchable and runner are the same type because a launchable is a runner
-that provides nothing. See [chapter 10](10-platforms-and-runners.md).
+**Launchable** — a node carrying `ENTRYPOINTS` with an entry that has no `GUEST`: something the user can start.
+Each entry is a **variant**. See [chapter 09](09-exec.md).
 
-**Group node** — a `Group`: no payload, only `PARENTS`. Pure composition, so that a referrer can depend on a whole set
-with one edge. Never optimised away — something points at it by name.
+**Runner** — a node carrying an `ENTRYPOINTS` entry with a non-empty `GUEST`: an executor that runs content of
+*guest* platforms while itself running on a *host* platform. Its build is its own `LAYERS` or what it is `OVER`. A
+launchable is a runner that provides nothing. See [chapter 10](10-platforms-and-runners.md).
 
-**Library tile** — a `DeclareLibraryItem` node: a presentable *game* in the library (`UID`/`TITLE`/`COVER`/descriptive
-metadata), and the **parent** of the launchables it groups. Never launchable itself. See [chapter 03](03-roles.md).
+**Tile / title** — the `TILE` facet `{UID, PARENTUID?, TITLE, COVER, META}`, carried by a launchable. One `UID` = one
+card in the library; there is no tile node. See [chapter 03 §3.2](03-roles.md).
 
-**Variant** — a launchable that has a library-tile node as a `PARENTS` ancestor: one edition/version among several of
-"the same game," shown grouped under that one tile. Grouping is the graph edge — there is no `GAME` field; `LABEL`
-distinguishes variants. See [chapter 03](03-roles.md).
+**Identity** — the set of UIDs a node belongs to: its own `TILE.UID`, else the union of its `OVER` requirements'
+identities. Grouping, offering and sharing all follow it. A node with none is **substance**.
 
-**Toggle** — a node's `TOGGLE` field, `"on"` (default) or `"off"`. `"off"` makes the node a toggleable add-on: in the
-graph, not applied unless switched on. It replaced the old `OPTIONAL`+`DEFAULT` pair. See [chapter 02](02-nodes.md).
+**Substance** — a node with no identity (a library: dgVoodoo, a codec stack): never listed under a card, never a
+choice; pulled into a mount by whatever names it. The game side declares the library, never the reverse.
 
-**Bundle** — a directory holding one or more node `.json` files plus the loose content they reference (zips, ROMs,
-covers). A bundle groups *files*; it has no semantic meaning beyond being a scan unit. See
-[chapter 04](04-bundles-and-library.md).
+**Canonical** — a lint, not a kind: the pristine game — content, entrypoint, tile and nothing else. One per
+title-version, eternal, reconstructible to the same CID from a user's own known files or fetched by CID.
 
-**Library root** — a directory whose immediate subdirectories are bundles. The implementation scans library roots to
-build the node graph. Multiple roots compose into one graph. See [chapter 04](04-bundles-and-library.md).
+**Graft** — a node of a title that is not part of a launchable's own composition and is `OVER` something of it:
+a mod, an enhancement, a compat patch, a mod loader. It enters a mount only when **selected**. See
+[chapter 12 §12.4](12-resolution.md).
 
-**Layer** — a node's payload, seen from the runtime's side. `Content` nodes contribute files (`FORM`
-`zip`/`dir`/`file`/`delta`); the edit types mutate files/registry/binaries (`RegEdit`/`FileEdit`/`BinaryPatch`/
-`DllOverride`); `DeclarePersist` declares durable state; `CustomVar` declares a user knob. One node is one layer — the words
-are now the same thing seen from two sides. See [chapters 05](05-layers.md)–[08](08-variables.md).
+**Selected set / closure** — the user's *choices* (the launchable, one member per any-of group, ticked grafts)
+versus what those are *made of* (everything reachable through plain `OVER` entries). Offering is judged against the
+selected set, mounting uses the closure, execution runs a selected node's entry. See [chapter 12](12-resolution.md).
 
-**VFS** — the *virtual filesystem*: the single overlay/union mount the runtime assembles from all `Content` nodes (plus a
-runtime prefix, default-data and a writable layer) and presents at the *runtime path*. See
-[chapter 13](13-runtime-model.md).
+**Instance** — the loadout: local configuration, not a node — the selected set, the entrypoint, per-graft
+precedence, per-file winners, variable overrides, saves. Permutations are instances.
 
-**Runtime path** — the single mount point the assembled VFS appears at; the root a runner's prefix/env points to. Exposed
-as `%RuntimePath%`.
+**Toggle** — a node's `TOGGLE`, `"on"` or `"off"`: present ⇒ user-toggleable, value = the author's default. On a
+closure node it is an optional module; on a graft it is whether it is pre-selected.
 
-**Content root** — a runner property (`CONTENT_ROOT`): the runtime-path-relative directory the game's content is
-mounted *under*. `""` = the root; `"pfx/drive_c/<uid>"` places content inside a Proton prefix's `C:` drive. See
-[chapter 09](09-exec.md), [chapter 13](13-runtime-model.md).
+**Chain** — a run of nodes each `OVER` the next: what used to be one node's ordered list is now a chain, and the
+order is the edges.
 
-**Closure / load order** — the topologically-ordered set of nodes pulled in by resolving a launchable (or runner) over
-`PARENTS`, after applying optional/exclude gating. Earlier = lower overlay priority; the launchable itself is last
-(highest priority). See [chapter 12](12-resolution.md).
+**Bundle** — a directory holding node `.json` files plus the loose content they reference. A scan unit with no
+semantics of its own. See [chapter 04](04-bundles-and-library.md).
 
-**Platform token** — an opaque string naming a software platform: `"linux64"`, `"win32"`, `"win64"`, `"snes"`, `"macos"`,
-etc. Compared only for equality. The host's own token is the *machine platform*. See [chapter 10](10-platforms-and-runners.md).
+**Library root** — a directory whose immediate subdirectories are bundles. See [chapter 04](04-bundles-and-library.md).
 
-**Machine platform** — the platform token of the host the runtime is executing on (e.g. `"linux64"`). Every runner chain
-must terminate at the machine platform. See [chapter 10](10-platforms-and-runners.md).
+**Layer** — a node's payload seen from the runtime's side: the lowered, engine-facing form of a section entry.
 
-**Guest / host platform** — a runner runs *guest*-platform content (`GUEST[]`) while itself being a
-*host*-platform program (`HOST`). A runner is a directed edge `guest → host` in the platform graph.
+**VFS** — the single overlay/union mount the runtime assembles from every `LAYERS` entry in the mount (plus a
+runtime prefix, default data and a writable layer). See [chapter 13](13-runtime-model.md).
 
-**Runner chain (daisy chain)** — the ordered list of runners that takes content from its platform to the machine
-platform, nesting innermost (runs the content) to outermost (runs on the machine), always terminated by a native runner.
-See [chapter 11](11-runner-chaining.md).
+**Runtime path** — the mount point the assembled VFS appears at. `%RuntimePath%`.
 
-**Native terminal** — the final runner in every chain: a runner whose host and guest are both the machine platform. It is
-the universal execution primitive (an `execve`), and the single uniform place to wrap *all* launches. See
-[chapter 11](11-runner-chaining.md).
+**Content root** — a runner entry's `CONTENT_ROOT`: where the game's content mounts under the runtime path.
 
-**Namespace boundary** — a runner that introduces a guest filesystem namespace (it declares a `CONTENT_ROOT` / generates
-a prefix), e.g. Wine's `C:` drive. Paths must be *translated* across it. See [chapter 11](11-runner-chaining.md).
+**Closure / load order** — the topologically-ordered mount: earlier = lower overlay priority; the launchable is
+above its own closure; grafts above that, in instance precedence. See [chapter 12](12-resolution.md).
 
-**Prefix** — a Wine/Proton prefix: the `drive_c` + registry-hive directory tree a Wine-family runner needs. Generated
-once per runner and reused read-only. See [chapter 13](13-runtime-model.md).
+**Conflict** — two grafts providing the same target path with different content, overlapping patch ranges on one
+file, or the same key with different values. Detected, never declared by pairs; resolved by precedence and
+per-file winners. See [chapter 12 §12.6](12-resolution.md).
 
-**Persistence** — the rules deciding which runtime state survives a session and travels with the package, written to the
-package's `USERDATA` store. See [chapter 07](07-persistence.md).
+**Platform token**, **Machine platform**, **Guest / host platform**, **Runner chain**, **Native terminal**,
+**Namespace boundary**, **Prefix** — as in [chapters 10](10-platforms-and-runners.md), [11](11-runner-chaining.md)
+and [13](13-runtime-model.md): a runner is a directed edge `guest → host` in the platform graph; every chain ends
+at the machine platform through the native terminal; a runner with a `CONTENT_ROOT` is a namespace boundary.
 
-**Source** — a content-addressed locator on a layer or cover (`SOURCE`), telling an implementation how to *obtain* the
-payload's bytes if the local file is absent (currently an IPFS `CID`). See [chapter 14](14-content-addressing.md).
+**Persistence** — which runtime state survives a session, written to the instance's store. See [chapter 07](07-persistence.md).
 
-**Hydrate / dehydrate** — *hydrate* = fetch a package's content-addressed payloads to their local paths so it can run;
-*dehydrate* (a.k.a. *publish*) = seed the payloads to the content network and record their `CID`s in the nodes for
-sharing. See [chapter 14](14-content-addressing.md).
+**Source** — a content-addressed locator on a layer or cover (`SOURCE`): how to obtain the bytes if the local file
+is absent. See [chapter 14](14-content-addressing.md).
 
-**Variable / token** — a `%NAME%` placeholder expanded at resolve/launch time from the runtime's variable map (paths,
-content locators, screen geometry, custom knobs). See [chapter 08](08-variables.md).
+**Hydrate / dehydrate / publish** — fetch a mount's content-addressed payloads locally / seed them and mint the
+node blocks. A **share** is a set of root CIDs; the receiver groups them by `UID` from the blocks themselves.
 
-**CustomVar** — a layer declaring a user-tweakable knob that becomes a `%KEY%` token. See [chapter 08](08-variables.md).
+**Variable / token**, **CustomVar** — a `%NAME%` placeholder expanded at resolve time; a `VARS` entry declares one.
+See [chapter 08](08-variables.md).
 
-**Reference implementation** — VidyaGod. Where this spec says "the implementation does X," it means a *conforming*
-implementation; VidyaGod is cited for concreteness. See [chapter 18](18-reference-implementation.md).
+**Reference implementation** — VidyaGod. See [chapter 18](18-reference-implementation.md).
 
-**Generation-1 manifest (obsolete)** — the predecessor format: a single `MANIFEST.json` per package with
-`PACKAGENAME`/`PACKAGEUID`/`SUBGAMES`/`COMPONENTS`/`SUBCOMPONENTS`. Superseded by the node graph. Mentioned only so that
-old field names (`SUBGAMES`, `COMPONENTS`, `EXEPATH`, `GROUP`, `VARIANT_ID`/`EDITION`) are recognizable; do **not** author
-new packages this way.
+**Earlier generations (obsolete)** — generation 1: a `MANIFEST.json` with `SUBGAMES`/`COMPONENTS`; generation 2:
+typed nodes (`TYPE` ∈ `Content`, `RegEdit`, …, `DeclareExec`, `DeclareLibraryItem`, `Group`) with
+`PARENTS`/`EXCLUDE`/`LIBRARYITEM` edges. Superseded; migrated in one pass; never read two ways.

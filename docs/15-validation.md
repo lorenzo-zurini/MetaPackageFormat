@@ -1,84 +1,93 @@
 # 15 · Validation
 
-A validator checks a node graph for correctness before it is published or launched. This chapter enumerates every rule.
-**Errors** SHOULD block (publishing, and ideally launching the affected node); **warnings** advise but don't block. The
-reference implementation runs this over the whole graph (or a single package's nodes) on demand and at the launch gate.
-(VidyaGod: `ManifestModel::ValidateNodeGraph`.)
+A validator checks a node graph for correctness before it is published or launched. **Errors** SHOULD block
+(publishing, and ideally launching the affected node); **warnings** advise. The reference implementation runs this
+over the whole graph (or one package's nodes) on demand and at the launch gate. (VidyaGod:
+`ManifestModel::ValidateNodeGraph`.)
 
-A validator iterates every node (optionally scoped to a subset, while still consulting the rest of the graph for
-cross-references) and applies the rules below.
-
-## 15.1 Graph integrity (errors)
+## 15.1 The node itself
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **PARENTS resolve** | error | Every `LABEL` in `PARENTS` MUST exist in the graph. A reference to a missing node is an error. |
-| **Acyclic PARENTS** | error | The `PARENTS` graph reachable from a node MUST be acyclic (invariant I2). A cycle is an error. (The runtime still completes by breaking the back-edge, but the package is malformed.) |
-| **LABEL uniqueness** | (enforced at index) | Duplicate ids are dropped first-seen-wins at index time (chapter 4) with a diagnostic; a validator MAY additionally report cross-repo collisions. |
+| **Known vocabulary** | error | Every top-level key MUST be one the format defines. An unknown key — a typo'd section name, a legacy `TYPE` — is refused at lower, and the node is indexed with the reason attached so validation can name it and resolution refuses to route through it. |
+| **Non-empty sections** | error | A present payload section MUST have at least one entry. `"VARS": []` is a node that says it contributes something and contributes nothing. |
+| **Well-typed payload** | error | What lowering emits is well-typed by construction; a field of the wrong JSON type is a refusal naming the field, never a crash three frames later. |
+| **TOGGLE value** | error | `TOGGLE` is `"on"` or `"off"`; anything else is refused, never guessed. |
+| **WHEN has a consumer** | error | A `WHEN` on a node with no payload — a plain node, or one carrying only `TILE`/`ENTRYPOINTS` — is never evaluated. Point the author at `TOGGLE`. |
+| **Malformed WHEN** | error | A condition that does not parse fails open (always applies); caught statically. |
+| **Pointless node** | warning | No payload, no `TILE`, no `ENTRYPOINTS`, no `OVER`: not a node, a mistake. |
 
-## 15.2 Payload rules
-
-| Rule | Severity | Detail |
-|------|----------|--------|
-| **Known TYPE** | error | A node's `TYPE` MUST be one the implementation knows. An unknown type is an error, not something to ignore — a payload nobody applies is a package that quietly does less than it says. |
-| **Content node has a path** | error | Every `Content` node MUST declare a local path (`PATH` or `SOURCE.PATH`) and a known `FORM`. |
-| **STORE zips only** | error | A locally-present `FORM: "zip"` whose archive contains any DEFLATE-compressed entry is an error — it will not mount. Fix: re-create with `zip -0`. (Checked where the zip is present; remote-only content is checked after fetch.) |
-| **Dir content can't publish** | warning | `FORM: "dir"` is an unzipped authoring intermediary; warn that it must be converted to a STORE zip before publishing (the content network seeds files/zips, not directories). It still test-runs locally. |
-| **A delta has something below it** | error | `FORM: "delta"` reconstructs against the composed view at its own `TARGET` when it declares no `BASE_TARGETS`. A delta that is the LOWEST layer composing bytes at its target has nothing to reconstruct against: the runtime skips it and the package launches with that content absent. Checked on the ASSEMBLED mount plan, where the question is exact — the plan holds every layer of every node in the closure, so "is there a byte view below me" is decidable, and only `zip`/`delta` layers make one. (It is *not* decidable from a node graph, which is why this is enforced where the plan is built; see the row below.) |
-| **A declared base mounts something** | error | When a `delta` names its bases explicitly (`BASE_TARGETS`, always an ordered list), **every** named target MUST be one that an EARLIER layer in the resolved plan composes bytes at — earlier because the runtime registers each target's composed view as it walks the plan, and only `zip`/`delta` layers produce one (a `dir` or `file` layer mounts fine and is not a base). A base naming anything else is not a launch failure: the runtime finds no bytes to reconstruct against, skips the layer, and the game starts with that content simply absent. The *implicit* base (no `BASE_TARGETS`) is the row above, checked the same way and at the same point — the two are one rule with the base list defaulting to the layer's own target. **Where it belongs:** the answer depends on plan ORDER and layer TYPE, neither of which a node-graph walk sees, so this is checked when the mount plan is ASSEMBLED rather than by a graph validator. (VidyaGod: `VfsMount::BuildLayerSpec`, so a real launch reports it too; `--audit-packages` builds every plan and captures the same diagnostic. `ManifestModel::ValidateNodeGraph` does **not** implement it.) |
-| **A relative FILE** | error | A `FileEdit`/`BinaryPatch` `FILE` MUST be relative to its pass's base. An absolute path (including a `%RuntimePath%/`-prefixed one) escapes the base and the edit lands where nothing reads it. (VidyaGod checks `BinaryPatch` here; a `FileEdit` is currently caught at apply time, which is after the launch has begun.) |
-
-## 15.3 Selection rules
+## 15.2 The edge
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **EXCLUDE symmetry** | warning | `EXCLUDE` is meant to be symmetric; if node A excludes B but B does not exclude A, warn. |
-| **EXCLUDE target exists** | warning | An `EXCLUDE` entry referencing a missing node is warned (not an error — it simply has no effect). |
-| **WHEN has a consumer** | error | A `WHEN` on a `DeclareExec` or `DeclareLibraryItem` is never evaluated — those payloads become the node's identity at index time. Accepting it would mean a node that looks conditional and is not. Point the author at `TOGGLE`. |
-| **Unordered write conflict** | *recommended* | Two nodes with **no dependency relation** that write the same file path or the same registry value. Which one wins is unspecified (invariant **I9**), so the package's behaviour is undefined. Fix: make one a parent of the other. **This rule MUST be evaluated over a RESOLVED CLOSURE**, never over a whole library — two nodes that never meet in any closure are not in conflict, and a library-wide scan reports dozens of collisions that cannot happen, every one of them wrong. It is a SHOULD rather than a MUST because that closure-scoped analysis is substantial; the reference implementation does not yet provide it. |
+| **Refs resolve** | error | Every positive ref in `OVER` (plain, any-of member) MUST name a node in the graph. |
+| **NOT target exists** | warning | A `NOT` naming a missing node has no effect. |
+| **Acyclic** | error | The graph reachable through positive `OVER` refs MUST be a DAG. (The runtime still completes by breaking the back-edge.) |
+| **Group satisfiable** | error | An any-of group with no member in the graph can never be satisfied. A repeated member is warned. |
+| **Not both required and excluded** | error | A node MUST NOT `OVER` a ref and `NOT` the same ref. |
+| **Shape** | error | A group MUST be non-empty; an object entry MUST be exactly `{"NOT": ref}`; refs are non-empty strings. |
 
-## 15.4 Launchable rules
-
-| Rule | Severity | Detail |
-|------|----------|--------|
-| **Has a host platform** | warning | A launchable with no `HOST` is warned (it can't be routed to a runner). |
-| **A runner serves its platform** | warning | If no runner serves the launchable's `HOST` on this machine (directly or — for a chaining-aware validator — via a chain), warn. |
-| **PATH case-exact** | error | A launchable's `PATH` MUST case-exactly match a real file in its locally-present content. A case-only mismatch (`MW4Mercs.exe` vs `MW4mercs.exe`) is an error — the case-sensitive mount would never find it (silent crash). Skipped for `%var%`-bearing paths and un-hydrated content. A helpful validator suggests the correct casing, or the correct nested path if the basename exists under a top folder (a zip that nests content shifts the path). |
-| **No cross-layer case collisions** | error | Two different `Content` nodes in the merged view contributing paths that differ only in case (base `MAPS/foo`, patch `maps/foo`) is an error — both exist on the case-sensitive mount and a lookup can hit the wrong one. (Collisions *within one archive* are the upstream content's own and are ignored.) |
-| **Unambiguous tile** | error | A launchable MUST reach **at most one** `DeclareLibraryItem` through `PARENTS`. Two reachable tiles means nothing can decide which game it belongs to ([ch. 3 §3.4](03-roles.md)). |
-
-## 15.4a Library tile rules
+## 15.3 Content
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **Tile has a UID** | error | A `DeclareLibraryItem` MUST declare a non-empty `UID`. The UID keys saved state, settings and the content root inside a prefix; a tile without one silently shares another tile's state or lands its content at the wrong path. This was unexpressible before the tile was its own node — now it is one field on one node and MUST be checked. |
+| **A layer has a path** | error | Every `LAYERS` entry MUST declare a local path (`PATH` or `SOURCE.PATH`) and a known `FORM`. |
+| **STORE zips only** | error | A locally-present `FORM: "zip"` with any DEFLATE entry will not mount. Re-create with `zip -0`. |
+| **Dir content can't publish** | warning | `FORM: "dir"` is an authoring intermediary; convert to a STORE zip before publishing. |
+| **A delta has something below it / a declared base mounts something** | error | Checked on the ASSEMBLED mount plan (VidyaGod: `VfsMount::BuildLayerSpec`, and `--audit-packages`), where plan order and layer type are known; a graph validator cannot decide it. |
+| **A relative FILE** | error | A `PATCHES`/`FILEEDITS` `FILE` MUST be relative to its pass's base. |
+| **Patch structure** | error/warning | `MODE` ∈ Replace/Cave/Poke; `OFFSET` or `ANCHOR`; the mode's payload field; `EXPECT` guard recommended. |
+| **No cross-layer case collisions** | error | Two layers in one mount contributing paths that differ only in case. |
 
-## 15.5 Runner rules
+## 15.4 Launchables and entrypoints
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **Declares GUEST platforms** | warning | A runner (`DeclareExec` with `GUEST`) whose `GUEST` list is empty once resolved is an edge to nowhere — it can run nothing. (The older "a runner's own VFS layers are ignored" rule is GONE: a node is one layer of one TYPE, so a runner *declaration* cannot also carry content, and the footgun it guarded is unrepresentable.) |
-| **Prefix runner routes through drive_c** | warning | A `PREFIX_GENERATE` runner whose `CONTENT_ROOT` contains no `drive_c` is warned — content won't land inside the `C:` drive where the Windows program expects it. |
+| **Entry has a HOST** | error | Every `ENTRYPOINTS` entry MUST declare `HOST` (refused at lower). |
+| **Entry is never conditional** | error | A `WHEN` on an entry is refused. |
+| **Distinct entry labels** | error | Two entries of one node with the same `LABEL` are indistinguishable in the picker. |
+| **A runner serves its platform** | warning | No runner on this machine serves the entry's `HOST`. |
+| **PATH case-exact** | error | A launchable entry's `PATH` MUST case-exactly match a real file in the locally-present mount (a helpful validator suggests the casing, or the nested path). Skipped for `%var%` paths and un-hydrated content. Every entry is checked, not just the default. |
+| **Has an identity** | warning | A launchable that carries no `TILE` and reaches none through `OVER` appears under no card. A runner legitimately has none. |
 
-## 15.6 What a validator should *also* do (recommended)
+## 15.5 Tiles
 
-These aren't in the reference's core validator but a thorough one SHOULD consider them:
+| Rule | Severity | Detail |
+|------|----------|--------|
+| **Tile has a UID** | error | A `TILE` MUST declare a non-empty `UID` (it keys saves, settings, the content root and the card). |
+| **One UID, one card** | warning | Nodes sharing a `UID` SHOULD agree on `TITLE` and `COVER`; the launcher reads them off any of the nodes. |
+| **PARENTUID names a tile** | warning | A `PARENTUID` SHOULD name a `UID` some node in the library carries. |
+| **PARENTUID is not itself** | error | A title cannot nest under itself. |
 
-- **CID-or-file presence** — warn if a `Content` node has neither a present local file nor a `SOURCE.CID` (it's
-  unrunnable and unshippable).
+## 15.6 Runners
+
+| Rule | Severity | Detail |
+|------|----------|--------|
+| **Declares GUEST platforms** | warning | A runner entry with an empty `GUEST` is an edge to nowhere. |
+| **Prefix runner routes through drive_c** | warning | A `PREFIX_GENERATE` runner whose `CONTENT_ROOT` has no `drive_c`. |
+
+## 15.7 Grafts and conflicts (recommended)
+
+| Rule | Severity | Detail |
+|------|----------|--------|
+| **Canonical purity** | lint | A node that is the pristine game SHOULD carry only `LAYERS`, `ENTRYPOINTS`, `TILE`. |
+| **Conflict report** | *recommended* | Over a **resolved mount** (never a whole library): two grafts providing the same target path with different content CIDs, overlapping patch ranges on one file, or the same key with different values. Surfaced to the instance for a precedence/winner decision; identical bytes and appended lines never conflict. |
+| **Unordered write conflict** | *recommended* | Two closure nodes with no dependency relation writing the same path or registry value: which wins is unspecified (I9). Fix: make one `OVER` the other. |
+
+## 15.8 What a validator should *also* do (recommended)
+
+- **CID-or-file presence** — warn if a layer has neither a present local file nor a `SOURCE.CID`.
 - **Cover resolvability** — warn if a tile's `COVER.PATH` is missing locally and has no CID.
-- **Chain reachability** — for each launchable, attempt full chain resolution (chapter 11) and warn if the platform can't
-  reach the machine platform with the installed runners.
-- **Token sanity** — warn on `%TOKEN%`s that aren't built-ins and aren't declared by any `CustomVar` in the closure
-  (likely a typo that will survive substitution as a literal `%TOKEN%`).
-- **Orphan notice** — note (do not error) a node that nothing depends on and that is not a launchable. That is the
-  *normal* state while authoring — you capture, then wire, then declare the exec last — so it is information, never a
-  reason to rewrite the graph "to fix it".
+- **Chain reachability** — for each entry, attempt full chain resolution and warn if the platform can't reach the
+  machine platform with the installed runners.
+- **Token sanity** — warn on `%TOKEN%`s that are neither built-ins nor declared by any `VARS` entry in the mount.
+- **Orphan notice** — note (do not error) a node nothing is `OVER` that is not launchable: the normal state while
+  authoring, and the normal state of a graft.
 
-## 15.7 Scope
+## 15.9 Scope
 
-A validator MAY validate the whole graph (for a publisher/CI) or just one package's nodes (for the launch gate), while
-still consulting the rest of the graph for cross-references (a launchable's runner availability, its `PARENTS`). Scoped
-validation lets a launch verify only what it's about to run without auditing the entire catalog.
+A validator MAY validate the whole graph (publisher/CI) or one package's nodes (the launch gate), consulting the
+rest of the graph for cross-references.
 
 Next: [Run modes & the CLI surface](16-cli-and-run-modes.md).

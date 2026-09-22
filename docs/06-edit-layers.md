@@ -52,10 +52,10 @@ The node names the target file and the pass; `EDITS` holds the edits to make to 
 | `VALUE` | entry | the value to write (see per-mode meaning) |
 
 ```json
-{ "LABEL": "morrowind_ini", "TYPE": "FileEdit", "PARENTS": ["morrowind_content"],
-  "FILE": "drive_c/Morrowind/Morrowind.ini", "OVERRIDE": true,
-  "EDITS": [ { "MODE": "ConfigWrite", "KEY": "Resolution=", "VALUE": "%ScreenWidth%x%ScreenHeight%" },
-             { "MODE": "AppendLine",  "VALUE": "GameFile1=Tribunal.esm" } ] }
+{ "LABEL": "morrowind_ini", "OVER": ["morrowind_content"],
+  "FILEEDITS": [ { "FILE": "drive_c/Morrowind/Morrowind.ini", "OVERRIDE": true,
+                   "EDITS": [ { "MODE": "ConfigWrite", "KEY": "Resolution=", "VALUE": "%ScreenWidth%x%ScreenHeight%" },
+                              { "MODE": "AppendLine",  "VALUE": "GameFile1=Tribunal.esm" } ] } ] }
 ```
 
 > **A `ConfigWrite` on content this package itself ships must be `OVERRIDE: true`.** The base pass runs *before* the
@@ -125,8 +125,8 @@ key's *default* value. Drive them from a `CustomVar` rendered at the use site �
 **Do not write `Wow6432Node` yourself** — the runtime re-inserts WoW64 redirection based on `ARCHITECTURE`.
 
 ```json
-{ "LABEL": "sh2ee_registry", "TYPE": "RegEdit", "PARENTS": ["sh2ee_content"],
-  "EDITS": [
+{ "LABEL": "sh2ee_registry", "OVER": ["sh2ee_content"],
+  "REGEDITS": [
     { "ARCHITECTURE": ["64"],
       "HKCU": { "Software": { "nipkow": { "SH2EEsetup": {
           "lang": "en",
@@ -155,8 +155,8 @@ joined into the `WINEDLLOVERRIDES` environment variable for the launch. Only mea
 | `OVERRIDES` | object of `dll name → order string`: `"n,b"` (native then builtin), `"b,n"`, `"n"`, `"b"`, `"d"` (disabled) |
 
 ```json
-{ "LABEL": "asiloader_overrides", "TYPE": "DllOverride",
-  "OVERRIDES": { "d3d8": "n,b", "dinput8": "n,b" } }
+{ "LABEL": "asiloader_overrides",
+  "DLLOVERRIDES": { "d3d8": "n,b", "dinput8": "n,b" } }
 ```
 
 > **An EMPTY order is meaningful.** `"winegstreamer": ""` means *disabled* in Wine — it is not an omission to be
@@ -197,10 +197,10 @@ Writes `REPLACE` (hex) at the site. `len(REPLACE) ≤ len(EXPECT)`; a shorter `R
 to the `EXPECT` length. The No-CD primitive.
 
 ```json
-{ "LABEL": "game_nocd", "TYPE": "BinaryPatch", "PARENTS": ["game_content"],
-  "FILE": "%PrefixRoot%/drive_c/%PackageUID%/GAME.EXE",
-  "EDITS": [ { "MODE": "Replace", "OFFSET": "0x44a45c", "EXPECT": "01", "REPLACE": "00",
-               "COMMENT": "skip the CD presence check" } ] }
+{ "LABEL": "game_nocd", "OVER": ["game_content"],
+  "PATCHES": [ { "FILE": "%PrefixRoot%/drive_c/%PackageUID%/GAME.EXE",
+                 "EDITS": [ { "MODE": "Replace", "OFFSET": "0x44a45c", "EXPECT": "01", "REPLACE": "00",
+                              "COMMENT": "skip the CD presence check" } ] } ] }
 ```
 
 ### `MODE: "Poke"` — write a scalar
