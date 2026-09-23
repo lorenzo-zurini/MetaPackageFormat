@@ -62,14 +62,15 @@ of two natures by syntax — **a bare ref composes, a group or a `NOT` requires*
 
 | Entry | Nature | Meaning |
 |-------|--------|---------|
-| `"cid"` | composes | that node is beneath me: it is in my closure and mounts before me. When I am *offered* as a graft it is also a requirement: a node with identity must be selected, substance is satisfied by mounting. |
+| `"cid"` | composes | that node is beneath me: it is in my closure and mounts before me. When I am *offered* as a graft, a bare ref to a **variant** is also a requirement (that variant must be the selection); a bare ref to anything else I simply bring along. |
 | `["cid", "cid", …]` | requires | an **any-of group**: when I am offered, one of these must be selected. Never followed by the closure walk. A group of one is a bare ref. An empty group MUST be refused. |
 | `{ "NOT": "cid" }` | requires | an **exclusion**: when I am offered, that node must not be selected. Never followed by the closure walk. |
 
 ```json
 "OVER": [ "…skse", ["…sk-640", "…sk-659"], { "NOT": "…old-quest" } ]
 ```
-reads *made of skse; offered when skse ∧ (640 ∨ 659) ∧ ¬old-quest are selected*. Order among a node's bare refs is
+reads *made of skse (brought along when ticked); offered when (640 ∨ 659) is the selection and old-quest is not
+selected*. Order among a node's bare refs is
 the mount order (later = higher). Nothing else is an edge: composition, compatibility ("works on either version"),
 dependency ("needs SKSE"), exclusion and identity are all this one list. The direction is **newer → older**: the
 newer node names the CIDs of what it builds on; the older side never enumerates what builds on it, so nothing that

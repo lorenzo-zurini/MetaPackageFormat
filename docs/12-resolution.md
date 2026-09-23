@@ -16,9 +16,9 @@ Two sets, one rule:
 | what a node is part of | the nearest face **beneath** it |
 
 **In `OVER`, a bare ref composes; a group or a `NOT` requires.** The closure walk follows bare refs and nothing
-else: no gates, no groups, no exclusions, no toggles. Requirements — any-of groups, `NOT`s, and bare refs that
-name a node *with identity* — are evaluated in exactly one place: when a node is **offered** as a graft, against
-the selected set. This is what makes "facts fold, choices don't" literally true: a variant's closure is a pure
+else: no gates, no groups, no exclusions, no toggles. Requirements — any-of groups, `NOT`s, and a bare ref that
+names a *variant* — are evaluated in exactly one place: when a node is **offered** as a graft, against the
+selected set. This is what makes "facts fold, choices don't" literally true: a variant's closure is a pure
 function of the graph, and every choice is a variant or a graft.
 
 ## 12.1 What resolution produces
@@ -67,12 +67,12 @@ and simply part of *Widescreen Edition*, which is `OVER` it.
 
 A graft is **applicable** iff every requirement in its `OVER` holds against the **selected set**:
 
-| requirement | holds when |
-|-------------|------------|
-| a bare ref to a node **with identity** | that node is *selected* — the variant, or a selected graft |
-| a bare ref to a node **without identity** (substance) | always — substance is satisfied by *mounting*, it is not a choice |
-| an any-of group `[a, b]` | some member holds by the rules above |
-| `{ "NOT": x }` | `x` is *not* selected — and, symmetrically, no selected node's `NOT` names this graft |
+| entry | it is | holds when |
+|-------|-------|------------|
+| a bare ref to a **variant** | a requirement | that variant is the selection — a mod `OVER [640]` is not for you on 659 |
+| a bare ref to **anything else** | composition | always — the graft is *made of* it and brings it beneath itself when ticked: tex-hd brings tex, a fix brings its library. What it brings counts as selected from then on (for `NOT`s, and for other grafts), and **what it brings is judged too**: a graft made of a graft `OVER [640]` requires 640 — requirements are transitive over composition |
+| an any-of group `[a, b]` | a requirement | some member is selected |
+| `{ "NOT": x }` | a requirement | `x` is *not* selected — and, symmetrically, no selected node's `NOT` names this graft or anything it brings |
 
 **Selecting a variant selects exactly that node.** Nothing beneath it is selected, however much it inherits:
 playing 1.16.5 offers mods `OVER [1.16.5]`, never mods `OVER [1.16.4]`, even though 1.16.4 is in the closure and
@@ -83,13 +83,13 @@ graft; the variant stays selected, so its mods stay offered; and the picker gain
 run ("Forge" beside "Play"). There is no such thing as a launchable graft that "selects what it inherits through":
 what you picked is what is selected.
 
-**Fixpoint with retraction.** Ticking a graft can make another applicable (`tex` → `tex-hd OVER [tex]`) and can
-trip another's `NOT`; the selected set is the fixpoint of "selected = variant ∪ { ticked grafts applicable against
-the *other* selected nodes }", re-derived in candidate order until it settles — so a graft a later selection
-excludes *leaves*, and whatever stood on it leaves with it. Between two ticked grafts that exclude each other the
-first in candidate order wins; a UI unticks the loser at tick time. An implementation reports, per graft,
-*applicable*, *selected*, and — when blocked — the first unsatisfied requirement ("needs X") or the excluder
-("excluded by Y").
+**Fixpoint with retraction.** Ticking a graft brings what it is made of and can trip another's `NOT`; the
+selected set is the fixpoint of "selected = variant ∪ { ticked grafts applicable against the *other* selected
+nodes } ∪ what those bring", re-derived in candidate order until it settles — so a graft a later selection excludes
+*leaves*, and whatever it brought leaves with it. Between two ticked grafts that exclude each other the first in
+candidate order wins; a UI unticks the loser at tick time. An implementation reports, per graft, *applicable*,
+*selected*, and — when blocked — the first unsatisfied requirement ("needs version X") or the excluder ("excluded
+by Y").
 
 **Pre-ticked.** `TOGGLE: "on"` on a graft means the author ships it ticked (the FLAC soundtrack, the widescreen
 fix); `TOGGLE: "off"` or absent means offered, unticked. The user's tick is authoritative in both directions.
@@ -142,11 +142,12 @@ inherited from the last version that declared one; a mod `OVER [1.12.2]` is not 
 (`OVER [1.16.5]`, an entry, no `VARIANT`) → 1.16.5 stays selected, Forge is selected, *Biomes O' Plenty*
 `OVER [1.16.5, forge-36]` becomes applicable; run *Forge* or *Play*.
 
-**Skyrim.** Pick *1.6.640* → `{640}`. Offered: `skse OVER [[640, 659]]`, `tex OVER [[640, 659]]`, `old-quest`;
-blocked: `quest OVER [640, skse, NOT old-quest]` (needs skse), `tex-hd OVER [tex]` (needs tex), `ab-patch OVER
-[modA, modB, 640]`. Tick skse → quest offered, *SKSE* appears as a way to run. Tick tex → tex-hd offered. Tick
-old-quest → quest unticks (its `NOT`); tick quest → old-quest unticks. plugins.txt is the composed file: each
-ticked mod's `FILEEDITS` *AppendLine* in precedence order — no generator.
+**Skyrim.** Pick *1.6.640* → `{640}`. Offered: `skse OVER [[640, 659]]`, `tex OVER [[640, 659]]`, `tex-hd OVER
+[tex]` (made of tex: ticking it brings tex), `quest OVER [640, skse, NOT old-quest]` (made of skse: ticking it
+brings skse, and *SKSE* appears as a way to run), `ab-patch OVER [modA, modB, 640]` (brings both), `old-quest`.
+A mod `OVER [659]` is not offered: 659 is a variant and it is not the selection. Tick old-quest → quest unticks
+(its `NOT`); tick quest → old-quest unticks. plugins.txt is the composed file: each ticked mod's `FILEEDITS`
+*AppendLine* in precedence order — no generator.
 
 **Age of Empires II.** One card, three faces: the Age of Kings tile on the pristine; The Conquerors' tile on its
 base zip `OVER` the pristine; Forgotten Empires' `OVER` that. Pick *The Conquerors* (a variant over its face) →

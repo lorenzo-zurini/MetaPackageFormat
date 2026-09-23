@@ -165,7 +165,7 @@ game's load-order file with an appended line. Ordering among grafts is the insta
   "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
                    "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Tribunal.esm" } ] } ] }
 
-// Bloodmoon.json — another graft; it NEEDS Tribunal (a plain requirement on a graft = must be selected)
+// Bloodmoon.json — another graft, MADE OF Tribunal: ticking Bloodmoon brings Tribunal beneath it
 { "LABEL": "Bloodmoon", "OVER": ["GOTY", "Tribunal"],
   "LAYERS": [ { "FORM": "zip", "PATH": "bloodmoon.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
   "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
@@ -176,10 +176,10 @@ game's load-order file with an appended line. Ordering among grafts is the insta
 { "LABEL": "Textures Vanilla+", "OVER": ["GOTY"], "LAYERS": [ … ] }
 ```
 
-**Behavior:** the prelaunch sheet offers Tribunal (tickable) and Bloodmoon ("needs Tribunal", greyed). Tick both →
-both mount above GOTY, Tribunal before Bloodmoon (Bloodmoon is `OVER` it) → `openmw.cfg` ends with exactly
-`content=Morrowind.esm`, `content=Tribunal.esm`, `content=Bloodmoon.esm`. Untick Tribunal → Bloodmoon is no longer
-applicable and unticks with it. Tick *Textures HD* → *Vanilla+* unticks (the `NOT` is symmetric in effect). The load
+**Behavior:** the prelaunch sheet offers Tribunal and Bloodmoon. Tick Bloodmoon → Tribunal comes with it (it is
+made of it); both mount above GOTY, Tribunal before Bloodmoon (Bloodmoon is `OVER` it) → `openmw.cfg` ends with
+exactly `content=Morrowind.esm`, `content=Tribunal.esm`, `content=Bloodmoon.esm`. Untick Bloodmoon → Tribunal
+stays only if ticked on its own. Tick *Textures HD* → *Vanilla+* unticks (the `NOT` is symmetric in effect). The load
 order is a *consequence* of the graph and the instance, not a feature.
 
 ---
@@ -205,9 +205,9 @@ order is a *consequence* of the graph and the instance, not a feature.
   "FILEEDITS": [ { "FILE": "…/plugins.txt", "EDITS": [ { "MODE": "AppendLine", "VALUE": "*quest.esp" } ] } ] }
 ```
 
-Pick *1.6.640* → selected `{1.6.640}`. Offered: SKSE, tex, old-quest; blocked: quest (needs SKSE), tex-hd (needs
-tex), ab-patch (needs modA, modB). Tick SKSE → quest offered and *SKSE* joins *Play* as a way to run. Tick tex →
-tex-hd offered; tex and tex-hd both provide `rock01.dds` with
+Pick *1.6.640* → selected `{1.6.640}`. Offered: SKSE, tex, tex-hd (made of tex — ticking it brings tex), quest
+(made of SKSE — ticking it brings SKSE, and *SKSE* joins *Play* as a way to run), ab-patch (brings modA and modB),
+old-quest. Tick tex; tex and tex-hd both provide `rock01.dds` with
 different bytes → a conflict is reported; the instance ranks tex-hd above tex, or names a winner for that file.
 Tick old-quest → quest unticks. `plugins.txt` is the composed file, one appended line per ticked mod in precedence
 order. A hundred such configurations are a hundred instances over one pool of nodes; a mod update is a new CID that
