@@ -54,14 +54,18 @@ to both titles; a node reaching no tile has none (it is substance). A node with 
 not appear under Conquerors, and a mod `OVER [conq]` belongs to Conquerors only. A total conversion is the same
 shape: its own `TILE`, the base game underneath.
 
-**Nesting inside a card is derived from the chain, never declared.** Among the launchables of one UID, the
-**main** is the one that is `OVER` no other launchable of that UID. A launchable `OVER` the main that carries a
-*different* `TITLE` or `COVER` is a **child** — an expansion (*The Conquerors* `OVER` *Age of Kings*, *The Frozen
-Throne* `OVER` *Reign of Chaos*), shown nested under the main with its own cover. One with the *same* tile is a
-**variant** — an edition or a version (Minecraft's 903, each `OVER` the previous, all one tile), shown in the
-picker. The card takes the main's `TITLE` and `COVER`; the default launch is the `RECOMMENDED` entry wherever it
-sits. Everything else — content root, saves, settings — keys on the shared UID, so an expansion needs no field
-of its own. A UID with two mains (two independent installs) shows both at top level; validators note it.
+**Nesting inside a card is derived from the chain, never declared.** Identity flows up from what a node is made
+of; the reverse fact — which titles are *built on* a node — tells a title's own chain (one owner: its pristine,
+its patches) from shared substance (many owners: dgVoodoo, DirectPlay). A launchable's **height** is the longest
+`OVER` path through nodes only its title is built on. Among the launchables of one UID, the **main** is the one
+with the *smallest* height: an expansion is built on the base's chain — *The Conquerors* is `OVER` content that is
+`OVER` *Age of Kings'* pristine, whether or not it is `OVER` the *Age of Kings* launchable itself — so it always
+sits higher. A launchable above the main that carries a *different* `TITLE` or `COVER` is a **child** (an
+expansion), shown nested under the main with its own cover; one with the *same* tile is a **variant** (an edition
+or a version — Minecraft's 903, each `OVER` the previous, all one tile), shown in the picker. The card takes the
+main's `TITLE` and `COVER`; the default launch is the `RECOMMENDED` entry wherever it sits. Everything else —
+content root, saves, settings — keys on the shared UID, so an expansion needs no field of its own. Two different
+tiles at the same height are two mains (two independent installs); validators note it.
 
 A launchable that reaches no tile appears under no card (validators warn; a runner legitimately has none).
 

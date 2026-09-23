@@ -56,7 +56,7 @@ over the whole graph (or one package's nodes) on demand and at the launch gate. 
 | Rule | Severity | Detail |
 |------|----------|--------|
 | **Tile has a UID** | error | A `TILE` MUST declare a non-empty `UID` (it keys saves, settings, the content root and the card). |
-| **One UID, one main** | warning | Among the launchables of a `UID`, more than one is `OVER` no other of that UID: the card shows each at top level. Legitimate for two independent installs; a different tile `OVER` the main is an expansion and never a lint. |
+| **One UID, one main** | warning | Among the launchables of a `UID`, different tiles share the smallest chain height: the card cannot tell which title names it. Legitimate for two independent installs; a different tile higher up the chain is an expansion and never a lint. |
 
 ## 15.6 Runners
 
