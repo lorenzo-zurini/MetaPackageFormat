@@ -75,10 +75,15 @@ Everything else — content root, saves, settings — keys on the shared UID, so
 its own tile. Nothing under a tile leaks upward *across faces*: an Age of Kings mod is not offered under The
 Conquerors, because offers are judged against the selected variant, not the card ([ch. 12](12-resolution.md)).
 
-**Sharing** follows: a share is a set of **root CIDs**, and the receiver lands the whole **node closure** of every
-root — blocks only, kilobytes per game; content stays lazy until install — so it holds the same graph the sharer
-holds and derives the same things from it: the card and its faces, which game a mod belongs to, what a graft
-needs. Nothing relational is declared in the share record; the graph says it. See [ch. 4](04-bundles-and-library.md).
+**Sharing** follows: the unit shared is the **package** (a bundle dir). Publishing mints one **package manifest**
+block per bundle — a link to every node block in it — and a share is the set of package manifests of a library;
+there is no per-node flag and no library-level block (a library is a name that groups packages; a CID over the
+whole library would change whenever any package did, and the package is what changes). The receiver lands each
+manifest and every node block it names — blocks only, kilobytes per game; content stays lazy until install — so it
+holds the same graph the sharer holds and derives the same things from it: the card and its faces, which game a
+mod belongs to, what a graft needs. Nothing relational is declared in the share; the graph says it. A package
+manifest is also the unit a pinning service pins: its closure is the package once, and only a changed package
+re-pins. See [ch. 4](04-bundles-and-library.md).
 
 ## 3.3 Substance — libraries the games declare
 

@@ -4,7 +4,7 @@ Terms are defined here once and used with these exact meanings throughout the sp
 `OVER`) are field names; `code font` lower-case words (e.g. `runner`) are derived readings of a node.
 
 **Node** — the atomic unit of the format. One JSON object: facets (`CID` handle, `LABEL`, `WHEN`, `TOGGLE`,
-`PUBLISH`, `RECOMMENDED`), a `TILE`, a `VARIANT`, `ENTRYPOINTS`, any subset of the payload sections, and the one
+`RECOMMENDED`), a `TILE`, a `VARIANT`, `ENTRYPOINTS`, any subset of the payload sections, and the one
 edge `OVER`. Its **identity is
 EXCLUSIVELY its CID** — the content hash of its canonical dag-json block, computed recursively over the CIDs it
 links. Its **authoring handle** is a stored `CID` field (the CID it last minted to, or a placeholder before first

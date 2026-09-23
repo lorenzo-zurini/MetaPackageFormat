@@ -33,7 +33,6 @@ exists to make impossible.
 | `OVER` | array | **The one edge.** See §2.3. |
 | `TOGGLE` | string | `"on"` \| `"off"`. Meaningful on a **graft** only: whether the author ships it pre-ticked. Inside a closure a node reached through a bare ref is always mounted; a `TOGGLE` there is inert and validators warn ([ch. 12](12-resolution.md)). Any other value MUST be refused. |
 | `WHEN` | string | A boolean condition over `%variables%` ([ch. 8 §8.8](08-variables.md)). When it does not hold the node's payload is **inert** (its `OVER` is still reached). A `WHEN` on a node with no payload has nothing to gate and MUST be an error ([ch. 15](15-validation.md)). |
-| `PUBLISH` | bool | This node is a **share-list root** ([ch. 4](04-bundles-and-library.md)). Minted IN (it is identity). |
 | `TILE` | object | `{ UID, TITLE, COVER, META }` — a **face**: the identity of a title, placed at the base of what it names (the pristine). Identity ascends from it to every node built on it. See [ch. 3 §3.2](03-roles.md). |
 | `VARIANT` | string | A non-empty name. Declares that this node is **on the shelf**: listed on its card under this name, pickable, and — when picked — selected exactly by itself. Requires effective entrypoints ([ch. 3 §3.4](03-roles.md)). |
 | `RECOMMENDED` | bool | *Prefer me among my siblings*: the default variant of a face, the default runner for a platform ([ch. 3 §3.4](03-roles.md)). |

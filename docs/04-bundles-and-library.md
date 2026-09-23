@@ -149,14 +149,32 @@ Two properties make this work, and both are worth stating as requirements on any
 > package graph no property a content address does not, while adding merge states, partial clones, and a second thing
 > that can be out of date. A CID either resolves to exactly those bytes or it does not.
 
-## 4.5 Local packages and shadowing
+## 4.5 Sharing: the package manifest
+
+Publishing a library freezes every node into its dag-json block and mints, per bundle dir, one **package
+manifest**:
+
+```json
+{ "VIDYAGOD_PACKAGE_MANIFEST": 1, "PKG": "[749][v1.0] Age of Empires II",
+  "NODES": [ { "/": "baguqeera…" }, { "/": "baguqeera…" }, … ] }
+```
+
+It is not a node (a scan refuses its vocabulary) and links **every** node block of the package. A share is a list
+of `{ "cid": <package manifest>, "pkg": <dir name> }` per library name. A receiver lands each manifest as
+`<nick> - <lib>/<pkg>/.package.json`, fetches the blocks it names into that dir under their CID names, completes
+any cross-package closure the same way, and prunes a node file that neither the manifest names nor its closure
+reaches (an older generation's copy). A changed package is a changed manifest CID; an unchanged one is not
+re-landed. There is no library-level CID. (VidyaGod: `PublishLibrary`, `PlanReceivedFetches`, `LandReceivedPackages`,
+`PruneStaleReceived`.)
+
+## 4.6 Local packages and shadowing
 
 A user's own bundle (authored locally, not from a source) is part of the graph like any other. Because of
 first-seen-wins (I1), an implementation MAY order scanning so that a **local** bundle shadows a source's bundle
 declaring the same id — the user's edited copy wins. This is the one intended use of id shadowing; it MUST be
 deterministic (local before remote), and a validator SHOULD still flag cross-*source* collisions.
 
-## 4.6 What "installed" means
+## 4.7 What "installed" means
 
 A node being *in the index* means it is *known*, not that it is *runnable*:
 
