@@ -69,7 +69,8 @@ A graft is **applicable** iff every requirement in its `OVER` holds against the 
 
 | entry | it is | holds when |
 |-------|-------|------------|
-| a bare ref to a **variant** | a requirement | that variant is the selection — a mod `OVER [640]` is not for you on 659 |
+| a bare ref to a node that **declares `VARIANT`** | a requirement | that variant is the selection — a mod `OVER [640]` is not for you on 659. The *declared* facet decides, not runnability: a version whose entry has not landed yet is still a variant |
+| a bare ref to a node **not in the graph** | a requirement that cannot hold | the graft is blocked ("needs X") until the node lands — a missing ref is never treated as composed |
 | a bare ref to **anything else** | composition | always — the graft is *made of* it and brings it beneath itself when ticked: tex-hd brings tex, a fix brings its library. What it brings counts as selected from then on (for `NOT`s, and for other grafts), and **what it brings is judged too**: a graft made of a graft `OVER [640]` requires 640 — requirements are transitive over composition |
 | an any-of group `[a, b]` | a requirement | some member is selected |
 | `{ "NOT": x }` | a requirement | `x` is *not* selected — and, symmetrically, no selected node's `NOT` names this graft or anything it brings |
