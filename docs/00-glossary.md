@@ -94,7 +94,8 @@ at the machine platform through the native terminal; a runner with a `CONTENT_RO
 is absent. See [chapter 14](14-content-addressing.md).
 
 **Hydrate / dehydrate / publish** — fetch a mount's content-addressed payloads locally / seed them and mint the
-node blocks. A **share** is a set of root CIDs; the receiver groups them by `UID` from the blocks themselves.
+node blocks. A **share** is a set of root CIDs; the receiver lands each root's whole node closure (blocks only)
+and derives cards, nesting and offers from the graph itself.
 
 **Variable / token**, **CustomVar** — a `%NAME%` placeholder expanded at resolve time; a `VARS` entry declares one.
 See [chapter 08](08-variables.md).

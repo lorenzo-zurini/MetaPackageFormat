@@ -65,9 +65,11 @@ of its own. A UID with two mains (two independent installs) shows both at top le
 
 A launchable that reaches no tile appears under no card (validators warn; a runner legitimately has none).
 
-**Sharing** follows: a share is a set of **root CIDs**; the receiver reads each root's `TILE` — or its game's, one
-`OVER` hop away — and lands it under the same card. The same UID means the same card on every machine, so a mod
-shared alone lands under its game by itself. See [ch. 4](04-bundles-and-library.md).
+**Sharing** follows: a share is a set of **root CIDs**, and the receiver lands the whole **node closure** of every
+root — blocks only, kilobytes per game; content stays lazy until install — so it holds the same graph the sharer
+holds and derives the same things from it: the card and its nesting, which game a mod belongs to, what a graft
+needs. Nothing relational is declared in the share record; the graph says it. The same UID means the same card on
+every machine, so a mod shared alone lands under its game by itself. See [ch. 4](04-bundles-and-library.md).
 
 ## 3.3 Substance — libraries the games declare
 
