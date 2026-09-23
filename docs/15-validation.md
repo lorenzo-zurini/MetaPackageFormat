@@ -21,7 +21,7 @@ over the whole graph (or one package's nodes) on demand and at the launch gate. 
 
 | Rule | Severity | Detail |
 |------|----------|--------|
-| **Refs resolve** | error | Every positive ref in `OVER` (plain, any-of member) MUST name a node in the graph. |
+| **Refs resolve** | error / warning | Every plain ref in `OVER` MUST name a node in the graph. An absent any-of *member* is a warning — the group is a choice, and one present member resolves it. |
 | **NOT target exists** | warning | A `NOT` naming a missing node has no effect. |
 | **Acyclic** | error | The graph reachable through positive `OVER` refs MUST be a DAG. (The runtime still completes by breaking the back-edge.) |
 | **Group satisfiable** | error | An any-of group with no member in the graph can never be satisfied. A repeated member is warned. |

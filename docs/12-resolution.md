@@ -43,14 +43,15 @@ function ResolveNodeOrder(graph, launchId, toggles):
                 consider(pid)                                           # conflicting DEFAULT-on sibling
         if pending empty: break
         group = pending.popFront()
-        pick = a member already in enabled                              # kept through ANY other route wins
-             ‖ an explicitly toggled-on member ‖ the first member the graph has
-        consider(pick)                                                  # ...then walk what it pulled in
-    function consider(pid):
-        p = graph[pid]; if missing or unlowerable: report; return
-        if p.TOGGLE present and not (toggles[pid] if present else p.TOGGLE == "on"): return
-        if p excludes an enabled node, or an enabled node excludes p: return      # NOT: first-kept wins
-        enabled.add(pid); frontier.pushBack(pid)
+        if some member already in enabled: continue                     # kept through ANY other route wins
+        for m in explicitly-toggled-on members, then the rest in list order:
+            if consider(m): break                                       # the first the gate KEEPS; then walk it
+        else: report the group as missing                               # never a mount with NO member, silently
+    function consider(pid) -> kept:
+        p = graph[pid]; if missing or unlowerable: report; return false
+        if p.TOGGLE present and not (toggles[pid] if present else p.TOGGLE == "on"): return false
+        if p excludes an enabled node, or an enabled node excludes p: return false   # NOT: first-kept wins
+        enabled.add(pid); frontier.pushBack(pid); return true
     return postOrderDFS(launchId, following OVER in list order, restricted to enabled)   # cycles broken, warned
 ```
 
@@ -59,8 +60,9 @@ function ResolveNodeOrder(graph, launchId, toggles):
   requirements drop with it (the *hierarchy gate*).
 - **An any-of group** is a choice. It is resolved only after every plain requirement has been walked, so a member
   already kept through another route satisfies it without a second pick; with nothing kept, an explicit toggle
-  picks, else the first present member — deterministic, and never two. On a *launchable* this is the version
-  selector the picker shows.
+  picks, else the first present member — deterministic, and never two. A member the gate *refuses* (toggled off,
+  excluded by a kept node) is not the pick: the next is tried, and a group no member satisfies is reported as
+  missing. On a *launchable* this is the version selector the picker shows.
 - **`NOT`** is one-sided in the file and symmetric in effect: a candidate is dropped if it excludes a kept node
   **or** a kept node excludes it; explicitly toggled-on candidates are considered first, so an explicit choice
   beats a conflicting default.
@@ -88,24 +90,28 @@ A graft is **applicable** iff every requirement holds against the **selected set
 | a plain ref to a node **with identity** | that node is *selected* — the launchable, or a selected graft |
 | a plain ref to a node **without identity** (substance) | always — substance is satisfied by *mounting*, it is not a choice |
 | an any-of group | some member holds by the rules above |
-| `{ "NOT": x }` | `x` is *not* selected |
+| `{ "NOT": x }` | `x` is *not* selected — and, symmetrically, no *selected* node's `NOT` names this graft |
 
 **Selection follows identity.** Selecting a node selects the nodes it takes its identity from: a tile-carrying
 launchable selects only itself (what is under it is made-of); a tile-less launchable graft (Forge `OVER [1.16.5]`,
 SKSE `OVER [[640, 659]]`) selects what it inherits through — a plain entry as-is, a group by choice. So picking
 Forge is "1.16.5 with Forge", and 1.16.5's mods are offered alongside Forge's.
 
-**Fixpoint.** Ticking a graft can make another applicable (`tex` → `tex-hd OVER [tex]`) and can trip another's
-`NOT`; the selected set is the least fixpoint of "selected = launchable ∪ { ticked grafts applicable against
-selected }". An implementation iterates until nothing changes and reports, per graft, *applicable*, *selected*,
-and — when blocked — the first unsatisfied requirement (the UI shows "needs X").
+**Fixpoint with retraction.** Ticking a graft can make another applicable (`tex` → `tex-hd OVER [tex]`) and can
+trip another's `NOT`; the selected set is the fixpoint of "selected = launchable ∪ { ticked grafts applicable
+against the *other* selected nodes }", re-derived in candidate order until it settles — so a graft that a later
+selection excludes *leaves*, and whatever stood on it leaves with it (never `hd` mounted next to the node that
+excludes its base). Between two ticked grafts that exclude each other the first in candidate order wins; a UI
+unticks the loser at tick time. An implementation reports, per graft, *applicable*, *selected*, and — when
+blocked — the first unsatisfied requirement (the UI shows "needs X") or the excluder ("excluded by Y").
 
 **Scope.** Candidates are the hydrated, localised library only; a received CATALOG stub never grafts.
 
 ## 12.5 The graft order
 
 Selected applicable grafts mount above the base closure in **instance precedence** (higher = later = wins at a
-conflict), ties by key so an untouched instance is reproducible. Each graft's own closure is emitted beneath it
+conflict), ties by label then key, so an untouched instance is reproducible *and* survives a re-mint (a CID
+changes with every edit; a label does not). Each graft's own closure is emitted beneath it
 (its substance, its private ancestors); nodes already in the base mount or already emitted are never repeated.
 A graft's identity-bearing requirements are selected by construction, so descending into them never pulls a
 second copy of the game.

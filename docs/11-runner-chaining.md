@@ -238,4 +238,8 @@ here is the same mechanism on the hypothetical Vortex platform. (VidyaGod: `Reso
 - **I5 — always terminated:** a chain that can't reach the machine platform means the content is unrunnable; the launch
   is refused with a diagnostic, not reported as a clean exit.
 
-Next: [Dependency resolution](12-resolution.md).
+- **I6 — per entry:** the chain starts from the platform of the **selected entrypoint** (the entry that runs), never
+  from a node-level default: a node may carry a native entry and a win32 entry, and each resolves its own chain; an
+  entry's `RUNNER` is that entry's soft pin.
+
+Next: [Resolution](12-resolution.md).
