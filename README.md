@@ -113,8 +113,9 @@ happens only when there's no shorter route.) Add an ARM runner tomorrow and ARM 
 | `DLLOVERRIDES` | which DLLs resolve native vs builtin |
 | `PERSISTS` | what survives the run |
 | `VARS` | variables the player sets before launch, substituted as `%KEY%` wherever they are used |
-| `ENTRYPOINTS` | **what to run** — each entry a variant. No `GUEST` ⇒ a launchable; with `GUEST` ⇒ a runner providing those platforms |
-| `TILE` | the identity of a title: `UID` (one card), `TITLE`, `COVER`. Carried by launchables; inherited through `OVER`. An expansion is a different tile `OVER` the main game — nesting is derived, never declared |
+| `ENTRYPOINTS` | **how to run** — inherited along the chain unless a node declares its own. No `GUEST` ⇒ a way to run; with `GUEST` ⇒ a runner providing those platforms |
+| `TILE` | a **face**: `UID` (one card), `TITLE`, `COVER`, placed at the base of what it names. Identity ascends from it. An expansion is a tile above another — nesting is containment, never declared |
+| `VARIANT` | **on the shelf**: a runnable node listed on its card under this name; picking it selects exactly it |
 | *(none)* | a plain node: pure composition, exists only to be `OVER` other nodes under one name |
 
 A node carries any subset of these — *one meaningful change*: a widescreen fix that is a byte patch, an ini edit and
@@ -133,16 +134,16 @@ The chapters build on each other; read them in order the first time.
 | — | [Glossary](docs/00-glossary.md) | Every term used normatively. |
 | 01 | [Overview & design model](docs/01-overview.md) | The everything-is-a-node philosophy; goals; invariants. |
 | 02 | [The Node object](docs/02-nodes.md) | Every field of a node, its type, default and meaning. |
-| 03 | [Roles](docs/03-roles.md) | Derived, never declared: launchable, runner, identity, substance, canonical, graft; tiles and variants. |
+| 03 | [Roles](docs/03-roles.md) | Two declared facets (face, variant); everything else derived: runnable, runner, identity, substance, canonical, graft. |
 | 04 | [Bundles, the library & indexing](docs/04-bundles-and-library.md) | On-disk layout, repos, LABEL uniqueness (within a tree), index building. |
 | 05 | [`LAYERS`](docs/05-layers.md) | `FORM` zip / dir / file / delta, PATH+SOURCE, TARGET, SUBMOUNTS. |
 | 06 | [Edit sections](docs/06-edit-layers.md) | `REGEDITS`, `FILEEDITS`, `PATCHES`, `DLLOVERRIDES` (+ the OVERRIDE pass model). |
 | 07 | [Persistence](docs/07-persistence.md) | `PERSISTS`: one entry per durable file or registry key, runner keep-sets. |
 | 08 | [Variables & `VARS`](docs/08-variables.md) | The `%TOKEN%` engine, the full token table, user-facing knobs. |
-| 09 | [Invocation](docs/09-exec.md) | `ENTRYPOINTS`: a launchable entry (no GUEST) and a runner entry (GUEST) are one shape; execution is not transitive. |
+| 09 | [Invocation](docs/09-exec.md) | `ENTRYPOINTS`: how to run folds along the chain (nearest beneath, own replaces); a game entry and a runner entry are one shape. |
 | 10 | [Platforms & runners](docs/10-platforms-and-runners.md) | Platform tokens, the GUEST→HOST graph, the runner build model. |
 | 11 | [Runner daisy-chaining](docs/11-runner-chaining.md) | Shortest-chain resolution, the native terminal, cross-namespace nesting. |
-| 12 | [Resolution](docs/12-resolution.md) | Selection ≠ closure: the OVER closure, any-of groups, NOT, grafts and the offered set, precedence, conflicts, the instance. |
+| 12 | [Resolution](docs/12-resolution.md) | Facts fold, choices don't: the pure closure, the selected set, grafts and the offered set, precedence, conflicts, the instance. |
 | 13 | [The runtime model](docs/13-runtime-model.md) | The single overlay mount, layer stacking order, prefixes, case rules. |
 | 14 | [Content addressing & distribution](docs/14-content-addressing.md) | The SOURCE block, hydrate/dehydrate/publish/seed over IPFS. |
 | 15 | [Validation](docs/15-validation.md) | Every rule a validator must enforce (errors vs. warnings). |
@@ -163,7 +164,8 @@ generations are **obsolete** and are not described here except as historical not
 | 1 | one monolithic `MANIFEST.json` with `SUBGAMES`/`COMPONENTS` arrays | the graph was implicit and un-addressable |
 | 2 | a node with a `ROLE` and an ordered `LAYERS[]` array | identity collapsed into `Declare*` layers, and then the array itself became the problem: nothing could reference, reorder or depend on a single layer |
 | **3** | a node is one layer; `TYPE` on the node, payload hoisted onto it, order carried by `PARENTS` | superseded |
-| **4** | **one pluripotent node kind, one edge `OVER` (CNF), tiles on the variants, selection ≠ closure, grafts** | current |
+| **4** | one pluripotent node kind, one edge `OVER` (CNF), tiles on the launchables, selection ≠ closure, grafts | superseded |
+| **5** | **the final chain: facts fold, choices don't — a bare ref composes, a group or NOT requires; the tile at the base; the variant declared; every choice a variant or a graft** | current |
 
 What generation 3 changed, beyond flattening: `DeclareExec` and `DeclareRunner` unified (a launchable is a runner that
 provides nothing, so the chain needs no special case for its ends); `TOGGLE` replaced the never-independent
@@ -175,7 +177,12 @@ and what it *is* (launchable, runner, substance, graft) is derived from what it 
 edges collapsed into one, `OVER`, read as a conjunction of requirements (a ref, an any-of group, a `NOT`). The tile
 moved onto the launchables themselves (same `UID` = one card; the variants are the nodes). And the rule that makes
 mods work: **selection ≠ closure** — what the user chose is judged for offers and executed; what it is made of only
-mounts. Nothing travels along the chain.
+mounts.
+
+What generation 5 changed: the closure became a pure conjunction (a bare ref composes; a group or a `NOT` is a
+requirement evaluated only when a node is offered), so every choice is a variant or a graft; the tile moved to the
+base of what it names, where identity begins, and nesting became containment; `VARIANT` was declared as the one
+marker of "on the shelf"; and how to run folds along the chain like every other fact.
 
 Where this spec and any older material disagree, **this spec wins**.
 

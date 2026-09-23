@@ -6,8 +6,9 @@ reader; strip them for real JSON. Refs are written as readable handles; in a rea
 Throughout, the runner library (Proton, the native terminal, emulators) lives in a separate bundle — see
 [§17.8](#178-the-runner-library).
 
-Read every graph **bottom-up**: a node's `OVER` is what must be mounted before it; the launchable sits above its own
-closure, and grafts above that.
+Read every graph **bottom-up**: a node's `OVER` is what must be mounted before it; the variant sits above its own
+closure, and grafts above that. A node that is content, face and entry in one is its own pristine; it needs a
+`VARIANT` to be on the shelf.
 
 ---
 
@@ -22,7 +23,7 @@ The simplest case: content whose platform *is* the machine platform. Content, ti
 ```
 
 ```jsonc
-{ "LABEL": "My Linux Game",
+{ "LABEL": "My Linux Game", "VARIANT": "Play",
   "TILE": { "UID": "1234", "TITLE": "My Linux Game" },
   "LAYERS": [ { "FORM": "zip", "PATH": "mylinuxgame.zip" } ],
   "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "linux64", "PATH": "mygame", "ARGS": ["--fullscreen"] } ] }
@@ -50,8 +51,8 @@ The simplest case: content whose platform *is* the machine platform. Content, ti
                   "HKCU": { "Software": { "Microsoft": { "Microsoft Games": { "Age of Mythology": {
                       "Widescreen": "%WIDESCREEN:dword%" } } } } } } ] }
 
-// Age of Mythology.json — the launchable, OVER its config
-{ "LABEL": "Age of Mythology", "OVER": ["aom_config"],
+// Age of Mythology.json — the variant, OVER its config
+{ "LABEL": "Age of Mythology", "VARIANT": "Play", "OVER": ["aom_config"],
   "TILE": { "UID": "7804", "TITLE": "Age of Mythology",
             "COVER": { "PATH": "AoM_Cover.jpg", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } },
             "META": { "UMUID": "266840" } },
@@ -70,7 +71,7 @@ resolves (default on → `dword:00000001`) into the default-data hive.
 ## 17.3 A console ROM via a native emulator
 
 ```jsonc
-{ "LABEL": "Star Voyager",
+{ "LABEL": "Star Voyager", "VARIANT": "Play",
   "TILE": { "UID": "8500", "TITLE": "Star Voyager" },
   "LAYERS": [ { "FORM": "file", "PATH": "StarVoyager.sfc" } ],
   "ENTRYPOINTS": [ { "HOST": "snes", "PATH": "StarVoyager.sfc" } ] }
@@ -87,7 +88,7 @@ The *Vortex* is a hypothetical console whose only emulator is a Windows program.
 
 ```jsonc
 // Vortex Quest.json
-{ "LABEL": "Vortex Quest", "TILE": { "UID": "9001", "TITLE": "Vortex Quest" },
+{ "LABEL": "Vortex Quest", "VARIANT": "Play", "TILE": { "UID": "9001", "TITLE": "Vortex Quest" },
   "LAYERS": [ { "FORM": "file", "PATH": "VortexQuest.vtx" } ],
   "ENTRYPOINTS": [ { "HOST": "vortex", "PATH": "VortexQuest.vtx" } ] }
 
@@ -147,12 +148,12 @@ Nothing needs a `PARENTUID`: the edge already says it.
 
 ## 17.6 Expansions as grafts, with automatic load order
 
-Optional expansions are **grafts**: nobody lists them, each is `OVER` the launchable, each registers itself in the
+Optional expansions are **grafts**: nobody lists them, each is `OVER` the variant, each registers itself in the
 game's load-order file with an appended line. Ordering among grafts is the instance's precedence.
 
 ```jsonc
-// GOTY.json — the launchable
-{ "LABEL": "GOTY", "TILE": { "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
+// GOTY.json — the variant (content, face and entry in one node)
+{ "LABEL": "GOTY", "VARIANT": "GOTY", "TILE": { "UID": "2050", "TITLE": "The Elder Scrolls III: Morrowind" },
   "LAYERS": [ { "FORM": "zip", "PATH": "morrowind.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
   "FILEEDITS": [ { "FILE": "Data Files/openmw.cfg", "OVERRIDE": true,
                    "EDITS": [ { "MODE": "AppendLine", "VALUE": "content=Morrowind.esm" } ] } ],
@@ -186,12 +187,13 @@ order is a *consequence* of the graph and the instance, not a feature.
 ## 17.7 Skyrim at scale — versions, a loader, a thousand mods
 
 ```jsonc
-{ "LABEL": "1.6.640", "TILE": { "UID": "skyrimse", "TITLE": "Skyrim Special Edition" }, "LAYERS": [ … ],
+// the pristine: the face, the base bytes and the one command every version shares
+{ "LABEL": "skyrimse", "TILE": { "UID": "skyrimse", "TITLE": "Skyrim Special Edition" }, "LAYERS": [ … ],
   "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "win64", "PATH": "…/SkyrimSE.exe" } ] }
-{ "LABEL": "1.6.659", "TILE": { "UID": "skyrimse", "TITLE": "Skyrim Special Edition" }, "LAYERS": [ … ],
-  "ENTRYPOINTS": [ { "LABEL": "Play", "HOST": "win64", "PATH": "…/SkyrimSE.exe" } ] }
+{ "LABEL": "1.6.640", "VARIANT": "1.6.640", "OVER": ["skyrimse"], "LAYERS": [ { "FORM": "delta", … } ] }
+{ "LABEL": "1.6.659", "VARIANT": "1.6.659", "OVER": ["skyrimse"], "LAYERS": [ { "FORM": "delta", … } ], "RECOMMENDED": true }
 
-// a launchable graft: the loader, on either version — picked from the card; the group is the version choice
+// the loader: a graft that carries an entry — ticked on the version you picked, it adds "SKSE" as a way to run
 { "LABEL": "SKSE 2.2.6", "OVER": [["1.6.640", "1.6.659"]], "LAYERS": [ … ],
   "ENTRYPOINTS": [ { "LABEL": "SKSE", "HOST": "win64", "PATH": "…/skse64_loader.exe" } ] }
 
@@ -203,8 +205,9 @@ order is a *consequence* of the graph and the instance, not a feature.
   "FILEEDITS": [ { "FILE": "…/plugins.txt", "EDITS": [ { "MODE": "AppendLine", "VALUE": "*quest.esp" } ] } ] }
 ```
 
-Pick *SKSE* → choose 1.6.640 → selected `{SKSE, 1.6.640}`. Offered: tex, quest, old-quest; blocked: tex-hd (needs
-tex), ab-patch (needs modA, modB). Tick tex → tex-hd offered; tex and tex-hd both provide `rock01.dds` with
+Pick *1.6.640* → selected `{1.6.640}`. Offered: SKSE, tex, old-quest; blocked: quest (needs SKSE), tex-hd (needs
+tex), ab-patch (needs modA, modB). Tick SKSE → quest offered and *SKSE* joins *Play* as a way to run. Tick tex →
+tex-hd offered; tex and tex-hd both provide `rock01.dds` with
 different bytes → a conflict is reported; the instance ranks tex-hd above tex, or names a winner for that file.
 Tick old-quest → quest unticks. `plugins.txt` is the composed file, one appended line per ticked mod in precedence
 order. A hundred such configurations are a hundred instances over one pool of nodes; a mod update is a new CID that

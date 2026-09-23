@@ -11,21 +11,22 @@ carries a stored `CID` **handle** that references point to, and an optional, pur
 
 1. **It is one meaningful change.** Any subset of the payload sections — files to overlay (`LAYERS`), byte patches
    (`PATCHES`), config edits (`FILEEDITS`), registry writes (`REGEDITS`), a DLL policy (`DLLOVERRIDES`), user knobs
-   (`VARS`), durable state (`PERSISTS`) — plus two facets: what to run (`ENTRYPOINTS`) and which title it is
-   (`TILE`). A change may span kinds. A node with no payload is just a node. There is no `TYPE`, no `ROLE`.
-2. **It is `OVER` other nodes.** The one edge — "I am made of you; you are under me" — a conjunction of
-   requirements: a ref, an any-of group, an exclusion (`NOT`). This is how composition, dependencies, compatibility,
-   exclusion, identity *and order* are expressed. The edge points newer → older: the older side never enumerates
-   what builds on it, so nothing that grows is ever listed.
+   (`VARS`), durable state (`PERSISTS`) — plus how to run (`ENTRYPOINTS`) and two declared facets: a **face**
+   (`TILE`: which title begins here) and a **variant** (`VARIANT`: list me on the shelf). A change may span kinds.
+   A node with no payload is just a node. There is no `TYPE`, no `ROLE`.
+2. **It is `OVER` other nodes.** The one edge — "I am made of you; you are under me" — a list in which a bare ref
+   *composes* and a group or a `NOT` *requires*. This is how composition, dependencies, compatibility, exclusion,
+   identity *and order* are expressed. The edge points newer → older: the older side never enumerates what builds
+   on it, so nothing that grows is ever listed.
 
 Nothing else is a first-class concept. There is no package object, no installer, no variant table, no runner
 registry, no tile node, no second edge. There is the graph, and the rules for walking it.
 
-> **Selection ≠ closure.** What the user *chooses* (a launchable, a version, ticked mods) and what those are *made
-> of* (everything under them) are different sets. A mod is offered against the choices, a mount is built from the
-> closure, and execution runs a chosen node's entry — never one under it. This is what lets a version chain carry
-> bytes without carrying mods, and lets a mod attach to any of several versions without either side listing the
-> other. See [ch. 12](12-resolution.md).
+> **Facts fold, choices don't.** Along the chain, bytes overlay, the entrypoint is inherited unless replaced, and
+> identity ascends from the face. What never travels is a *choice*: picking a variant selects exactly that node, a
+> graft is ticked, a mod is offered against what is selected — never against what it is made of. This is what lets
+> a version chain carry bytes and a command without carrying mods, and lets a mod attach to any of several versions
+> without either side listing the other. See [ch. 12](12-resolution.md).
 
 > **Design consequence.** Because there is one primitive, every feature is expressed by *composing* nodes rather than by
 > *adding* format constructs. The format stays small while the expressible space stays large. New capabilities tend to
@@ -38,27 +39,27 @@ files and loose content for one logical product, e.g. a game and its base conten
 
 ```
 [9001] Vortex Quest/
-├── Vortex Quest.json           # the launchable: TILE + ENTRYPOINTS + LAYERS (the ROM), in one node
+├── Vortex Quest.json           # face + VARIANT + ENTRYPOINTS + LAYERS (the ROM), in one node
 ├── VortexQuest.vtx             # the ROM bytes
 └── VortexQuest_Cover.png       # cover art referenced by TILE.COVER
 ```
 
-But a "package" has fuzzy edges *by design*: its launchable's closure can reference content nodes in *other* bundles
+But a "package" has fuzzy edges *by design*: its variants' closures can reference content nodes in *other* bundles
 (shared runtimes, common dependencies), and the runners that execute it almost always live in a *separate* bundle (a
-runner library). The unit of distribution is a bundle; the unit of *meaning* is a launchable plus its resolved closure,
+runner library). The unit of distribution is a bundle; the unit of *meaning* is a variant plus its resolved closure,
 which may span bundles.
 
 ## 1.3 The lifecycle of a launch
 
-Resolving and running a launchable proceeds in well-defined phases. Each is specified in detail later; this is the map.
+Resolving and running a variant proceeds in well-defined phases. Each is specified in detail later; this is the map.
 
 1. **Index** the graph: scan every library root's bundles, parse each `.json` node, key by its CID handle
    ([ch. 4](04-bundles-and-library.md)).
-2. **Resolve the mount**: the closure of the selected set — walk `OVER` from the chosen launchable, apply
-   `TOGGLE`/`NOT`/`WHEN` gating and the hierarchy gate, choose any-of members, topologically order the survivors —
-   then the selected, applicable grafts above it in instance precedence ([ch. 12](12-resolution.md)).
-3. **Resolve the runner chain**: BFS the platform graph from the launchable's `HOST` to the machine platform, appending
-   the native terminal ([ch. 11](11-runner-chaining.md)).
+2. **Resolve the mount**: the closure of the picked variant — the transitive union of bare `OVER` refs,
+   topologically ordered — then the ticked, applicable grafts above it in instance precedence
+   ([ch. 12](12-resolution.md)).
+3. **Resolve the runner chain**: BFS the platform graph from the chosen entry's `HOST` to the machine platform,
+   appending the native terminal ([ch. 11](11-runner-chaining.md)).
 4. **Resolve variables & persistence**: expand `%TOKEN%`s, resolve `CustomVar` knobs, decide what state persists
    ([ch. 8](08-variables.md), [ch. 7](07-persistence.md)).
 5. **Materialize content**: ensure every layer's bytes are present locally, fetching content-addressed sources as needed
@@ -78,13 +79,14 @@ These are *not* features the format special-cases. They are shapes of the one gr
   offered to whoever selects a version it names, mounts above the game when ticked, and a graft can be `OVER` a
   graft (an HD pack over a texture mod, a compat patch `OVER [modA, modB, game]`). A thousand-mod Skyrim is a
   thousand grafts and one instance; a hundred configurations are a hundred instances over one pool.
-- **Optional DLC / expansions** — a `TOGGLE`'d node inside the composition, or an expansion with its own `TILE`
-  `OVER` the main game (nested under it by construction); `NOT` makes a set mutually exclusive (pick-one).
-- **Multi-edition and multi-version games** — several launchables carrying the same `TILE.UID`; the library groups
-  them under one card, the user picks a variant (node × entrypoint), each resolves its own closure. Minecraft is
-  903 launchables, each with its own entrypoint, each `OVER` the previous version's bytes — and nothing else.
-- **Mod loaders** — a launchable graft (SKSE, Forge) `OVER [["640", "659"]]`: picked from the card like any variant,
-  its any-of group is the version choice, and picking it selects the version too.
+- **Optional pieces and expansions** — an optional piece (a soundtrack, a fix) is a graft the author pre-ticks,
+  `OVER` the variants it applies to; an expansion is its own face `OVER` the base's pristine, nested under the
+  base by containment; `NOT` makes a set of grafts mutually exclusive (pick-one).
+- **Multi-edition and multi-version games** — one tile on the pristine, several `VARIANT`s over it; the library
+  groups them under one card, the user picks a variant, each resolves its own closure. Minecraft is one tile, 903
+  variants each `OVER` the previous version's bytes, and an entrypoint declared only where the command changes.
+- **Mod loaders** — a graft that carries an entry (SKSE `OVER [["640", "659"]]`, Forge `OVER ["1.16.5"]`): ticked
+  on the version you picked, it adds a way to run; the version stays selected, so its mods stay offered.
 - **Authoring by capture** — run an installer on a live runtime built from any point of a chain, and the files and
   registry it wrote become *new nodes `OVER` that point*. Nothing has to be spliced into an existing node.
 - **Cross-platform execution & ARM** — a runner is an edge in a platform graph; running anything anywhere is shortest-path
@@ -110,7 +112,7 @@ A conforming implementation MUST preserve these properties. They are referenced 
 - **I2 — Acyclic composition.** Positive `OVER` refs MUST form a DAG. Cycles are reported; resolution still completes by
   breaking the back-edge ([ch. 12](12-resolution.md)).
 - **I3 — Single overlay.** The entire runtime is ONE overlay mount at the runtime path. Resolved closure order =
-  overlay priority, lowest first; the launchable — the terminal node of its chain — is highest
+  overlay priority, lowest first; the variant — the terminal node of its chain — is highest
   ([ch. 13](13-runtime-model.md)).
 - **I4 — One process.** A launch executes exactly one host process — the outermost (native-terminal) runner — which
   nests every inner runner and the content as arguments. Inner runners are not separately spawned by the implementation
@@ -128,9 +130,12 @@ A conforming implementation MUST preserve these properties. They are referenced 
 - **I9 — Unrelated order is unspecified.** Two nodes with no `OVER` relation are not ordered with respect to each
   other. An implementation MUST be deterministic, but a package MUST NOT depend on which of two unrelated nodes
   writes last; if the order matters, it must be an edge — or, for grafts, the instance's precedence.
-- **I10 — Selection ≠ closure.** A plain `OVER` entry is never a choice and never a branch point. Grafts are judged
-  against the selected set, mounts are built from the closure, execution runs a selected node's entry. Nothing
-  travels along a chain except bytes ([ch. 12](12-resolution.md)).
+- **I10 — Facts fold, choices don't.** A bare `OVER` ref composes and is never a choice; a group or a `NOT` is a
+  requirement evaluated only when a node is offered. Mounts are built from the closure; the entrypoint and the face
+  are inherited along the chain; grafts are judged against the selected set; picking a variant selects exactly that
+  node ([ch. 12](12-resolution.md)).
+- **I12 — A node describes only its own contribution.** Never anything about a node above it. Declared is exactly:
+  the payload sections, `ENTRYPOINTS`, `TILE`, `VARIANT`, and the edge; everything else is derived.
 - **I11 — Nothing enumerates what grows.** Every edge points newer → older; a library never lists the games that use
   it, a version never lists its mods, a tile never lists its variants. Grouping and offering are derived.
 

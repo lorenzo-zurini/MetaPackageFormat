@@ -93,7 +93,7 @@ each section is runnable once the previous ones are.
 
 - [ ] **SHOULD** implement the validator of chapter 15: graph integrity (errors), STORE-zip + VFS-path (errors),
       unknown vocabulary + empty sections (errors), a launchable's `PATH` case-exactness + cross-layer case
-      collisions + a missing tile `UID` (errors), and the various warnings (dir content, several mains in one UID,
+      collisions + a missing tile `UID` (errors), and the various warnings (dir content, several main faces in one UID,
       missing NOT target, no identity, missing host/runner, prefix-without-drive_c).
 
 ## 19.9 Operations
