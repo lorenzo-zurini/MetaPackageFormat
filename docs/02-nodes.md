@@ -34,7 +34,7 @@ exists to make impossible.
 | `TOGGLE` | string | `"on"` \| `"off"`. Present ⇒ the node is user-toggleable and the value is the author's default. On a node inside a launchable's composition it is an optional module; on a graft it is whether the graft is pre-selected. Absent ⇒ a plain requirement (always applied when reached) or an unselected graft. Any other value MUST be refused. |
 | `WHEN` | string | A boolean condition over `%variables%` ([ch. 8 §8.8](08-variables.md)). When it does not hold the node's payload is **inert** (its `OVER` is still reached). A `WHEN` on a node with no payload has nothing to gate and MUST be an error ([ch. 15](15-validation.md)). |
 | `PUBLISH` | bool | This node is a **share-list root** ([ch. 4](04-bundles-and-library.md)). Minted IN (it is identity). |
-| `TILE` | object | `{ UID, PARENTUID?, TITLE, COVER, META }` — the identity of a **title**. On a launchable it IS the tile; every node OVER a tile-carrying node inherits it. See [ch. 3 §3.2](03-roles.md). |
+| `TILE` | object | `{ UID, TITLE, COVER, META }` — the identity of a **title**. On a launchable it IS the tile; every node OVER a tile-carrying node inherits it. See [ch. 3 §3.2](03-roles.md). |
 | `ENTRYPOINTS` | array of object | What to run. Each entry is a **variant** ([ch. 9](09-exec.md)). Present ⇒ the node is launchable (or a runner, when an entry lists `GUEST`). Never conditional: an entry MUST NOT carry `WHEN`. |
 | `LAYERS` | array | VFS content: zips, dirs, files, deltas ([ch. 5](05-layers.md)). |
 | `PATCHES` | array | Byte patches over pristine files, one entry per `FILE` ([ch. 6 §6.4](06-edit-layers.md)). |

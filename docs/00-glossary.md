@@ -32,8 +32,9 @@ Each entry is a **variant**. See [chapter 09](09-exec.md).
 *guest* platforms while itself running on a *host* platform. Its build is its own `LAYERS` or what it is `OVER`. A
 launchable is a runner that provides nothing. See [chapter 10](10-platforms-and-runners.md).
 
-**Tile / title** — the `TILE` facet `{UID, PARENTUID?, TITLE, COVER, META}`, carried by a launchable. One `UID` = one
-card in the library; there is no tile node. See [chapter 03 §3.2](03-roles.md).
+**Tile / title** — the `TILE` facet `{UID, TITLE, COVER, META}`, carried by a launchable. One `UID` = one card in
+the library; there is no tile node. Nesting inside a card (an expansion under its main game) is derived from the
+chain: a different tile `OVER` the main is a child. See [chapter 03 §3.2](03-roles.md).
 
 **Identity** — the set of UIDs a node belongs to: its own `TILE.UID`, else the union of its `OVER` requirements'
 identities. Grouping, offering and sharing all follow it. A node with none is **substance**.

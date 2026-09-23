@@ -106,33 +106,42 @@ No pin is needed — `vortex → win32 → linux64` is the only route. The runti
 ## 17.5 A multi-variant game (two editions, one card) and an expansion
 
 Two launchables carrying the same `TILE.UID` are one card; the user picks a variant. An expansion is its own
-title, `OVER` the base, nesting under it by `PARENTUID`.
+tile, `OVER` the main game — and that is all: nesting is derived from the chain, never declared.
 
 ```jsonc
 // aoe2_base.json — the pristine game: content only (the canonical)
 { "LABEL": "aoe2_base", "LAYERS": [ { "FORM": "zip", "PATH": "aoe2.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ] }
 
-// Vanilla.json
+// Vanilla.json — the MAIN: OVER no other launchable of this UID
 { "LABEL": "Vanilla", "OVER": ["aoe2_base"],
-  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings" },
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings", "COVER": "aok.png" },
   "ENTRYPOINTS": [ { "LABEL": "Vanilla", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/empires2.exe" } ] }
 
-// Forgotten Empires v2.2.json — a patch over the base, same card, RECOMMENDED
-{ "LABEL": "Forgotten Empires v2.2", "OVER": ["aoe2_base"],
-  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings" },
-  "LAYERS": [ { "FORM": "zip", "PATH": "fe_patch.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
-  "ENTRYPOINTS": [ { "LABEL": "Forgotten Empires", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.5.exe", "RECOMMENDED": true } ] }
+// HD.json — a VARIANT: the same tile OVER the main (an edition), picked from the card
+{ "LABEL": "HD", "OVER": ["Vanilla"],
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Age of Kings", "COVER": "aok.png" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "hd_patch.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
+  "ENTRYPOINTS": [ { "LABEL": "HD", "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/empires2.exe" } ] }
 
-// The Conquerors.json — an EXPANSION: its own card, nested under the main game, the base underneath
-{ "LABEL": "The Conquerors", "OVER": ["aoe2_base"],
-  "TILE": { "UID": "749-conq", "PARENTUID": "749", "TITLE": "Age of Empires II - The Conquerors" },
+// The Conquerors.json — a CHILD: a different tile OVER the main = an expansion, nested under Age of Kings
+{ "LABEL": "The Conquerors", "OVER": ["Vanilla"],
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - The Conquerors", "COVER": "conq.png" },
   "LAYERS": [ { "FORM": "zip", "PATH": "conquerors.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
-  "ENTRYPOINTS": [ { "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.exe" } ] }
+  "ENTRYPOINTS": [ { "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.exe", "RECOMMENDED": true } ] }
+
+// Forgotten Empires.json — a child of the child: OVER The Conquerors, its own tile
+{ "LABEL": "Forgotten Empires", "OVER": ["The Conquerors"],
+  "TILE": { "UID": "749", "TITLE": "Age of Empires II - Forgotten Empires", "COVER": "fe.png" },
+  "LAYERS": [ { "FORM": "zip", "PATH": "fe_patch.zip", "TARGET": "%PrefixRoot%/drive_c/%PackageUID%" } ],
+  "ENTRYPOINTS": [ { "HOST": "win32", "PATH": "%PrefixRoot%/drive_c/%PackageUID%/age2_x1/age2_x1.5.exe" } ] }
 ```
 
-**Behavior:** the library shows *Age of Kings* with two variants (Forgotten Empires pre-selected) and *The
-Conquerors* nested under it. A mod `OVER ["Vanilla"]` is offered only under Age of Kings; `OVER [["Vanilla",
-"The Conquerors"]]` under both. Nothing under Conquerors leaks into its card: an AoK mod is not a Conquerors mod.
+**Behavior:** one card, named and covered as *Age of Kings* (the main); *Vanilla* and *HD* are its variants; *The
+Conquerors* and, under it, *Forgotten Empires* are its children with their own covers; the default launch is the
+`RECOMMENDED` entry, The Conquerors. Saves, settings and the content root all key on the one UID, so the expansions
+install where the game is. A mod `OVER ["Vanilla"]` sits on this card and is offered when *Vanilla* is the selected
+variant; `OVER [["Vanilla", "The Conquerors"]]` when either is (chapter 12: offers follow selection, not the card).
+Nothing needs a `PARENTUID`: the edge already says it.
 
 ---
 

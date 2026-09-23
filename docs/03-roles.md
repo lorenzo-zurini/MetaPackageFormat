@@ -43,7 +43,6 @@ There is no tile node. A **launchable carries its own `TILE`**, and the launcher
 | Field | Type | Meaning |
 |-------|------|---------|
 | `UID` | string | Stable identity for *the title*. Keys saved state, settings and the content root inside a prefix, and is the card the node appears under. **Required** on a `TILE`. |
-| `PARENTUID` | string | The UID of the **main game** this title nests under: an expansion (*The Conquerors* under *Age of Kings*). A main game has none. Never its own UID. |
 | `TITLE` | string | The card's name. Falls back to `LABEL`. |
 | `COVER` | object \| string | `{ "PATH": …, "SOURCE": { "TYPE": "ipfs", "CID": … } }` (or a bare filename while authoring). Cover CIDs are published and seeded like content. |
 | `META` | object | Free-form descriptive metadata. Implementations MUST ignore keys they do not know. |
@@ -55,8 +54,16 @@ to both titles; a node reaching no tile has none (it is substance). A node with 
 not appear under Conquerors, and a mod `OVER [conq]` belongs to Conquerors only. A total conversion is the same
 shape: its own `TILE`, the base game underneath.
 
-Nodes sharing one UID SHOULD agree on `TITLE`/`COVER` (validators warn); a launchable that reaches no tile appears
-under no card (validators warn; a runner legitimately has none).
+**Nesting inside a card is derived from the chain, never declared.** Among the launchables of one UID, the
+**main** is the one that is `OVER` no other launchable of that UID. A launchable `OVER` the main that carries a
+*different* `TITLE` or `COVER` is a **child** — an expansion (*The Conquerors* `OVER` *Age of Kings*, *The Frozen
+Throne* `OVER` *Reign of Chaos*), shown nested under the main with its own cover. One with the *same* tile is a
+**variant** — an edition or a version (Minecraft's 903, each `OVER` the previous, all one tile), shown in the
+picker. The card takes the main's `TITLE` and `COVER`; the default launch is the `RECOMMENDED` entry wherever it
+sits. Everything else — content root, saves, settings — keys on the shared UID, so an expansion needs no field
+of its own. A UID with two mains (two independent installs) shows both at top level; validators note it.
+
+A launchable that reaches no tile appears under no card (validators warn; a runner legitimately has none).
 
 **Sharing** follows: a share is a set of **root CIDs**; the receiver reads each root's `TILE` — or its game's, one
 `OVER` hop away — and lands it under the same card. The same UID means the same card on every machine, so a mod

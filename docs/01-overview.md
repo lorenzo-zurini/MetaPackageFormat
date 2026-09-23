@@ -78,8 +78,8 @@ These are *not* features the format special-cases. They are shapes of the one gr
   offered to whoever selects a version it names, mounts above the game when ticked, and a graft can be `OVER` a
   graft (an HD pack over a texture mod, a compat patch `OVER [modA, modB, game]`). A thousand-mod Skyrim is a
   thousand grafts and one instance; a hundred configurations are a hundred instances over one pool.
-- **Optional DLC / expansions** — a `TOGGLE`'d node inside the composition, or an expansion with its own `TILE` and
-  `PARENTUID` nesting under the main game; `NOT` makes a set mutually exclusive (pick-one).
+- **Optional DLC / expansions** — a `TOGGLE`'d node inside the composition, or an expansion with its own `TILE`
+  `OVER` the main game (nested under it by construction); `NOT` makes a set mutually exclusive (pick-one).
 - **Multi-edition and multi-version games** — several launchables carrying the same `TILE.UID`; the library groups
   them under one card, the user picks a variant (node × entrypoint), each resolves its own closure. Minecraft is
   903 launchables, each with its own entrypoint, each `OVER` the previous version's bytes — and nothing else.

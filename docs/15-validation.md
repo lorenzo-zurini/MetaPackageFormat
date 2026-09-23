@@ -56,9 +56,7 @@ over the whole graph (or one package's nodes) on demand and at the launch gate. 
 | Rule | Severity | Detail |
 |------|----------|--------|
 | **Tile has a UID** | error | A `TILE` MUST declare a non-empty `UID` (it keys saves, settings, the content root and the card). |
-| **One UID, one card** | warning | Nodes sharing a `UID` SHOULD agree on `TITLE` and `COVER`; the launcher reads them off any of the nodes. |
-| **PARENTUID names a tile** | warning | A `PARENTUID` SHOULD name a `UID` some node in the library carries. |
-| **PARENTUID is not itself** | error | A title cannot nest under itself. |
+| **One UID, one main** | warning | Among the launchables of a `UID`, more than one is `OVER` no other of that UID: the card shows each at top level. Legitimate for two independent installs; a different tile `OVER` the main is an expansion and never a lint. |
 
 ## 15.6 Runners
 

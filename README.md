@@ -114,7 +114,7 @@ happens only when there's no shorter route.) Add an ARM runner tomorrow and ARM 
 | `PERSISTS` | what survives the run |
 | `VARS` | variables the player sets before launch, substituted as `%KEY%` wherever they are used |
 | `ENTRYPOINTS` | **what to run** — each entry a variant. No `GUEST` ⇒ a launchable; with `GUEST` ⇒ a runner providing those platforms |
-| `TILE` | the identity of a title: `UID` (one card), `PARENTUID` (nesting), `TITLE`, `COVER`. Carried by launchables; inherited through `OVER` |
+| `TILE` | the identity of a title: `UID` (one card), `TITLE`, `COVER`. Carried by launchables; inherited through `OVER`. An expansion is a different tile `OVER` the main game — nesting is derived, never declared |
 | *(none)* | a plain node: pure composition, exists only to be `OVER` other nodes under one name |
 
 A node carries any subset of these — *one meaningful change*: a widescreen fix that is a byte patch, an ini edit and
