@@ -189,4 +189,13 @@ A node being *in the index* means it is *known*, not that it is *runnable*:
 Implementations distinguish "known" from "hydrated/installed" to drive UI (browse vs. play) and to gate launches.
 (VidyaGod: `NodeHydrated`, `RunnerInstalled`.)
 
+**Installing a received package adopts it.** A received package is a stub until the user installs it; installing
+MOVES its dir out of the received area into the library under the same library name and dir name, before any
+content is fetched. From then on it is an ordinary local package: its variants launch, its grafts are offered, and
+it is published with the library under the same CIDs (the same bytes mint to the same blocks, so two seeders of one
+package are indistinguishable). The received area holds only un-installed stubs; a package the library already
+holds under that name is never landed as a stub beside itself, and an install that would collide with an existing
+package name is refused, never merged. (VidyaGod: `AdoptReceivedPackage`, run by the download before it collects
+content targets.)
+
 Next: [`Content` nodes](05-layers.md).
