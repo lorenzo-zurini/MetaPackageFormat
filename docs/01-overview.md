@@ -11,7 +11,8 @@ carries a stored `CID` **handle** that references point to, and an optional, pur
 
 1. **It is one meaningful change.** Any subset of the payload sections — files to overlay (`LAYERS`), byte patches
    (`PATCHES`), config edits (`FILEEDITS`), registry writes (`REGEDITS`), a DLL policy (`DLLOVERRIDES`), user knobs
-   (`VARS`), durable state (`PERSISTS`) — plus how to run (`ENTRYPOINTS`) and two declared facets: a **face**
+   (`VARS`), durable state (`PERSISTS`), the process environment (`ENV`/`ENV_REMOVE`) — plus how to run
+   (`ENTRYPOINTS`) and two declared facets: a **face**
    (`TILE`: which title begins here) and a **variant** (`VARIANT`: list me on the shelf). A change may span kinds.
    A node with no payload is just a node. There is no `TYPE`, no `ROLE`.
 2. **It is `OVER` other nodes.** The one edge — "I am made of you; you are under me" — a list in which a bare ref

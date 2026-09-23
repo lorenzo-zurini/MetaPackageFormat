@@ -234,7 +234,40 @@ several-hops-into-wine launches do not provide) and is a VidyaGod-specific capab
 
 (VidyaGod: `BinaryPatch::ApplyOne` / `ProcessBinaryPatches` in `binarypatch.cpp`; `APPLY:"memory"` via `vglobby`.)
 
-## 6.6 Applicability summary
+## 6.6 `ENV` / `ENV_REMOVE` — the process environment
+
+The environment a program is started with is **mutation, like the registry**: every node of a mount may
+contribute to it, and it folds in closure order. A node's `ENV` is a map of `name → value`; its `ENV_REMOVE` is a
+list of names it takes away. Values MUST be strings (quote a number); `%TOKEN%`s are expanded at launch.
+
+```json
+{ "LABEL": "GE-Proton 10-30", "OVER": ["…geproton_build"],
+  "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%" },
+  "ENV_REMOVE": ["LD_LIBRARY_PATH"],
+  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["win32", "win64"], "PATH": "%RunnerMount%/proton", … } ] }
+
+{ "LABEL": "Vanilla", "VARIANT": "Vanilla", "OVER": ["…nfsu2_pristine"],
+  "ENV": { "SDL_JOYSTICK_WGI": "0" } }
+```
+
+**The fold.** Walk the nodes of a mount lowest first ([ch. 12 §12.2](12-resolution.md)): for each node apply its
+`ENV_REMOVE`, then its `ENV`. A later node wins a shared name; a later set undoes an earlier remove; a later remove
+undoes an earlier set. The result is two things: the names to set, and the names removed and never set again
+(these are removed from the host environment too). A ticked graft's `ENV` folds above the variant's, so a mod
+loader that needs a variable simply declares it. A runner's environment is the fold of its **build** closure
+([ch. 9 §9.3](09-exec.md)) — a shared library chain beneath a runner sets what that runner needs.
+
+**At launch** the host environment is taken, then each runner link's fold is applied from the outermost link
+inward, then the game's mount fold last — the innermost, most specific declaration wins, and a game's
+`ENV_REMOVE` beats a runner's `ENV` in both directions ([ch. 11](11-runner-chaining.md)).
+
+An entry (`ENTRYPOINTS`) MUST NOT carry `ENV` or `ENV_REMOVE`: a validator refuses it. How to run is a choice
+(replaced whole along the chain, [ch. 9](09-exec.md)); what environment the mount needs is a fact, and facts fold.
+
+(VidyaGod: `ManifestModel::FoldEnv` over the mount order in `InitializeFromNode`; over the runner's closure in
+`BuildLink`; applied in `ContainerWrapper::Execute`.)
+
+## 6.7 Applicability summary
 
 | `TYPE` | Native / emulator runner | Wine-family runner |
 |-------|--------------------------|--------------------|

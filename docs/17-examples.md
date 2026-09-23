@@ -231,11 +231,11 @@ A runner is a node with an entry that has `GUEST`; its build is its own `LAYERS`
               "UI": { "LABEL": "Proton logging", "CONTROL": "enum", "CHOICES": [ { "LABEL": "Off", "VALUE": "0" }, { "LABEL": "On", "VALUE": "1" } ] } } ],
   "PERSISTS": [ { "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
                 { "SCOPE": "registry", "PATH": "HKCU" } ],
+  "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "PROTON_LOG": "%PROTON_LOG%" },
+  "ENV_REMOVE": ["LD_LIBRARY_PATH"],
   "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["win32", "win64"],
                      "PATH": "%RunnerMount%/proton",
                      "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
-                     "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "PROTON_LOG": "%PROTON_LOG%" },
-                     "ENV_REMOVE": ["LD_LIBRARY_PATH"],
                      "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true } ] }
 
 // snes9x — a native-Linux emulator

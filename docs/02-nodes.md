@@ -45,6 +45,8 @@ exists to make impossible.
 | `DLLOVERRIDES` | object | `dll → order` ([ch. 6 §6.2](06-edit-layers.md)). |
 | `VARS` | array | Variables the player sets before launch ([ch. 8](08-variables.md)). |
 | `PERSISTS` | array | What survives the run ([ch. 7](07-persistence.md)). |
+| `ENV` | object | The process environment this node contributes, `name → value`; folds along the chain ([ch. 6 §6.6](06-edit-layers.md)). |
+| `ENV_REMOVE` | array of string | Names this node removes from the environment at its point of the chain ([ch. 6 §6.6](06-edit-layers.md)). |
 | `COMMENT` | string | Free text for a human. Never interpreted. |
 | `POS` | `[x, y]` | Canvas position — the author's default layout, stamped at publish, **non-semantic**, stripped at freeze. A local drag never writes here (see the note at the end of this chapter). |
 

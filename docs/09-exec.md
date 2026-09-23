@@ -34,15 +34,15 @@ Inheritance decides what the selected node's entry *is*; it never adds a choice 
 | `ARGS` | array of string | both | The argument vector, **one element per argv entry**, kept verbatim (spaces safe). `%TOKEN%`-expanded. |
 | `WORKDIR` | string | game | Working directory, relative to `ProgramPath`. Defaults to the *directory of `PATH`*, or `ProgramPath` if `PATH` is empty. |
 | `RUNNER` | string | game | A soft, package-side runner preference — a runner node's handle. Never a pin; the user overrides in the picker. |
-| `ENV` | object | both | Environment variables to set, `name → value`, `%TOKEN%`-expanded. A game's `ENV` is merged **over** its runner's on a shared key, and a game's `ENV_REMOVE` beats a runner's `ENV` — the game states what THIS program needs. (Environment is mutation and is slated to fold like the registry does, from every node of the chain; until then it rides the entry.) |
-| `ENV_REMOVE` | array of string | both | Environment variable names to remove before launch (applied before `ENV`). |
 | `CONTENT_ROOT` | string | runner | Where the game's content mounts under the runtime root. `""` = the root; `"pfx/drive_c/%PackageUID%"` places content inside a Wine prefix's `C:` drive. Non-empty ⇒ a **namespace boundary** ([ch. 11](11-runner-chaining.md)). |
 | `PREFIX_GENERATE` | bool | runner | The runner needs a one-time generated Wine/Proton prefix ([ch. 13](13-runtime-model.md)). |
 | `UNIFIED_RUNTIME` | bool | runner | Mount the runner's build *into* the game runtime root rather than at a separate mount. |
 | `GUEST_PATH` | string | runner | A template mapping a content-root-relative path to this runner's **guest** path, for cross-namespace nesting ([ch. 11](11-runner-chaining.md)). Derived from `CONTENT_ROOT` for Wine-family runners when absent. |
 
-`RECOMMENDED` is **not** an entry field: it is a node facet ([ch. 3 §3.4](03-roles.md)). An entry MUST NOT carry
-`WHEN`: an entrypoint is never conditional. Use two entries, or two variants.
+`RECOMMENDED` is **not** an entry field: it is a node facet ([ch. 3 §3.4](03-roles.md)). Neither are `ENV` and
+`ENV_REMOVE`: the environment is mutation and folds along the chain from every node of the mount
+([ch. 6 §6.6](06-edit-layers.md)). An entry MUST NOT carry `WHEN`: an entrypoint is never conditional. Use two
+entries, or two variants.
 
 ## 9.2 Games
 
@@ -113,8 +113,9 @@ appended after the launcher verb. A runtime mechanism, not a package field.
 program   = the runner entry's PATH (substituted)                # e.g. /…/RUNNER/proton
 args      = [ each runner ARGS element, substituted ]            # e.g. waitforexitandrun  C:\7804\aom.exe
           + [ each game ARGS element, substituted ]              # e.g. xres=1920  yres=1080
-env       = host env, minus runner ENV_REMOVE, plus runner ENV,
-            minus game ENV_REMOVE, plus game ENV (substituted)
+env       = host env,
+            minus the runner build's folded ENV_REMOVE, plus its folded ENV,        # ch. 6 §6.6
+            minus the game mount's folded ENV_REMOVE, plus its folded ENV (substituted)
           + WINEDLLOVERRIDES (joined DLLOVERRIDES, if a prefix runner)
 workdir   = WORKDIR (or fallback)
 ```
@@ -132,10 +133,10 @@ entry. Exactly one process is started with that program/args/env. The nested cas
     "HOST": "linux64", "GUEST": ["win32", "win64"],
     "PATH": "%RunnerMount%/proton",
     "ARGS": ["waitforexitandrun", "C:\\%PackageUID%\\%ContentPath%"],
-    "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%" },
-    "ENV_REMOVE": ["LD_LIBRARY_PATH"],
     "CONTENT_ROOT": "pfx/drive_c/%PackageUID%",
-    "PREFIX_GENERATE": true } ] }
+    "PREFIX_GENERATE": true } ],
+  "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%" },
+  "ENV_REMOVE": ["LD_LIBRARY_PATH"] }
 ```
 
 **A native-Linux emulator (no prefix, content at root):**
