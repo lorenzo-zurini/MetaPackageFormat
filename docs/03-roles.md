@@ -82,8 +82,8 @@ the whole library would change whenever any package did, and the package is what
 folder — its node files only, kilobytes per game; content stays lazy until install — so it
 holds the same graph the sharer holds and derives the same things from it: the card and its faces, which game a
 mod belongs to, what a graft needs. Nothing relational is declared in the share; the graph says it. A package
-manifest is also the unit a pinning service pins: its closure is the package once, and only a changed package
-re-pins. See [ch. 4](04-bundles-and-library.md).
+folder is also the unit a pinning service pins (with the package's own content beside it): the package once, and
+only a changed package re-pins. See [ch. 4](04-bundles-and-library.md).
 
 ## 3.3 Substance — libraries the games declare
 
