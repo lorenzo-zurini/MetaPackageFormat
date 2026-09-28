@@ -149,23 +149,27 @@ Two properties make this work, and both are worth stating as requirements on any
 > package graph no property a content address does not, while adding merge states, partial clones, and a second thing
 > that can be out of date. A CID either resolves to exactly those bytes or it does not.
 
-## 4.5 Sharing: the package manifest
+## 4.5 Sharing: the package folder
 
-Publishing a library freezes every node into its dag-json block and mints, per bundle dir, one **package
-manifest**:
+Publishing a library freezes every node into its canonical bytes (identity = the CID of those bytes) and makes, per
+bundle dir, one **package folder**: a UnixFS directory whose entries are the package's node files, each named
+`<cid>.json`, and nothing else.
 
-```json
-{ "VIDYAGOD_PACKAGE_MANIFEST": 1, "PKG": "[749][v1.0] Age of Empires II",
-  "NODES": [ { "/": "baguqeera…" }, { "/": "baguqeera…" }, … ] }
+```
+<package folder CID>/
+  bafkreia23ghabfcdlm4rk4u7vwdotf4ixvmuxjfwbwrvomt6mu2jg3o2n4.json
+  bafkreiadswfkz7eryd5n2pkfd756ua7pamjjpvhrvf7qczr44bgoezy37u.json
+  …
 ```
 
-It is not a node (a scan refuses its vocabulary) and links **every** node block of the package. A share is a list
-of `{ "cid": <package manifest>, "pkg": <dir name> }` per library name. A receiver lands each manifest as
-`<nick> - <lib>/<pkg>/.package.json`, fetches the blocks it names into that dir under their CID names, completes
-any cross-package closure the same way, and prunes a node file that neither the manifest names nor its closure
-reaches (an older generation's copy). A changed package is a changed manifest CID; an unchanged one is not
-re-landed. There is no library-level CID. (VidyaGod: `PublishLibrary`, `PlanReceivedFetches`, `LandReceivedPackages`,
-`PruneStaleReceived`.)
+The folder's own listing **is** the package's node list; its name travels in the share. A share is a list of
+`{ "cid": <package folder>, "pkg": <dir name> }` per library name. A receiver lands each folder verbatim as
+`<nick> - <lib>/<pkg>/.package/`, completes it against the folder's listing (a listed node file that did not land is
+fetched on its own under its CID name), completes any cross-package closure the same way, and prunes a node file
+that neither the folder lists nor its closure reaches (an older generation's copy). A changed package is a changed
+folder CID; an unchanged one is not re-landed. There is no library-level CID. Installing a received package moves its
+node files into the package dir; the landed folder is dissolved. (VidyaGod: `PublishLibrary`, `PlanReceivedFetches`,
+`LandReceivedPackages`, `PruneStaleReceived`.)
 
 ## 4.6 Local packages and shadowing
 
