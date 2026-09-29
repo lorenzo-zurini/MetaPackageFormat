@@ -38,7 +38,8 @@ over the whole graph (or one package's nodes) on demand and at the launch gate. 
 | **Dir content can't publish** | warning | `FORM: "dir"` is an authoring intermediary; convert to a STORE zip before publishing. |
 | **A delta has something below it / a declared base mounts something** | error | Checked on the ASSEMBLED mount plan (VidyaGod: `VfsMount::BuildLayerSpec`, and `--audit-packages`), where plan order and layer type are known; a graph validator cannot decide it. |
 | **A relative FILE** | error | A `PATCHES`/`FILEEDITS` `FILE` MUST be relative to its pass's base. |
-| **Patch structure** | error/warning | `MODE` ∈ Replace/Cave/Poke; `OFFSET` or `ANCHOR`; the mode's payload field; `EXPECT` guard recommended. |
+| **Patch structure** | error/warning | `MODE` ∈ Replace/Cave/Poke/Or; `OFFSET` or `ANCHOR`; the mode's payload field; `EXPECT` guard recommended (refused for `Or`, whose byte carries other options' bits). |
+| **Variable facets** | error | `EVAL` is `true`/`false`; `UI.SECTION` and a node's `SECTION` are non-empty path strings. |
 | **No cross-layer case collisions** | error | Two layers in one mount contributing paths that differ only in case. |
 
 ## 15.4 Variants and entrypoints

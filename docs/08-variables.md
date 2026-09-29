@@ -78,6 +78,7 @@ variable is a `VARS` of one. The fields below describe one `VARS` entry:
 | `KEY` | the bare token name → `%KEY%`. MUST NOT contain `:`. |
 | `DEFAULT` | the value: the fixed value for a binding, or the user-overridable initial for an option. May itself contain `%tokens%` (a **computed** variable, expanded against the map as it stands). |
 | `WHEN` | *optional.* A **condition** (§8.8) gating the variable: when it does not hold, the var resolves to `""` (empty) **and** its UI control is hidden. So a var can be active only in a certain mode — the data-driven `enableIf`. |
+| `EVAL` | *optional,* `true`/`false`. The value, once its `%tokens%` have resolved, is an **integer expression** and the variable's value is its result (decimal): numbers in decimal or `0x` hex, `( )`, unary `- ~ !`, `* / %`, `+ -`, `<< >>`, `&`, `^`, `\|` with C precedence. Until every operand resolves the text stays, and a later pass evaluates it; an expression that never parses keeps its text. For values composed from independent options — a registry bitfield: `"%dark_red%*2 \| %dark_purple%*32 \| (1-%dark_grey%)*64"`, used as `%minimap:dword%`. |
 | `UI` | *optional.* Its **presence** makes the variable a **user-facing option** (a control is shown in the launch dialog, the choice persists per package). Its **absence** makes it an **internal binding** (no UI; e.g. a value one node passes to another). |
 
 The `UI` facet (when present):
@@ -86,7 +87,7 @@ The `UI` facet (when present):
 |------------|---------|
 | `LABEL` | human label for the control (falls back to `KEY`). |
 | `CONTROL` | the value **domain / widget**: `bool` \| `int` \| `float` \| `text` \| `enum` \| `secret`. **No encoding here** — encoding is a use-site concern (§8.4). |
-| `GROUP` | optional UI section heading (e.g. `"Graphics"`) — organizes a large option set into panels. |
+| `SECTION` | optional place in the launch dialog's options **tree**: a path whose `/` nests (`"UserPatch/Interface"`). Sections are created as their first option appears, collapsed by default; an option without one sits at the top. A runner's options appear under `Runner/…`. |
 | `WHEN` | *(alias.)* A UI-only condition — the control is shown only when it holds, re-evaluated live as other controls change. Prefer the **top-level** `WHEN` (above), which gates the *value* too; `UI.WHEN` only affects visibility. |
 | `CHOICES` | for `enum`: `[{ "LABEL": "...", "VALUE": "..." }]`. |
 | `POOL` | for `secret`: an array of values; the engine picks one **per launch** (a masked, rotating value — e.g. a CD key). A `secret` with no `POOL` is a masked free-text field. |
@@ -99,12 +100,12 @@ Examples:
 ```jsonc
 // One CustomVar node batching several related variables in its VARS list.
 { "LABEL": "graphics_vars", "VARS": [
-    // a user option (enum), grouped, with a dependent option
+    // a user option (enum), in a section, with a dependent option
     { "KEY": "RENDERER", "DEFAULT": "dxvk",
-      "UI": { "LABEL": "Renderer", "CONTROL": "enum", "GROUP": "Graphics",
+      "UI": { "LABEL": "Renderer", "CONTROL": "enum", "SECTION": "Graphics",
               "CHOICES": [ {"LABEL":"DXVK (Vulkan)","VALUE":"dxvk"}, {"LABEL":"WineD3D","VALUE":"wined3d"} ] } },
     { "KEY": "VRAM", "DEFAULT": "1024",
-      "UI": { "LABEL": "VRAM (MB)", "CONTROL": "int", "GROUP": "Graphics", "WHEN": "%RENDERER% == dxvk", "MIN": 64, "MAX": 8192 } },
+      "UI": { "LABEL": "VRAM (MB)", "CONTROL": "int", "SECTION": "Graphics", "WHEN": "%RENDERER% == dxvk", "MIN": 64, "MAX": 8192 } },
     // an internal binding (no UI) — e.g. a value a game passes to a shared package
     { "KEY": "dgvoodoo_dir", "DEFAULT": "" },
     // a secret rotated each launch

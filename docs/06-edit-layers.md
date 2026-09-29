@@ -182,11 +182,11 @@ node, not seventy-five.
 |-------|-------|---------|
 | `FILE` | node | target binary, relative to the mount root (same convention as a `DeclareExec` `PATH`) |
 | `EDITS` | node | array of patch objects |
-| `MODE` | entry | `"Replace"` \| `"Poke"` \| `"Cave"` |
+| `MODE` | entry | `"Replace"` \| `"Poke"` \| `"Or"` \| `"Cave"` |
 | `APPLY` | entry | `"prefix"` (default — on-disk into the writelayer) \| `"memory"` (patch the live process; see below) |
 | `ANCHOR` | entry | a hex signature locating the site, `??` = wildcard byte (`"8b ?? 24 08"`); **must match exactly one place** — *or* give `OFFSET` |
 | `OFFSET` | entry | a fixed address: a **VA** if `>=` the PE image base, else a raw **file offset**. Hex (`"0x44be08"`) or decimal. |
-| `EXPECT` | entry | hex of the original bytes at the site. A mismatch is an error (wrong/foreign binary); bytes already equal to the patched result are skipped (idempotent). Required for `Replace`/`Cave`; recommended for `Poke`. |
+| `EXPECT` | entry | hex of the original bytes at the site. A mismatch is an error (wrong/foreign binary); bytes already equal to the patched result are skipped (idempotent). Required for `Replace`/`Cave`; recommended for `Poke`; refused for `Or`. |
 | `COMMENT` | entry | what this patch does. Not optional in practice: seventy-five offsets with no prose is a binary nobody can maintain. |
 
 Every field is `%TOKEN%`-substituted (chapter 8), so offsets, bytes and values can come from `CustomVar`s.
@@ -207,6 +207,17 @@ to the `EXPECT` length. The No-CD primitive.
 
 Writes `VALUE` (hex) at the site — usually a `CustomVar` rendered with a numeric format so a setting is baked
 straight into the binary: `"VALUE": "%ResWidth:u16le%"` (see chapter 8 §8.4 for `u8`/`u16le`/`u16be`/`u32le`/`u32be`).
+
+### `MODE: "Or"` — set bits in a shared flag byte
+
+ORs `VALUE` (hex) into the bytes at the site. For a byte several independent options share — UserPatch keeps six
+installer checkboxes as one bit each of a single byte — each option ORs its own bits in, so any subset composes in
+any order. Bits already set are the idempotent skip. `EXPECT` is refused: the byte legitimately carries other
+options' bits, so no single original value can be guarded.
+
+```json
+{ "MODE": "Or", "OFFSET": "0x293241", "VALUE": "04", "COMMENT": "ore resource display (sync feature flag)" }
+```
 
 ### `MODE: "Cave"` — jmp trampoline
 

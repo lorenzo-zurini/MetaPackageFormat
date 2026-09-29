@@ -100,6 +100,23 @@ the runner plays the part of the face. Ticked, it mounts above the runner's buil
 
 **Scope.** Candidates are nodes of the local library; a received, un-installed stub is browsed, never grafted.
 
+> **Generation 6 grafts.** This section describes gen-5's `OVER`; in gen 6 a graft is a node whose `LAYERS` begin
+> with `ANY [what it applies onto]`, exclusion is a `NOT` layer, and pre-ticking is `RECOMMENDED` (tile UIDs). Rules
+> of the gen-6 engine to carry into the rewrite:
+> - **Graft declarations count in phase 1.** Grafts follow the variant in the list, so their ungated `VARS` are among
+>   what a layer `WHEN` may read — a graft's own options gate its own layers (UserPatch's installer features).
+> - **Default order.** A graft comes after every offered graft its `ANY`/`NOT` names; of those that may come next,
+>   the one naming the most recently listed goes first, then `LABEL`, then CID. Related grafts stay together (three
+>   mutually exclusive soundtracks, then the patches in the order they build on each other).
+> - **Contained grafts are not offered.** A graft a node of the row contains with a `NODE` layer (Forgotten Empires
+>   holds UserPatch) is part of the row, not an option.
+> - **Exclusion in the UI.** Ticking a graft unticks the ticked grafts it cannot apply beside (either side's `NOT`),
+>   judged in list order with the grafts kept so far in place — exclusive grafts behave as a choice of one.
+> - **`SECTION`.** A graft node's non-folding `SECTION` (a path, `/` nests) places it in the collapsible graft tree;
+>   the tree read depth-first is the order grafts apply in.
+> - **Stale saved choices.** A saved graft list naming a graft the library no longer has was saved against an older
+>   version of the package (every edit re-mints grafts): the tile falls back to its defaults.
+
 ## 12.4 The graft order
 
 Selected applicable grafts mount above the variant's closure in **instance precedence** (higher = later = wins at

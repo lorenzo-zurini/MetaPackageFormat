@@ -69,6 +69,16 @@ registry persistence is **Wine-family only** (no hives elsewhere).
 - A **whole-scope** persist (empty `PATH`) is an authoring aid for *discovering* what to keep — it persists everything
   so you can inspect what changed, then narrow to specific dirs/files/keys before shipping. Implementations warn on it.
 
+> **Generation 6 (`KEEP`).** The shape above is being rewritten around gen-6's `KEEP` map (`{address: true | false |
+> {NAME, CLOUD}}`, most specific wins). Two rules of the gen-6 engine to keep in the rewrite:
+> - **File patterns.** A `FILES` keep whose last segment has `*` or `?` (`FILES/%GameDir%/player*.hki`) is a pattern:
+>   its durable home is a directory (`NAME`, default the pattern with wildcards as `_`) holding every matching file
+>   under its own name. Capture stores each match the session left and drops a stored one the session deleted;
+>   seeding restores every stored match. Matching ignores case. An `EDIT` of a matching file is a package default.
+> - **Registry values taken back.** Ownership is judged per value (`REG/<key>/<value>`), not per key: in a kept key,
+>   a value taken back with `false` (an option the pre-launch picker owns, such as UserPatch's settings inside the
+>   key that also holds the user's volumes) is re-applied after the user's stored state is restored.
+
 ## 7.3 Runner keep-sets — saves survive with zero per-game work
 
 Because the runtime is pristine by default, *something* must declare where the standard user-state lives. That something
