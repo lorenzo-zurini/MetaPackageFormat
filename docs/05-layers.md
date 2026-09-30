@@ -17,6 +17,14 @@ Any node MAY carry a **`WHEN`** condition ([chapter 8 §8.8](08-variables.md#88-
 not hold, the node is **inert** — its payload is not applied, though it remains in the graph and its `OVER` is still
 reached. A single `LAYERS` entry may carry its own `WHEN` too (ANDed with the node's).
 
+> **Generation 6 — naming a layer.** Any layer MAY carry **`LABEL`** (what it is called) and **`SECTION`** (a folder in
+> the editor's layer tree; `/` nests), beside its `WHEN` and a `COMMENT` (why it is there). All three are presentation
+> only: the fold never reads them, so a named layer resolves exactly like the bare one. They are the layer-level
+> counterparts of a node's `LABEL` and `SECTION`, and unlike an `EXEC` entry's `LABEL` — the address its entry folds
+> by — they name nothing the resolver uses. Both are optional: an editor names an unnamed layer from the launcher facet
+> (`UI.LABEL`, `UI.SECTION`) of the variable its `WHEN` tests, else from its payload, so a feature gated on an option
+> is filed under that option without repeating it.
+
 ## 5.1 `FORM` — the four shapes of content
 
 A `Content` node's `FORM` says how its `PATH` is to be read. All four contribute files to the same overlay; they differ
