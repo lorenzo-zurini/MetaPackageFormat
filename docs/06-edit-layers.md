@@ -47,8 +47,8 @@ The node names the target file and the pass; `EDITS` holds the edits to make to 
 | `FILE` | node | path of the target file, relative to the pass's base (the default-data root for base edits; the runtime root for OVERRIDE edits) |
 | `OVERRIDE` | node | base vs. override pass (§6.1) |
 | `EDITS` | node | array of edit objects, applied in order |
-| `MODE` | entry | `"ConfigWrite"` \| `"Overwrite"` \| `"AppendLine"` |
-| `KEY` | entry | (ConfigWrite only) the line-prefix to match |
+| `MODE` | entry | `"ConfigWrite"` \| `"Overwrite"` \| `"AppendLine"` \| `"JsonSet"` |
+| `KEY` | entry | (ConfigWrite) the line-prefix to match; (JsonSet) a JSON Pointer |
 | `VALUE` | entry | the value to write (see per-mode meaning) |
 
 ```json
@@ -97,7 +97,22 @@ contributes one `AppendLine` and the resulting file lists exactly the enabled mo
 > you get *automatic, ordered mod load lists* with no bespoke "mod manager" construct: enable a mod → its node enters the
 > closure → its `AppendLine` runs in order → the load-order file is correct. Disable it → its line never appears.
 
-(VidyaGod: `FileEdits::ConfigWrite` / `FileOverwrite` / `AppendLine` in `fileedits.cpp`.)
+### `MODE: "JsonSet"` — set one value in a JSON file
+
+Sets the value at `KEY`, a JSON Pointer (RFC 6901: `/video/resolution/width`), to `VALUE` read as JSON text (`1920`,
+`true`, `"x"`, `{"width":1920,"height":1080}`); a `VALUE` that does not parse as JSON is written as a string. Objects
+missing on the way are created, and so is the file (absent or empty counts as `{}`). Every other key, and the key
+order, is kept; comments are accepted on read and not written back. A file that is not JSON, or a pointer that runs
+through a value that is neither an object nor an array, fails the edit and leaves the file untouched. A bool option is
+written as JSON with the `bool` format: `"%fullscreen:bool%"`.
+
+```json
+{ "MODE": "JsonSet", "KEY": "/video/targetfps", "VALUE": "%fps%" }
+```
+
+Like a `ConfigWrite`, a `JsonSet` writes one key, so its address is the file's plus `#<KEY>` (chapter 7).
+
+(VidyaGod: `FileEdits::ConfigWrite` / `FileOverwrite` / `AppendLine` / `JsonSet` in `fileedits.cpp`.)
 
 ## 6.3 `RegEdit` — write Windows-registry values (Wine-family only)
 

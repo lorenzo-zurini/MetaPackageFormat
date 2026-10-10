@@ -78,6 +78,11 @@ registry persistence is **Wine-family only** (no hives elsewhere).
 > - **Registry values taken back.** Ownership is judged per value (`REG/<key>/<value>`), not per key: in a kept key,
 >   a value taken back with `false` (an option the pre-launch picker owns, such as UserPatch's settings inside the
 >   key that also holds the user's volumes) is re-applied after the user's stored state is restored.
+> - **Options in a kept file.** An `EDIT` on an address the user keeps is the package's default: applied while the user
+>   has no saved copy, then the user's. An option chosen in the launch window that writes into a kept file (a
+>   `ConfigWrite` or `JsonSet` whose `VALUE` or `WHEN` names it) therefore needs its key taken back
+>   (`"FILES/…/settings.json#/video/targetfps": false`), or it applies on the first launch only. Implementations warn
+>   when one is not.
 
 ## 7.3 Runner keep-sets — saves survive with zero per-game work
 

@@ -13,7 +13,7 @@ pointers are illustrative, not normative** — the spec defines the format; this
 | 02 The edge | `src/manifestmodel.{h,cpp}` | `OverReq`, `ParseOver`, `OverRefs`, `RemapOverRefs` — the one reader and the one remapper of `OVER` (freeze and `StampNodeCids` share it) |
 | 04 Sources / sync | `src/packagecatalog.cpp` | `SyncPackageSources`, `AddPackageSource`, `PackageSourceDir`, `PackageSourceName` |
 | 05 `Content` nodes | `src/manifestmodel.cpp`, `src/vfsmount.cpp`, `VidyaGodFS` | `IsVfsLayer`, `IsRunnerBuildLayer`, `LayerType`, `LayerLocator`, `ResolveLayerSource`, `ZipFullyStored`, `BuildLayerSpec`; `vgdelta` (`GenerateDelta`/`VerifyDelta`/`DeltaByteSource`) for `FORM: "delta"` |
-| 06 Edit layers | `src/fileedits.cpp`, `src/registrylayer.cpp`, `src/registrywrapper.cpp` | `ProcessFileEdits` (`ConfigWrite`/`FileOverwrite`/`AppendLine`), `ProcessDLLOverrides`, `ApplyRegEdits`, `BuildDefaultData`, `ApplyOverrideRegEdits` |
+| 06 Edit layers | `src/fileedits.cpp`, `src/registrylayer.cpp`, `src/registrywrapper.cpp` | `ProcessFileEdits` (`ConfigWrite`/`FileOverwrite`/`AppendLine`/`JsonSet`), `ProcessDLLOverrides`, `ApplyRegEdits`, `BuildDefaultData`, `ApplyOverrideRegEdits` |
 | 07 Persistence | `src/persistlayer.cpp`, `src/registrylayer.cpp`, `src/launchresolver.cpp` | `DerivePersistence`, `SeedPersistFiles`/`CapturePersistFiles`, `SeedPersistRegistry`/`CapturePersistRegistry`, `CapturePersistRegKeys` |
 | 08 Variables / CustomVar | `src/varsubst.cpp`, `src/launchparams.cpp`, `src/launchresolver.cpp` | `StringVariableSubstitution`, `TranslateCustomVarValue`, `ContainerParams::GetVariablesMap`, `ResolveCustomVariables` |
 | 09 EXEC | `src/launchresolver.cpp`, `src/containerwrapper.cpp` | `ResolveExecutableDefinition`, `ContainerWrapper::Execute` |
