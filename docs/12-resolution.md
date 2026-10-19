@@ -1,175 +1,128 @@
-# 12 · Resolution: facts fold, choices don't
+# 12 · Resolution
 
-Resolving a launch turns the graph into an **ordered list of nodes** — the *mount* — from the user's **choices**.
-Two sets, one rule:
+Resolving turns a node, an instance and a set of ticked grafts into a **plan**: the ordered content and edits, and
+the folded registry, DLLs, environment, variables, entries and keeps. Every runner in the chain is resolved the same
+way, from its own node.
 
-- **selected** — what the user *chose*: the variant picked from the card, and the grafts ticked (including those
-  the author pre-ticked with `TOGGLE: "on"`).
-- **closure** — what a node is *made of*: everything reachable from it through the bare refs of `OVER`,
-  transitively. This is what mounts.
+## 12.1 Phases
 
-| question | answered against |
-|----------|------------------|
-| what mounts | the **closure** of the selected variant, then of each selected graft |
-| which grafts are offered / applicable | the **selected** set — never the closure |
-| what runs | the effective entry of a **selected** node — the variant, or a ticked graft carrying one |
-| what a node is part of | the nearest face **beneath** it |
+1. **Variables for `WHEN`.** Collect what a layer `WHEN` may read: the instance's values and per-launch overrides, the
+   built-ins (`%UID%`, `%PackageUID%`, the screen size, the runner's anchors), and the `DEFAULT`s of ungated `VARS`
+   layers reached through ungated `NODE` layers, folded in list order (the ticked grafts' included, since they
+   follow the variant). This phase reads the lists, not the expansion, so nothing is circular.
+2. **Expansion.** Walk `LAYERS` (the root node's, then each ticked graft's, in order). Skip a layer whose `WHEN` does
+   not hold. Expand a `NODE` layer in place, through its `TAKE` and `TARGET` (chapter 05). Check `ANY` and `NOT`
+   (§12.5).
+3. **Fold** (§12.2), then resolve every variable fully over the folded declarations (chapter 08 §8.5).
 
-**In `OVER`, a bare ref composes; a group or a `NOT` requires.** The closure walk follows bare refs and nothing
-else: no gates, no groups, no exclusions, no toggles. Requirements — any-of groups, `NOT`s, and a bare ref that
-names a *variant* — are evaluated in exactly one place: when a node is **offered** as a graft, against the
-selected set. This is what makes "facts fold, choices don't" literally true: a variant's closure is a pure
-function of the graph, and every choice is a variant or a graft.
+## 12.2 The fold
 
-## 12.1 What resolution produces
+Walking the expansion bottom to top:
 
-`Closure(graph, nodeId) → [nodeId, …]` — every node reachable from `nodeId` through bare `OVER` refs, topologically
-ordered **requirements before dependants**, the node itself **last** (highest overlay priority). A ref missing from
-the graph is reported. Cycles are reported and broken (I2).
+- **Per address, the latest writer wins.** A file, a registry value, an environment variable, a DLL policy, a
+  variable declaration, an entry field.
+- **`null` deletes**: a value or, for a `REG` key, the key and everything beneath it; for `ENV`, the name; for `DLL`,
+  the policy; in an entry, the field.
+- **An `EDIT` applies to the value beneath it** at its position, and a `DELTA` reconstructs from the content beneath
+  it at its target (chapters 04 and 06).
+- **`KEEP` folds per address** like everything else (chapter 13).
+- **Entries fold per label and field**, in first-declared order (chapter 09 §9.2).
 
-`Selected(graph, variantId, ticks) → set` — the fixpoint of §12.3.
+Order is position. A container decides where its parents go; a node never rises above the node that contains it
+(I3); the variant's own layers sit above everything it contains; ticked grafts sit above the variant, in graft order.
 
-`Mount(graph, variantId, ticks, precedence) → [nodeId, …]` — `Closure(variant)`, then for each selected graft in
-instance precedence, `Closure(graft)` minus what is already mounted, graft last.
+An implementation SHOULD be able to show, per address, the winner and the layers it beat (the conflict view), and
+SHOULD warn when a held or moved mention (chapter 05 §5.4) decided a winner.
 
-```
-function Closure(graph, id):
-    order = []; visited = {}
-    function emit(n):
-        if n in visited: return
-        visited.add(n)
-        for r in bareRefs(graph[n].OVER): emit(r)      # composition only; a missing r is reported
-        order.append(n)
-    emit(id)
-    return order                                       # requirements before dependants, id last
-```
+*(VidyaGod: `Fold::Resolve`, `Fold::ResolveVars` in `fold.cpp`. The reference definition is the Python
+`tools/gen6/resolve.py`; `tools/gen6/fold_gate.py` holds the C++ to it plan for plan.)*
 
-`TOGGLE` has no meaning inside a closure. A node reached through a bare ref is mounted, full stop; the pristine
-cannot know its optional pieces, so an optional piece is never *inside* a closure — it is a graft over the
-variants it applies to (§12.3). A validator warns about a `TOGGLE`, a group or a `NOT` on a node that nothing
-offers.
+## 12.3 What a resolution produces
 
-## 12.2 Order = priority
+| Part | Contents |
+|------|----------|
+| sequence | content and `EDIT` layers in fold order, each with its placed target, its package folder and its `TAKE` view |
+| registry | `REG` values and created keys, per architecture |
+| DLL, ENV, KEEP | the folded maps |
+| declarations | the folded `VARS` |
+| entries | the folded `EXEC` entries |
+| order | the occurrences, in expansion order |
+| events | held and moved mentions, cycles, missing nodes, unmet `ANY`s, hit `NOT`s |
 
-The emitted order is the overlay stacking order: earlier = lower priority, later = higher; a node is always
-emitted after everything it is `OVER`, so **a dependant wins over its requirements**; the variant sits on top of its
-own closure; grafts sit above that. Among a node's own refs, list order is the tie-break (later = higher). Within
-one node the engine applies kinds in phases — VFS mount → binary patches → post-VFS file edits → registry — so a
-pluripotent node needs no internal order.
+A malformed layer (no single type key) is an error for the whole resolution: nothing is launched from it.
 
-## 12.3 Grafts — the offered set
+## 12.4 Variants and rows
 
-A **graft**, relative to a selected variant, is a node that has the variant's face's identity (the same UID, own or
-inherited — [ch. 3 §3.2](03-roles.md)), is **not** a variant, and is **not in the selected variant's closure**.
-Variants are never grafts (they are picked, not ticked); substance is never a graft (it has no title). A node is
-a graft for one variant and made-of for another as the graph dictates: *Widescreen* is offered on *Single Player*
-and simply part of *Widescreen Edition*, which is `OVER` it.
+Picking a row selects one variant node and one of its tiled entries (chapter 09 §9.4). The variant's node is the
+root of the resolution. Nothing beneath it is a choice: playing a version runs that version, its options are its own
+variables, and what it contains is simply part of it.
 
-A graft is **applicable** iff every requirement in its `OVER` holds against the **selected set**:
+## 12.5 Checks and grafts
 
-| entry | it is | holds when |
-|-------|-------|------------|
-| a bare ref to a node that **declares `VARIANT`** | a requirement | that variant is the selection — a mod `OVER [640]` is not for you on 659. The *declared* facet decides, not runnability: a version whose entry has not landed yet is still a variant |
-| a bare ref to a node **not in the graph** | a requirement that cannot hold | the graft is blocked ("needs X") until the node lands — a missing ref is never treated as composed |
-| a bare ref to **anything else** | composition | always — the graft is *made of* it and brings it beneath itself when ticked: tex-hd brings tex, a fix brings its library. What it brings counts as selected from then on (for `NOT`s, and for other grafts), and **what it brings is judged too**: a graft made of a graft `OVER [640]` requires 640 — requirements are transitive over composition |
-| an any-of group `[a, b]` | a requirement | some member is selected |
-| `{ "NOT": x }` | a requirement | `x` is *not* selected — and, symmetrically, no selected node's `NOT` names this graft or anything it brings |
+**`ANY [cid, …]`** is satisfied when an occurrence of one of its members is already in the expansion at this point
+(beneath it). It never mounts, moves or fetches anything. **`NOT cid`** is satisfied when that node does not occur in
+the final expansion. An unsatisfied check makes the resolution's root not applicable: a variant is blocked (listed,
+with the reason) and a graft is not applied.
 
-**Selecting a variant selects exactly that node.** Nothing beneath it is selected, however much it inherits:
-playing 1.16.5 offers mods `OVER [1.16.5]`, never mods `OVER [1.16.4]`, even though 1.16.4 is in the closure and
-1.16.5 inherits its entry from it. This is the boundary that keeps a version chain from being a mod chain.
+**A graft is a node whose list begins with `ANY`.** The leading `ANY` names what it applies onto; anyone may publish
+one, and nothing it applies to names it (I9).
 
-**A graft may carry an entry.** A mod loader (Forge `OVER [1.16.5]`, SKSE `OVER [[640, 659]]`) is ticked like any
-graft; the variant stays selected, so its mods stay offered; and the picker gains the graft's entry as a way to
-run ("Forge" beside "Play"). There is no such thing as a launchable graft that "selects what it inherits through":
-what you picked is what is selected.
+- **Offered.** Grafts are indexed under every member of their leading `ANY`. After resolving a row, every graft
+  indexed under a node that occurs in it is offered. A graft that a node of the row itself contains (with a `NODE`
+  layer) is part of the row, not an option.
+- **Applied.** Ticked grafts are expanded after the variant, in the instance's graft order. Each is judged against
+  the row with the grafts before it applied, so a graft may need another graft (its `ANY` names it). It applies when
+  it is offered there and applying it leaves no requirement newly unmet (its `NOT` hits nothing, no `ANY` fails).
+  One that does not apply is dropped from the launch and reported.
+- **Default ticks.** A fresh instance ticks the offered grafts whose `RECOMMENDED` lists the row's tile, in rounds, so
+  a graft always follows the graft it needs.
+- **Default order.** A graft comes after every offered graft its `ANY` or `NOT` names; of those ready, the one naming
+  the most recently listed goes first, then by `LABEL`, then CID. Related grafts stay together (mutually exclusive
+  soundtracks, then patches in the order they build on each other).
+- **Exclusive grafts.** Ticking a graft unticks the ticked grafts it cannot apply beside (either side's `NOT`),
+  judged in list order. Mutually exclusive grafts behave as a choice of one.
+- **Reordering** the graft list is the user's. A reorder that would put a graft before a graft its `ANY` needs makes
+  it not apply; an implementation SHOULD refuse or flag such a reorder, naming both.
+- **`SECTION`** (a node field) places a graft in the launch window's collapsible graft tree; the tree read depth
+  first is the order grafts apply in.
+- **An entry on a graft** (a mod loader such as SKSE or Forge) is one more way to run the row: the variant stays
+  selected and its other grafts stay offered. A graft whose entry carries a tile has its own card (chapter 09 §9.4).
+- **Graft declarations count in phase 1**, so a graft's own options gate its own layers.
 
-**Fixpoint with retraction.** Ticking a graft brings what it is made of and can trip another's `NOT`; the
-selected set is the fixpoint of "selected = variant ∪ { ticked grafts applicable against the *other* selected
-nodes } ∪ what those bring", re-derived in candidate order until it settles — so a graft a later selection excludes
-*leaves*, and whatever it brought leaves with it. Between two ticked grafts that exclude each other the first in
-candidate order wins; a UI unticks the loser at tick time. An implementation reports, per graft, *applicable*,
-*selected*, and — when blocked — the first unsatisfied requirement ("needs version X") or the excluder ("excluded
-by Y").
-
-**Pre-ticked.** `TOGGLE: "on"` on a graft means the author ships it ticked (the FLAC soundtrack, the widescreen
-fix); `TOGGLE: "off"` or absent means offered, unticked. The user's tick is authoritative in both directions.
-
-**Grafts on runners.** A node `OVER` a runner that is not a variant is offered when that runner is in the chain;
-the runner plays the part of the face. Ticked, it mounts above the runner's build.
-
-**Scope.** Candidates are nodes of the local library; a received, un-installed stub is browsed, never grafted.
-
-> **Generation 6 grafts.** This section describes gen-5's `OVER`; in gen 6 a graft is a node whose `LAYERS` begin
-> with `ANY [what it applies onto]`, exclusion is a `NOT` layer, and pre-ticking is `RECOMMENDED` (tile UIDs). Rules
-> of the gen-6 engine to carry into the rewrite:
-> - **Graft declarations count in phase 1.** Grafts follow the variant in the list, so their ungated `VARS` are among
->   what a layer `WHEN` may read — a graft's own options gate its own layers (UserPatch's installer features).
-> - **Default order.** A graft comes after every offered graft its `ANY`/`NOT` names; of those that may come next,
->   the one naming the most recently listed goes first, then `LABEL`, then CID. Related grafts stay together (three
->   mutually exclusive soundtracks, then the patches in the order they build on each other).
-> - **Contained grafts are not offered.** A graft a node of the row contains with a `NODE` layer (Forgotten Empires
->   holds UserPatch) is part of the row, not an option.
-> - **Exclusion in the UI.** Ticking a graft unticks the ticked grafts it cannot apply beside (either side's `NOT`),
->   judged in list order with the grafts kept so far in place — exclusive grafts behave as a choice of one.
-> - **`SECTION`.** A graft node's non-folding `SECTION` (a path, `/` nests) places it in the collapsible graft tree;
->   the tree read depth-first is the order grafts apply in.
-> - **Stale saved choices.** A saved graft list naming a graft the library no longer has was saved against an older
->   version of the package (every edit re-mints grafts): the tile falls back to its defaults.
-
-## 12.4 The graft order
-
-Selected applicable grafts mount above the variant's closure in **instance precedence** (higher = later = wins at
-a conflict), ties by key so an untouched instance is reproducible. Each graft's own closure is emitted beneath it
-(its substance, its private ancestors); nodes already in the mount are never repeated. A graft's identity-bearing
-requirements are selected by construction, so descending into them never pulls a second copy of the game.
-
-## 12.5 Conflicts
-
-Conflicts are **detected, never declared by pairs**. Two grafts conflict when they provide the **same target path
-with different content** (layers), **overlapping ranges on one file** (patches), or **the same key with a different
-value** (file edits, registry, DLL overrides). Identical bytes never conflict; an appended line never conflicts;
-`VARS` override by closure order *by design*. A graft overlapping the canonical is not a conflict — that is the
-point. Archives are opaque (authors are encouraged to unpack). Resolution is the instance's: **per-mod
-precedence** in bulk, **per-file winners** as sparse exceptions.
+Write the leading `ANY` against the lowest node the graft needs, usually a pristine, which never changes: a graft
+written against a version is not offered on the next one.
 
 ## 12.6 The instance
 
-The **instance** is the loadout — local configuration, not a node: the selected variant, the ticks, the entry
-`(node, label)`, precedence, winners, variable overrides, its own saves. Permutations are instances. Every piece
-of instance state is keyed by **node CID**, and `LABEL` is never a key. The honest cost of content addressing,
-stated once: **a re-mint of a node resets its tick and precedence to the author's defaults**, and a mod update
-(a new CID) is unticked until re-ticked; a graft `OVER` the old CID is unsatisfied until a node names the new one.
+The **instance** is the user's loadout for a family: the selected variant, the ticked grafts and their order, the
+pinned runner chain, variable values (including drawn `POOL` values) and the owned state (chapter 13). It is local
+data, never a node, and it is keyed by node CID; `LABEL` is never a key.
+
+The cost of content addressing, stated once: re-minting a graft changes its CID, so a saved graft list that names a
+CID the library no longer has was saved against an older package; the implementation falls back to the tile's
+defaults. A user may keep several instances of one family (chapter 17 §17.3).
 
 ## 12.7 Cycles
 
-Bare `OVER` refs MUST be acyclic. If a cycle exists, resolution still completes: the closure walk detects the
-back-edge, reports it, and skips that edge. A validator MUST report cycles as errors ([ch. 15](15-validation.md)).
+A node inside itself, directly or through others, is a cycle. Resolution completes: the back edge is reported and
+skipped. A validator MUST report it.
 
 ## 12.8 Worked examples
 
-**Wipeout XL.** One tile on the pristine; *Single Player* and *Multiplayer* are variants over it. The FLAC
-soundtrack, the widescreen fix and the 200fps mode are three grafts `OVER [["sp", "mp"]]`, the first two with
-`TOGGLE: "on"`. Pick *Single Player* → closure `{pristine, sp}` → offered: soundtrack ✓ ticked, widescreen ✓
-ticked, 200fps offered → mount: pristine → sp → soundtrack → widescreen (its patches over the composed exe, its
-ini edit post-VFS, its 93 knobs in the sheet). Tick 200fps → it mounts above, its variable node pulled in beneath
-as substance. Pick *Multiplayer* → same grafts, same rule.
+**Wipeout XL.** The pristine holds the game and the `Play` entry with tile `17260`. *Single Player* and *Multiplayer*
+are variants containing it. The FLAC soundtrack, the widescreen fix and the 200 fps mode are grafts whose list begins
+`{"ANY": [sp, mp]}`, the first two with `RECOMMENDED: ["17260"]`. Pick *Single Player*: the pristine and the variant
+expand, the three grafts are offered, two are ticked. The launch folds the pristine, the variant, the soundtrack, the
+widescreen fix; tick the 200 fps mode and it folds above them.
 
-**Minecraft.** Pick *1.16.5* → the delta chain mounts beneath (bytes); *Play* is 1.16.5's effective entry,
-inherited from the last version that declared one; a mod `OVER [1.12.2]` is not offered. Tick *Forge 36.2*
-(`OVER [1.16.5]`, an entry, no `VARIANT`) → 1.16.5 stays selected, Forge is selected, *Biomes O' Plenty*
-`OVER [1.16.5, forge-36]` becomes applicable; run *Forge* or *Play*.
+**Warcraft III.** Versions are a chain of nodes, each containing the one before and adding a delta. Every version
+from 1.21b is a variant presenting both the Reign of Chaos tile (`802`) and The Frozen Throne tile (`803`,
+`PARENTUID 802`); one entry per tile. A layer `{"REG": …, "WHEN": "%UID%==803"}` writes TFT's registry only when
+TFT is launched. Both tiles share `%PackageUID%` `802`: one install folder, one set of saves.
 
-**Skyrim.** Pick *1.6.640* → `{640}`. Offered: `skse OVER [[640, 659]]`, `tex OVER [[640, 659]]`, `tex-hd OVER
-[tex]` (made of tex: ticking it brings tex), `quest OVER [640, skse, NOT old-quest]` (made of skse: ticking it
-brings skse, and *SKSE* appears as a way to run), `ab-patch OVER [modA, modB, 640]` (brings both), `old-quest`.
-A mod `OVER [659]` is not offered: 659 is a variant and it is not the selection. Tick old-quest → quest unticks
-(its `NOT`); tick quest → old-quest unticks. plugins.txt is the composed file: each ticked mod's `FILEEDITS`
-*AppendLine* in precedence order — no generator.
+**Age of Empires II.** *UserPatch 1.5* is a graft whose `ANY` names *The Conquerors, patch 1.0e*, recommended under
+The Conquerors' tile (`13006`): on that row it is offered and pre-ticked. *Forgotten Empires 2.2* contains UserPatch
+with a `NODE` layer, so on Forgotten Empires' rows UserPatch is part of the row, not an option. UserPatch's installer
+checkboxes are `bool` variables whose binary ops `Or` bits into one shared byte.
 
-**Age of Empires II.** One card, three faces: the Age of Kings tile on the pristine; The Conquerors' tile on its
-base zip `OVER` the pristine; Forgotten Empires' `OVER` that. Pick *The Conquerors* (a variant over its face) →
-its closure holds the AoK pristine and the AoK registry but not AoK's no-CD patch (that is part of the *Age of
-Kings* variant, a sibling). An AoK mod `OVER [aok-variant]` is not offered here: `aok-variant` is not selected.
-
-Next: [The runtime model](13-runtime-model.md).
+Next: [Ownership: `KEEP`](13-ownership.md).

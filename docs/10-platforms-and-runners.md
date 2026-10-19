@@ -1,140 +1,149 @@
 # 10 · Platforms & runners
 
-The platform model is the engine behind cross-platform execution. It is deliberately tiny: platforms are opaque strings,
-runners are edges between them, and the host is just another platform.
+The platform model is deliberately small: platforms are opaque strings, runners are edges between them, and the host
+is one more platform.
 
 ## 10.1 Platform tokens
 
-A **platform token** is an opaque string naming a software platform. Examples: `"linux64"`, `"win32"`, `"win64"`,
-`"snes"`, `"nes"`, `"macos"`, `"arm64"`. The format ascribes no structure to them — they are compared **only for
-equality**. There is no inheritance, no "win32 is a subset of win64," no architecture math. If two things should be
-interchangeable, a runner declares it by listing both in `GUEST`.
-
-This opacity is a feature: adding a platform is adding a string, and the whole system (resolution, validation, UI) works
-unchanged.
-
-### `custom` — a game's own engine
-
-One token is reserved: **`"custom"`** names content that only its *own package* can run — a game whose engine ships with
-it: an open-source reimplementation (GemRB for Baldur's Gate, doukutsu-rs for Cave Story, a source port), or a static
-recompilation of a console game. The engine is a runner in the **game's package** with `GUEST ["custom"]`, and the game's
-entry says `HOST "custom"`. A package does not invent a platform token for its engine.
-
-A `custom` edge is **package-scoped**: a runner serving `custom` serves content of its own package only, everywhere a
-runner is matched to a platform — the chain BFS, a pinned chain, the per-step choices in a launch UI, the "can this run"
-gate, validation. Another package's `custom` engine never runs this one, even when it would be a shorter route: a
-Windows-only engine in the package (`custom → win64`, then Proton) wins over another package's native one
-(`custom → linux64`), which runs a different game.
-
-A runner for a real, general platform (an emulator: `snes`, `dos`) is an ordinary shared runner instead — it runs any
-content of that platform. (VidyaGod: `ManifestModel::ServesPlatform`.)
+A **platform token** names a software platform: `linux64`, `win32`, `win64`, `snes`, `dos`, `java_17`, … Tokens are
+compared **only for equality**. There is no inheritance and no architecture arithmetic: if two platforms should be
+interchangeable, a runner says so by listing both in its `GUEST`. Adding a platform is adding a string.
 
 ## 10.2 The machine platform
 
-The **machine platform** is the platform token of the host actually running the implementation (e.g. `"linux64"`). It is
-the target every runner chain must reach (invariant I5). A conforming implementation MUST expose its machine platform and
-MUST refuse to "run" content it cannot route to that platform.
+The **machine platform** is the token of the host the implementation runs on (`linux64`, `win64`). Every runner chain
+must reach it (I5). An implementation MUST know its machine platform and MUST refuse to run content it cannot route
+to it.
 
-(VidyaGod: `MachinePlatform()` — currently the constant `"linux64"`, to be replaced by real OS/arch detection when other
-hosts are supported. The format already supports any host token; only detection is implementation-specific.)
+## 10.3 Runners are edges
 
-## 10.3 Runners as platform-graph edges
-
-A runner is a node whose `ENTRYPOINTS` entry declares:
+A runner is a node whose default entry has a non-empty `GUEST`:
 
 ```json
-{ "ENTRYPOINTS": [ { "HOST": "<the platform the runner itself runs on>",
-                     "GUEST": ["<platform it can run>", "<…>"], … } ] }
+{ "EXEC": [ { "LABEL": "snes9x", "HOST": "linux64", "GUEST": ["snes"], "EXE": "%RunnerMount%/snes9x",
+              "ARGS": ["-fullscreen", "%Content%"] } ] }
 ```
 
-This is a set of **directed edges** `guest → host`: for each `g` in `GUEST`, the runner is an edge from `g` to `HOST`.
-Read it as "this runner *consumes* guest-platform content and *produces* a host-platform process."
+For each guest platform it is a directed edge **guest → host**: it consumes content of the guest platform and is
+itself a program of the host platform.
 
-- Proton: edges `win32 → linux64` and `win64 → linux64`.
-- A native-Linux emulator (e.g. snes9x): edge `snes → linux64` — content runs in one hop.
-- A Windows-only emulator (e.g. the hypothetical VortexEmu, chapter 11): edge `vortex → win32` — its host is win32, so it
-  must itself be chained onward to the machine.
-- The native terminal: edge `linux64 → linux64` (a self-loop; the universal executor).
+- Proton: `win32 → linux64`, `win64 → linux64`.
+- A native emulator: `snes → linux64`, one hop.
+- A Windows-only emulator: `vortex → win32`, which must itself be chained on to the machine.
+- The native terminal: `linux64 → linux64`.
 
-The union of all available runners' edges is the **platform graph**. Running content is finding a path through it from
-the content's platform to the machine platform (chapter 11).
+The edges of every available runner form the **platform graph**; running content is finding a path through it
+(chapter 11). A package never names its runner (I9).
 
-## 10.4 The runner build is content
+## 10.4 Anchors and drives: where a runner puts things
 
-A runner needs *binaries* to do its job — the Proton tree, the emulator executable. Those bytes are the runner's
-**build**: the `LAYERS` of the runner node itself, or of what it is `OVER` (a shared Wine tree, a DXVK build).
+Packages name places by anchor (chapter 03 §3.4). A runner entry says where each anchor is in its guest, and where
+each guest drive is in its runtime layout:
 
-```json
-{ "LABEL": "GE-Proton 10-30", "OVER": ["dxvk_2_4"],
-  "LAYERS": [ { "FORM": "zip", "PATH": "GE-Proton10-30.zip", "SOURCE": { "TYPE": "ipfs", "CID": "Qm…" } } ],
-  "ENTRYPOINTS": [ { "HOST": "linux64", "GUEST": ["win32", "win64"], "PATH": "%RunnerMount%/proton" } ] }
+```jsonc
+"GUEST_ROOTS": { "%GameDir%":      "C:\\%PackageUID%",
+                 "%UserProfile%":  "C:\\users\\steamuser",
+                 "%Documents%":    "C:\\users\\steamuser\\Documents",
+                 "%AppData%":      "%UserProfile%\\AppData\\Roaming",
+                 "%SysDir32%":     "C:\\windows\\syswow64" },
+"DRIVES":      { "C:": "%PrefixRoot%/drive_c" }
 ```
 
-The runner's build is the runner's closure resolved like any closure (chapter 12). Heavy, shareable bytes stay
-content-addressed and deduplicated exactly like a game's: a Proton build is fetched and seeded like anything else.
+- **`GUEST_ROOTS`** maps each anchor (a `%Name%` key) to its **guest path**: what a value naming it must say (a
+  registry `InstallPath`, an argument, a config line). An anchor may be spelled from another anchor, in any order;
+  anchors spelled from each other in a circle are refused.
+- **`DRIVES`** maps each guest drive to a path in the runtime layout. A guest path the launch *places* (a content
+  `TARGET`, an edit's file, a kept file) is first substituted, then moved to where its drive lives: the longest
+  matching drive wins, drives compare without case, a path under no mapped drive stays as written. Every anchor's
+  guest path MUST be on a drive `DRIVES` lays out (a validator refuses `E:` with no `E:` drive).
+- A value the run **wrote** (a captured registry value `C:\Program Files (x86)\X\x.ax`) is re-spelled from the most
+  specific anchor before it is stored, so the user's state stays valid under another runner.
 
-## 10.5 Which content builds the runner, and which assembles the prefix
+The anchors in effect are the **boundary** runner's (chapter 11 §11.5). Validators check packages against the anchors
+the runners in the library declare; runners that disagree about an anchor's guest path are warned about.
 
-Two kinds of `Content` end up in a runner's closure, and the distinction is a property of **the content**, not of which
-node it sits on:
+A native engine uses the same mechanism to give a game a folder: doukutsu-rs declares
+`"GUEST_ROOTS": {"%GameDir%": "C:\\cavestory"}` and `"DRIVES": {"C:": "game"}`, so a package's `%GameDir%/data`
+lands at `game/cavestory/data` in its runtime.
 
-- **Build content** — real bytes on disk. This *is* the runner, and it mounts separately at `%RunnerMount%`.
-- **Prefix-assembly content** — content whose `PATH` is **runtime-sourced** (a `%variable%` that only resolves to a real
-  path at mount time, e.g. `%RunnerMount%/files/share/default_pfx`). It contributes to the **game's** runtime, laying
-  down the wine prefix.
+A runner's own layers are written in its own layout, with relative targets (`FILES/files/lib64`, `FILES/pfx`).
 
-When "a runner" was one node with an ordered layer array, these were told apart by *which node they sat on*: assembly
-layers happened to live on the runner node itself. One node per layer makes node membership meaningless, so the real
-property is tested directly.
+## 10.5 The runner's build
 
-> **Prefix-assembly content is PREPENDED, not appended.** The wine prefix (the default prefix plus the
-> `system32`/`syswow64` builtin DLLs) is the **base system**: it must sit *beneath* the game and library content so a
-> package's native override DLLs win over wine's builtins at the same path. Appending it puts wine's builtins on top and
-> silently masks every `syswow64`/`system32` override a package ships. (`FileEdit`/`RegEdit`/`DllOverride` are
-> order-independent — separate passes — so those are appended.)
+A runner needs binaries: the Proton tree, the emulator. Those bytes are the runner's **build**: the content layers of
+the runner's own resolution (its node and everything it contains, folded like any node).
 
-A runner's whole closure contributes its order-independent edits (`DllOverride`/`RegEdit`/`FileEdit`) to the game
-runtime, exactly as a library pinned by the *game* does — a runner may legitimately pin a media stack that installs
-native DirectShow filters and switches `winegstreamer` off. The runner chain is not less capable than the content chain.
+```jsonc
+{ "LABEL": "geproton_7_55", "LAYERS": [
+    { "NODE": "bafkrei…geproton_7_55_files" },                                  // the Proton tree
+    { "NODE": "bafkrei…dxvk_2_3", "TARGET": "FILES/files/lib64/wine/dxvk" },     // a shared library, placed
+    { "DIR": "%DefaultPfxDir%", "TARGET": "FILES/pfx" },                         // the prefix, assembled at launch
+    { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "LD_LIBRARY_PATH": null } },
+    { "EXEC": [ { "LABEL": "geproton_runner", "HOST": "linux64", "GUEST": ["win32", "win64"], … } ] } ] }
+```
 
-## 10.6 Runner availability & the installed model
+Two kinds of content end up in a runner's resolution:
 
-A runner is **usable on this machine** when it can actually execute. Two kinds:
+- **Build content**: real bytes (zips, deltas, files). This is the runner, mounted read-only at `%RunnerMount%`.
+- **Runtime-sourced content**: a `DIR` (or other layer) whose path is a variable resolved only at launch
+  (`%DefaultPfxDir%`, `%WineSys32Dir%`). It assembles the **game's** runtime, typically the Wine prefix, and is placed
+  **beneath** the game's content, so a package's own DLLs win over the runner's builtins at the same path.
 
-- **PATH runner** — its `PATH` is a bare system command (`wine`, `umu-run`). Usable iff that command resolves on the
-  host's executable search path.
-- **Build-shipping runner** — its `PATH` resolves from its mounted build (`%RunnerMount%/proton`), or is a
-  build-relative path (e.g. `vortexemu.exe`). Usable iff its build is **hydrated** (every real on-disk `Content` node in its closure present locally; the runtime-sourced prefix-assembly ones are not build content and must not be counted — see §10.5)
-  and, if it generates a prefix, its prefix artifact exists.
+The boundary runner's other facts reach the launch too: its `ENV` (chapter 07 §7.3), its `KEEP` (chapter 13), and its
+edits, registry and DLL policy, which apply after the game's. A package and its runner SHOULD NOT write the same
+address.
 
-Crucially, **a runner that ships its own build is "available" even if its `PATH` is not a system command** — the exe
-lives in the build, not on `PATH`. An implementation MUST treat "ships a build" as a form of availability; otherwise a
-nested Windows-only emulator (`PATH: "vortexemu.exe"`) would be wrongly judged missing. (VidyaGod: `RunnerWrapper::
-ExecutableAvailable` for the PATH case, OR a build-presence check; `RunnerInstalled`/`RunnerAvailable`.)
+## 10.6 `custom`: a game's own engine
 
-(VidyaGod resolves `%var%`-bearing or empty executables as "available" — they come from a mount or are pass-throughs —
-and checks bare commands against the host `PATH`, falling back to the build-presence check.)
+One token is reserved. **`custom`** names content that only its own package can run: a game whose engine ships with
+it, such as an open-source reimplementation (GemRB for Baldur's Gate, doukutsu-rs for Cave Story, VCMI for Heroes
+III), a source port, or a static recompilation of a console game. The engine is a runner **in the game's package**
+with `GUEST ["custom"]`, and the game's entry says `HOST "custom"`. A package does not invent a platform token for
+its engine.
 
-## 10.7 Build placement: separate mount vs unified
+A `custom` edge is **package-scoped**: a runner serving `custom` serves only launches from a package folder that holds
+a copy of it, everywhere a runner is matched: the chain search, a pinned chain, the per-step choices in a launch
+window, the play gate and validation. Another package's engine never runs this one, even when it would be a shorter
+route. The same engine node may be shipped in several packages (GemRB for every Infinity Engine game); it serves each
+of them.
 
-A build-shipping runner mounts its build read-only:
+An engine for a real, general platform (a console emulator) is an ordinary shared runner instead.
 
-- **Separate mount (default):** the build mounts at its own mount point, reached via `%RunnerMount%` (so
-  `PATH: "%RunnerMount%/proton"`). The game's content mounts separately under `CONTENT_ROOT`.
-- **Unified (`UNIFIED_RUNTIME: true`):** the build folds *into* the game runtime root (lowest priority), sharing one
-  filesystem view with the content. `%RunnerMount%` then resolves to the runtime root. Use only when the runtime must see
-  the game's files and its own in one tree.
+*(VidyaGod: `ManifestModel::ServesPlatform`; a node's copies are `Node::Copies`.)*
 
-For cross-namespace nesting (a runner running *inside* another runner's guest fs), inner runner builds mount as *content*
-within the boundary runner's content root — see [chapter 11 §11.6](11-runner-chaining.md).
+## 10.7 Availability
 
-## 10.8 Prefix-generating runners
+A runner is **available** when it can execute here:
 
-A runner with `PREFIX_GENERATE: true` (Wine/Proton) needs a one-time generated prefix: a `drive_c` + registry-hive tree
-created by running the runner's own launcher with a `wineboot` target instead of the game. The prefix is generated once,
-stored as a read-only artifact alongside the runner, and reused for every launch (it is never mutated; per-session
-changes go to the overlay's writable layer). `CONTENT_ROOT` for such a runner SHOULD include `drive_c` so content lands
-inside the `C:` drive; a validator warns if not. Prefix generation and the resulting layer stack are specified in
-[chapter 13](13-runtime-model.md).
+- a runner whose `EXE` is a bare system command (`wine`) is available when the command resolves on the host's
+  search path;
+- a runner that ships a build is available once its build is hydrated (every real content file of its resolution
+  present; a runtime-sourced layer is not build content and is not counted). Its `EXE` is a build path
+  (`%RunnerMount%/proton`, `vortexemu.exe`) and is never looked up on the search path;
+- an empty or `%Content%` `EXE` (a pass-through) is always available.
 
-Next: [Runner daisy-chaining](11-runner-chaining.md).
+The chain search prefers **installed** runners and falls back to any runner that could be downloaded only when the
+installed ones cannot carry the launch (chapter 11 §11.4).
+
+## 10.8 Build placement
+
+- **Separate mount (default).** The build mounts read-only at its own mount point, `%RunnerMount%`; the game's
+  content mounts under the runner's `CONTENT_ROOT` in the runtime.
+- **Unified (`UNIFIED_RUNTIME: true`).** The build is mounted into the runtime itself, beneath everything, and
+  `%RunnerMount%` is the runtime root. For runners that must see their own files and the game's in one tree.
+
+A runner nested inside another runner's guest mounts its build inside the boundary's content root (chapter 11
+§11.6).
+
+## 10.9 Prefix-generating runners
+
+A runner with `PREFIX_GENERATE: true` (Wine, Proton) runs content inside a Windows prefix: a `drive_c` tree and
+registry hives. The prefix is **declared in the runner's own layers** and assembled at launch with no special case:
+runtime-sourced `DIR` layers mount the default prefix and the system DLL folders its build ships (`%DefaultPfxDir%`
+at `FILES/pfx`, `%WineSys32Dir%` at `FILES/pfx/drive_c/windows/system32`), and `EDIT` layers write the few marker
+files the runner expects. Nothing is copied, no `wineboot` runs, and the prefix's sources are never modified: each
+session's changes go to the runtime's writable layer, and the registry hives are composed per launch (chapter 14
+§14.4). Its `CONTENT_ROOT` puts content inside the `C:` drive (`pfx/drive_c/%PackageUID%`); the part before
+`drive_c` is `%PrefixRoot%`.
+
+Next: [Runner chaining](11-runner-chaining.md).

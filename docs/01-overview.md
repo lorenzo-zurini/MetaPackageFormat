@@ -1,150 +1,108 @@
 # 01 · Overview & design model
 
-## 1.1 The single idea: everything is a node
+## 1.1 The single idea: a node is an ordered list of layers
 
-MPF has exactly one structural primitive. Every concept that other formats model with distinct constructs — a game, an
-edition, a dependency, a mod, an optional add-on, an emulator, a runtime, a config option — is, in MPF, **a node**.
+Everything in MPF is a **node**: a JSON file whose `LAYERS` list says, bottom to top, what the node is made of and
+what it writes. A layer is one typed entry:
 
-A node is a small JSON object whose identity is **exclusively its CID** (the content hash of its frozen block); it
-carries a stored `CID` **handle** that references point to, and an optional, purely-cosmetic `LABEL`. There is
-**one node kind** and it does exactly two things:
-
-1. **It is one meaningful change.** Any subset of the payload sections — files to overlay (`LAYERS`), byte patches
-   (`PATCHES`), config edits (`FILEEDITS`), registry writes (`REGEDITS`), a DLL policy (`DLLOVERRIDES`), user knobs
-   (`VARS`), durable state (`PERSISTS`), the process environment (`ENV`/`ENV_REMOVE`) — plus how to run
-   (`ENTRYPOINTS`) and two declared facets: a **face**
-   (`TILE`: which title begins here) and a **variant** (`VARIANT`: list me on the shelf). A change may span kinds.
-   A node with no payload is just a node. There is no `TYPE`, no `ROLE`.
-2. **It is `OVER` other nodes.** The one edge — "I am made of you; you are under me" — a list in which a bare ref
-   *composes* and a group or a `NOT` *requires*. This is how composition, dependencies, compatibility, exclusion,
-   identity *and order* are expressed. The edge points newer → older: the older side never enumerates what builds
-   on it, so nothing that grows is ever listed.
-
-Nothing else is a first-class concept. There is no package object, no installer, no variant table, no runner
-registry, no tile node, no second edge. There is the graph, and the rules for walking it.
-
-> **Facts fold, choices don't.** Along the chain, bytes overlay, the entrypoint is inherited unless replaced, and
-> identity ascends from the face. What never travels is a *choice*: picking a variant selects exactly that node, a
-> graft is ticked, a mod is offered against what is selected — never against what it is made of. This is what lets
-> a version chain carry bytes and a command without carrying mods, and lets a mod attach to any of several versions
-> without either side listing the other. See [ch. 12](12-resolution.md).
-
-> **Design consequence.** Because there is one primitive, every feature is expressed by *composing* nodes rather than by
-> *adding* format constructs. The format stays small while the expressible space stays large. New capabilities tend to
-> *fall out* of the existing model (see §1.4) rather than requiring new fields.
-
-## 1.2 What a complete "package" is
-
-There is no monolithic package object. A *package*, informally, is **a bundle directory** (chapter 4) containing the node
-files and loose content for one logical product, e.g. a game and its base content:
-
-```
-[9001] Vortex Quest/
-├── Vortex Quest.json           # face + VARIANT + ENTRYPOINTS + LAYERS (the ROM), in one node
-├── VortexQuest.vtx             # the ROM bytes
-└── VortexQuest_Cover.png       # cover art referenced by TILE.COVER
+```jsonc
+{ "LABEL": "Warcraft III 1.27a",
+  "LAYERS": [
+    { "NODE":  "bafkrei…wc3_1_26a" },                                  // the version before, contained
+    { "DELTA": "delta_from__wc3_1_26a.vgdelta", "SOURCE": "Qm…",
+      "TARGET": "FILES/%GameDir%" },                                    // what changed, as a binary delta
+    { "REG":   { "HKCU": { "Software": { "Blizzard Entertainment": { "Warcraft III": {
+                 "Gameplay": { "netgameport": "dword:000017e0" } } } } } } },
+    { "KEEP":  { "REG/HKCU/Software/Blizzard Entertainment/Warcraft III": true } },
+    { "EXEC":  [ { "LABEL": "Play", "HOST": "win32", "EXE": "%GameDir%/Frozen Throne.exe" } ] } ] }
 ```
 
-But a "package" has fuzzy edges *by design*: its variants' closures can reference content nodes in *other* bundles
-(shared runtimes, common dependencies), and the runners that execute it almost always live in a *separate* bundle (a
-runner library). The unit of distribution is a bundle; the unit of *meaning* is a variant plus its resolved closure,
-which may span bundles.
+There are no node types. A game, a patch, a library, a runner, a mod and a configuration option are all nodes; what
+a node *is* follows from its layers: it has a way to run (`EXEC` without `GUEST`), it is a runner (`EXEC` with
+`GUEST`), it is a graft (its list begins with `ANY`), it is on the shelf (`VARIANT`).
 
-## 1.3 The lifecycle of a launch
+**Parents are layers.** A node's ancestors (the version it patches, the libraries it uses) are `NODE` layers at the
+position the node chooses, and a `NODE` layer can take part of a node (`TAKE`) and place it (`TARGET`). The
+direction is always newer → older: a library never lists its users, a version never lists its mods.
 
-Resolving and running a variant proceeds in well-defined phases. Each is specified in detail later; this is the map.
+## 1.2 Addresses and the fold
 
-1. **Index** the graph: scan every library root's bundles, parse each `.json` node, key by its CID handle
-   ([ch. 4](04-bundles-and-library.md)).
-2. **Resolve the mount**: the closure of the picked variant — the transitive union of bare `OVER` refs,
-   topologically ordered — then the ticked, applicable grafts above it in instance precedence
-   ([ch. 12](12-resolution.md)).
-3. **Resolve the runner chain**: BFS the platform graph from the chosen entry's `HOST` to the machine platform,
-   appending the native terminal ([ch. 11](11-runner-chaining.md)).
-4. **Resolve variables & persistence**: expand `%TOKEN%`s, resolve `CustomVar` knobs, decide what state persists
-   ([ch. 8](08-variables.md), [ch. 7](07-persistence.md)).
-5. **Materialize content**: ensure every layer's bytes are present locally, fetching content-addressed sources as needed
-   ([ch. 14](14-content-addressing.md)).
-6. **Build the runtime**: provision the runner prefix (if any), build the default-data layer from base edits, assemble
-   the overlay mount in the correct stacking order ([ch. 13](13-runtime-model.md)).
-7. **Compose & execute**: build the nested runner command, translating paths across each namespace boundary, and execute
-   one process ([ch. 11](11-runner-chaining.md)).
-8. **Capture & tear down**: persist declared state back to `USERDATA`, unmount save-safely, wipe ephemeral state
-   ([ch. 7](07-persistence.md), [ch. 13](13-runtime-model.md)).
+Everything a layer writes has an **address**: a file (`FILES/%GameDir%/Data/x.dat`), a key inside a config file
+(`FILES/%GameDir%/game.ini#Resolution=`), a registry value, a variable, an environment variable, a DLL policy, an
+entry. Resolving a node walks its list, expands every `NODE` layer in place, and folds: per address, **the later
+writer wins**, `null` deletes, and an edit applies to the value beneath it. There is one rule for every kind of
+fact; a registry value, an environment variable and a file are overridden the same way.
 
-## 1.4 Things that fall out of the model (for free)
+## 1.3 What a complete package is
 
-These are *not* features the format special-cases. They are shapes of the one graph:
+A **package** is a folder of node files and the content files they name, published as one folder CID (chapter 15).
+A typical game package holds:
 
-- **Mods, at any scale** — a mod is a node `OVER` the version(s) it works on: a **graft**. Nobody lists it; it is
-  offered to whoever selects a version it names, mounts above the game when ticked, and a graft can be `OVER` a
-  graft (an HD pack over a texture mod, a compat patch `OVER [modA, modB, game]`). A thousand-mod Skyrim is a
-  thousand grafts and one instance; a hundred configurations are a hundred instances over one pool.
-- **Optional pieces and expansions** — an optional piece (a soundtrack, a fix) is a graft the author pre-ticks,
-  `OVER` the variants it applies to; an expansion is its own face `OVER` the base's pristine, nested under the
-  base by containment; `NOT` makes a set of grafts mutually exclusive (pick-one).
-- **Multi-edition and multi-version games** — one tile on the pristine, several `VARIANT`s over it; the library
-  groups them under one card, the user picks a variant, each resolves its own closure. Minecraft is one tile, 903
-  variants each `OVER` the previous version's bytes, and an entrypoint declared only where the command changes.
-- **Mod loaders** — a graft that carries an entry (SKSE `OVER [["640", "659"]]`, Forge `OVER ["1.16.5"]`): ticked
-  on the version you picked, it adds a way to run; the version stays selected, so its mods stay offered.
-- **Authoring by capture** — run an installer on a live runtime built from any point of a chain, and the files and
-  registry it wrote become *new nodes `OVER` that point*. Nothing has to be spliced into an existing node.
-- **Cross-platform execution & ARM** — a runner is an edge in a platform graph; running anything anywhere is shortest-path
-  over runner edges. New platforms are new runners, not new format.
-- **P2P distribution & portable installs** — every payload carries a content-addressed `SOURCE`; an install is "fetch the
-  closure's CIDs," sharing is "seed them." The graph is the manifest of what to fetch.
-- **Portable saves** — persistence writes to the package's own `USERDATA`, so saves travel with the bundle and survive a
-  full wipe of the app's data root.
-- **Reproducible runtimes** — the runner ships its exact runtime as content layers; the prefix is generated once and
-  reused read-only; the overlay is rebuilt deterministically each launch.
+- the **pristine** node: the game's files exactly as released, its entry and its tile;
+- **versions**: nodes that contain the previous version and add a delta or a patch;
+- **variants**: the nodes the user can pick, marked `VARIANT`;
+- **grafts**: optional changes the user can tick, whose list begins with `ANY`;
+- package-local **libraries** and, for a game with its own engine, the engine as a `custom` runner (chapter 10 §10.6).
 
-When evaluating a proposed feature, the first question is always: *what shape of the existing graph already expresses
-this?* Only if the answer is genuinely "none" does the format grow.
+Shared runners and libraries (Proton, DirectX redistributables, dgVoodoo) live in their own packages. A game never
+names its runner: the runner chain is found by capability.
 
-## 1.5 Core invariants
+## 1.4 The lifecycle of a launch
 
-A conforming implementation MUST preserve these properties. They are referenced by later chapters.
+1. **Pick a row**: a variant × one of its tiled entries (chapter 09).
+2. **Resolve** the variant's node with the instance's variable values and ticked grafts (chapter 12): phase 1 reads
+   the variables `WHEN` may use, phase 2 expands, phase 3 folds and resolves the variables fully.
+3. **Find the runner chain** from the entry's platform to the machine's, preferring installed runners (chapter 11).
+   Each runner resolves its own node the same way.
+4. **Hydrate** what is missing: fetch each content layer's bytes by CID (chapter 15).
+5. **Assemble the runtime**: one overlay mount of the runner's layers, the game's content, the edits and the user's
+   owned state (chapters 13 and 14).
+6. **Run** the entry: one process, the native terminal, nesting every runner and the content.
+7. **Tear down**: capture the user's owned state, unmount, remove the runtime.
 
-- **I1 — CID identity.** A node's identity is **exclusively its CID**. Nodes are keyed by their `CID` handle (unique by
-  construction — a content hash; a placeholder before first mint). `LABEL` is cosmetic and MAY repeat. On a duplicate
-  *handle* (a stale or forged stored CID), first-seen wins; the loser is re-keyed, never dropped, so no node vanishes
-  ([ch. 4](04-bundles-and-library.md)).
-- **I2 — Acyclic composition.** Positive `OVER` refs MUST form a DAG. Cycles are reported; resolution still completes by
-  breaking the back-edge ([ch. 12](12-resolution.md)).
-- **I3 — Single overlay.** The entire runtime is ONE overlay mount at the runtime path. Resolved closure order =
-  overlay priority, lowest first; the variant — the terminal node of its chain — is highest
-  ([ch. 13](13-runtime-model.md)).
-- **I4 — One process.** A launch executes exactly one host process — the outermost (native-terminal) runner — which
-  nests every inner runner and the content as arguments. Inner runners are not separately spawned by the implementation
-  ([ch. 11](11-runner-chaining.md)).
-- **I5 — Always-terminated chains.** Every runner chain ends at the machine platform via a native terminal; content with
-  no path to the machine platform is unrunnable and the launch is refused, not silently "succeeded"
-  ([ch. 11](11-runner-chaining.md)).
-- **I6 — Pristine sources, ephemeral runtime, durable saves.** Source content (downloaded layers, generated prefixes) is
-  never mutated in place; the assembled runtime is ephemeral and wiped after the session; only explicitly-declared
-  persistence survives, written to `USERDATA` ([ch. 7](07-persistence.md), [ch. 13](13-runtime-model.md)).
-- **I7 — Save-safety.** The runtime MUST NOT destroy durable user data. Teardown unmounts durable-backed mounts
-  non-lazily and verifies them gone before deleting any ephemeral tree ([ch. 13](13-runtime-model.md)).
-- **I8 — Content addressing is advisory-to-present, authoritative-to-fetch.** A locally-present file at a node's path is
-  authoritative; the `SOURCE` `CID` is consulted only to obtain a missing file ([ch. 14](14-content-addressing.md)).
-- **I9 — Unrelated order is unspecified.** Two nodes with no `OVER` relation are not ordered with respect to each
-  other. An implementation MUST be deterministic, but a package MUST NOT depend on which of two unrelated nodes
-  writes last; if the order matters, it must be an edge — or, for grafts, the instance's precedence.
-- **I10 — Facts fold, choices don't.** A bare `OVER` ref composes and is never a choice; a group or a `NOT` is a
-  requirement evaluated only when a node is offered. Mounts are built from the closure; the entrypoint and the face
-  are inherited along the chain; grafts are judged against the selected set; picking a variant selects exactly that
-  node ([ch. 12](12-resolution.md)).
-- **I12 — A node describes only its own contribution.** Never anything about a node above it. Declared is exactly:
-  the payload sections, `ENTRYPOINTS`, `TILE`, `VARIANT`, and the edge; everything else is derived.
-- **I11 — Nothing enumerates what grows.** Every edge points newer → older; a library never lists the games that use
-  it, a version never lists its mods, a tile never lists its variants. Grouping and offering are derived.
+## 1.5 Things that fall out of the model
 
-## 1.6 Relationship to the reference implementation
+- **Mod load order.** An `AppendLine` edit in each mod writes one line of a load-order file; the ticked mods' lines
+  appear in graft order. No mod-manager construct.
+- **Optional expansions.** An expansion is a node containing the base game with an entry carrying its own tile
+  (`PARENTUID` = the base game). Both tiles share one family, one install folder and one set of owned state.
+- **Multi-edition games.** Several variants contain one pristine and differ by a delta or an option.
+- **Cross-platform execution.** A console ROM, a Windows emulator and Proton compose by capability.
+- **Peer-to-peer distribution.** Every node and every content file is addressed by CID; a friend can serve them.
+- **Portable saves.** What the user owns is captured into the instance by name, independent of the runner layout.
+- **Reproducible runtimes.** A launch is a pure function of the nodes, the instance and the runner chain.
 
-VidyaGod implements all of the above. Throughout, callouts like *“(VidyaGod: `ResolveNodeOrder` in `manifestmodel.cpp`)”*
-point at the concrete code so a reader can cross-check behavior against a working system. These pointers are a
-convenience, **not** part of the normative format. If VidyaGod and this document disagree, that is a bug in one of them;
-the spec is the arbiter of *what the format is*, and the implementation is the arbiter of *what currently runs*.
+When a feature is proposed, the first question is: *which arrangement of layers already expresses this?* The format
+grows only when the answer is none.
 
-Next: [the Node object](02-nodes.md).
+## 1.6 Core invariants
+
+A conforming implementation MUST preserve these. Later chapters refer to them.
+
+- **I1 — CID identity.** A node's identity is the CID of its canonical bytes and nothing else. `LABEL` is cosmetic
+  and may repeat. Every reference is a CID string (chapter 02).
+- **I2 — Containment is the only structure.** A node is exactly its list. What a node is made of is what its `NODE`
+  layers contain, where they are; nothing outside a node changes what it resolves to except the instance (variable
+  values, ticked grafts) and the runner chain. A cycle is reported and its back edge skipped (chapter 12).
+- **I3 — One fold.** Per address, the latest writer in expansion order wins; `null` deletes; an edit applies to what
+  is beneath it. A node never rises above the node that contains it (chapter 12).
+- **I4 — Single overlay, one process.** The runtime is one overlay mount. A launch executes one host process, the
+  native terminal, which nests every runner and the content (chapters 11 and 14).
+- **I5 — Chains always end at the machine.** Every runner chain ends at the machine platform through a native
+  terminal. Content with no route to the machine is refused, never "launched" (chapter 11).
+- **I6 — Pristine sources, ephemeral runtime, owned state.** Source content is never modified; the runtime is rebuilt
+  each launch and removed after; only what the user owns (`KEEP`) survives, in the instance (chapters 13 and 14).
+- **I7 — Save safety.** Teardown never destroys owned state: capture first, unmount durable-backed mounts and verify
+  them gone before deleting any runtime tree (chapter 14 §14.6).
+- **I8 — Present beats fetch.** A content file present at its path is authoritative; its `SOURCE` CID is used only to
+  obtain a missing file (chapter 15 §15.2).
+- **I9 — Nothing names what grows.** References point from newer to older. A package never names its runner, a
+  library never names its users, a pristine never names its grafts. Grouping, offering and chaining are derived.
+
+## 1.7 Relationship to the reference implementation
+
+VidyaGod implements all of the above. Notes like *(VidyaGod: `Fold::Resolve` in `fold.cpp`)* point at the code so a
+reader can cross-check. They are a convenience, not part of the format. If VidyaGod and this document disagree, one of
+them has a bug: the spec decides what the format is, the implementation decides what currently runs.
+
+Next: [Nodes](02-nodes.md).
