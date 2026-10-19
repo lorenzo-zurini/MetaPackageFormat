@@ -26,7 +26,7 @@ A node's `PERSISTS` section is a list; each entry is one persist. The facets bel
 | Facet | Meaning |
 |-------|---------|
 | `SCOPE` | `file` (a runtime path) or `registry` (a Windows/Wine registry key). Default `file`. |
-| `PATH` | the runtime source to persist. For `file`, a runtime-root-relative path; for `registry`, a key like `HKCU\Software\…`. **Empty `PATH` persists the whole scope** (the entire runtime, or all hives) — an *authoring aid* that warns, never something to ship. |
+| `PATH` | the runtime source to persist. For `file`, a runtime-root-relative path; for `registry`, a key like `HKCU\Software\…`. **Empty `PATH`** on a `file` persist keeps the entire runtime — an *authoring aid* that warns, never something to ship. A `registry` persist MUST name a key: keeping a whole hive is invalid. |
 | `TARGET` | the durable subdir name (one path segment) under the instance the state maps to. Defaults to `PATH`'s last segment; **required** when `PATH` is empty (there is no leaf to default from). |
 | `CLOUD` | whether this target is eligible for Cloud Saves (chapter 16). Default `true`; set `false` for machine-specific state (a shader cache, a GPU-tuned config) that must not sync across machines. |
 
@@ -55,8 +55,8 @@ The dir/file/registry *kind* is derived from `SCOPE` + `PATH`'s shape — there 
 | `file` | a **directory** (trailing `/`, or a final component with no extension) | a **live** durable RW passthrough |
 | `file` | a **file** (a final component with an extension) | a copy-in / copy-out durable file |
 | `file` | **empty** | the **whole runtime**, TARGET-mapped (authoring aid — warns) |
-| `registry` | a key — `HKCU`, `HKCU\Software\…`, … | that key's subtree (a bare hive root is just the broadest key) |
-| `registry` | **empty** | all prefix hives (`user`/`system`/`userdef.reg`) (authoring aid — warns) |
+| `registry` | a key — `HKCU\Software\…`, … | that key's subtree |
+| `registry` | **empty**, or a bare hive root (`HKCU`, `HKLM`, …) | **invalid** — a whole hive can't be kept; name the keys |
 
 Registry roots map to Wine hive files (`HKCU`→`user.reg`, `HKLM`/`HKCR`/`HKCC`→`system.reg`, `HKU`→`userdef.reg`);
 registry persistence is **Wine-family only** (no hives elsewhere).
@@ -66,8 +66,11 @@ registry persistence is **Wine-family only** (no hives elsewhere).
 - A **file** persist is seeded before mount (the durable copy shadows lower layers) and captured after the session.
 - A **registry subtree** persist merges just that key's subtree to a partial-hive store, accumulating across sessions;
   a key the session never created is kept as-is rather than dropped.
-- A **whole-scope** persist (empty `PATH`) is an authoring aid for *discovering* what to keep — it persists everything
-  so you can inspect what changed, then narrow to specific dirs/files/keys before shipping. Implementations warn on it.
+- A **whole-runtime** file persist (empty `PATH`) is an authoring aid for *discovering* what to keep — it persists
+  everything so you can inspect what changed, then narrow to specific dirs/files before shipping. Implementations warn
+  on it. The registry has no counterpart: a kept key's saved subtree REPLACES that key on restore, so keeping a whole
+  hive would hide every later base edit in it (a package update, a newly ticked option) for good. Implementations
+  refuse an empty or bare-root registry persist.
 
 > **Generation 6 (`KEEP`).** The shape above is being rewritten around gen-6's `KEEP` map (`{address: true | false |
 > {NAME, CLOUD}}`, most specific wins). Two rules of the gen-6 engine to keep in the rewrite:
@@ -88,20 +91,20 @@ registry persistence is **Wine-family only** (no hives elsewhere).
 
 Because the runtime is pristine by default, *something* must declare where the standard user-state lives. That something
 is the **runner**: a runner knows its own platform's layout, with prefix-correct paths, so it ships default
-`DeclarePersist` nodes that are folded into **every** launch alongside the game's own persists. The Wine/Proton runners
-keep the user-profile tree and the user hive:
+`DeclarePersist` nodes that are folded into **every** launch alongside the game's own persists. A Wine/Proton runner
+can keep the user-profile tree:
 
 ```jsonc
 // for the Proton runner (CONTENT_ROOT "pfx/drive_c/…")
-"PERSISTS": [ { "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" },
-              { "SCOPE": "registry", "PATH": "HKCU" } ]
+"PERSISTS": [ { "SCOPE": "file", "PATH": "pfx/drive_c/users", "TARGET": "users" } ]
 ```
 
-So by default a typical game saves to `…/users/<user>/Documents`, `Saved Games`, `AppData`, and the registry — **all
-kept** by the runner — while the rest of the prefix (system files, caches, the DXVK shader cache) regenerates pristine
-each launch. A game adds a `DeclarePersist` only for a **non-standard** save path (e.g. a save folder under the install
-dir). A runner is an ordinary package: its keep-set is just `DeclarePersist` nodes on its chain, with no special
-casing — a runner has every option a game does, and should carry a persist only when there is a real reason to.
+So a typical game's saves under `…/users/<user>/Documents`, `Saved Games` and `AppData` are **kept** by the runner,
+and the rest of the prefix (system files, caches, the DXVK shader cache) regenerates pristine each launch. A game adds a
+`DeclarePersist` for a **non-standard** save path (e.g. a save folder under the install dir) and for the registry keys
+it writes: registry state is kept per game, by key (a whole hive can't be kept, §7.2). A runner is an ordinary package:
+its keep-set is just `DeclarePersist` nodes on its chain, with no special casing — a runner has every option a game
+does, and should carry a persist only when there is a real reason to.
 
 ## 7.4 Mechanics — the overlay, no new filesystem
 
@@ -126,8 +129,7 @@ passthrough layers; `persistlayer.cpp`/`registrylayer.cpp` seed/capture the copy
 ├── instance.json                # instance config — NEVER inside a game-writable mount
 ├── <TARGET dir…>                # live RW passthrough trees (e.g. "users", "Saves")
 ├── <TARGET file…>               # captured single files
-├── REGISTRY/{user,system,userdef}.reg   # whole-hive persists (only the kept hives)
-└── REGKEYS/                     # registry-subtree partial hives
+└── REGKEYS/                     # registry-subtree partial hives (the only registry persistence)
 ```
 
 Each `DeclarePersist` maps to a **named** `TARGET` directly under the instance, a sibling of `instance.json` — never the
@@ -146,9 +148,9 @@ cloud-syncable save.
 | Phase | directory persist | file / registry persist |
 |-------|-------------------|--------------------------|
 | Writable branch | ephemeral (wiped after) | ephemeral (wiped after) |
-| Before mount | union the durable `<instance>/<TARGET>` dir at `PATH` | seed the file/hive from `<instance>/<TARGET>` (or `REGISTRY`/`REGKEYS`) |
+| Before mount | union the durable `<instance>/<TARGET>` dir at `PATH` | seed the file from `<instance>/<TARGET>`; merge the kept keys from `REGKEYS` into the composed hives |
 | During session | writes are live-durable to the target | writes hit the ephemeral runtime |
-| At teardown | nothing to capture (already durable) | capture the file/hive back to the durable store, before unmount |
+| At teardown | nothing to capture (already durable) | capture the file / the kept keys back to the durable store, before unmount |
 | Save-safety | durable-backed → non-lazy verified unmount | durable-backed → non-lazy verified unmount |
 
 Save-safety (invariant I7) is unchanged and detailed in [chapter 13 §13.6](13-runtime-model.md).

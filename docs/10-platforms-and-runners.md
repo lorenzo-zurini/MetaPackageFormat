@@ -13,6 +13,22 @@ interchangeable, a runner declares it by listing both in `GUEST`.
 This opacity is a feature: adding a platform is adding a string, and the whole system (resolution, validation, UI) works
 unchanged.
 
+### `custom` — a game's own engine
+
+One token is reserved: **`"custom"`** names content that only its *own package* can run — a game whose engine ships with
+it: an open-source reimplementation (GemRB for Baldur's Gate, doukutsu-rs for Cave Story, a source port), or a static
+recompilation of a console game. The engine is a runner in the **game's package** with `GUEST ["custom"]`, and the game's
+entry says `HOST "custom"`. A package does not invent a platform token for its engine.
+
+A `custom` edge is **package-scoped**: a runner serving `custom` serves content of its own package only, everywhere a
+runner is matched to a platform — the chain BFS, a pinned chain, the per-step choices in a launch UI, the "can this run"
+gate, validation. Another package's `custom` engine never runs this one, even when it would be a shorter route: a
+Windows-only engine in the package (`custom → win64`, then Proton) wins over another package's native one
+(`custom → linux64`), which runs a different game.
+
+A runner for a real, general platform (an emulator: `snes`, `dos`) is an ordinary shared runner instead — it runs any
+content of that platform. (VidyaGod: `ManifestModel::ServesPlatform`.)
+
 ## 10.2 The machine platform
 
 The **machine platform** is the platform token of the host actually running the implementation (e.g. `"linux64"`). It is

@@ -48,7 +48,6 @@ Custom variables (§8.3) layer on top and MAY shadow a built-in.
 | `%PackageUID%` | The launchable's `UID` (package/save key; e.g. `"299"`). Used heavily in guest paths. |
 | `%PackageName%` / `%GameName%` | The launchable's human title. |
 | `%PackagePath%` | The bundle directory of the launchable. |
-| `%UMUID%` | `META.UMUID`, or `"0"`. |
 | `%ScreenWidth%` / `%ScreenHeight%` | Host primary display geometry (`"0"` if unknown/headless). |
 | `%RuntimePath%` | The single overlay mount root. |
 | `%ProgramPath%` | `RuntimePath` joined with the content root — where the game's content sits. |
