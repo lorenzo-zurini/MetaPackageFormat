@@ -93,23 +93,26 @@ The boundary runner's other facts reach the launch too: its `ENV` (chapter 07 §
 edits, registry and DLL policy, which apply after the game's. A package and its runner SHOULD NOT write the same
 address.
 
-## 10.6 `custom`: a game's own engine
+## 10.6 Engines: shared runners and `custom`
 
-One token is reserved. **`custom`** names content that only its own package can run: a game whose engine ships with
-it, such as an open-source reimplementation (GemRB for Baldur's Gate, doukutsu-rs for Cave Story, VCMI for Heroes
-III), a source port, or a static recompilation of a console game. The engine is a runner **in the game's package**
-with `GUEST ["custom"]`, and the game's entry says `HOST "custom"`. A package does not invent a platform token for
-its engine.
+A game whose engine is not the original executable runs on an engine runner. Which kind of runner depends on whether
+the engine is for one game or for a family (appendix 21 §21.1):
 
-A `custom` edge is **package-scoped**: a runner serving `custom` serves only launches from a package folder that holds
-a copy of it, everywhere a runner is matched: the chain search, a pinned chain, the per-step choices in a launch
-window, the play gate and validation. Another package's engine never runs this one, even when it would be a shorter
-route. The same engine node may be shipped in several packages (GemRB for every Infinity Engine game); it serves each
-of them.
+- **An engine for a family of games** (Doom ports, GemRB, ScummVM, DOSBox) is a **shared runner** in its own package,
+  serving the family's canonical platform token (`doom`, `infinity`, `scummvm`, `dos`). Each game's package holds
+  its data and its entry says `HOST "doom"`. Anything one game needs (a config file, a game type) is in that game's
+  package, and reaches the engine through the game entry's own `ARGS` or files in `%GameDir%`: **the runner knows the
+  platform; the game knows itself.** Mods are grafts, and a load order is an `AppendLine` file the engine reads.
+- **An engine for one game** (doukutsu-rs, VCMI, OpenTricky, a static recompilation) is part of that game: a runner
+  **in the game's package** with `GUEST ["custom"]`, and the game's entry says `HOST "custom"`. A package does not
+  invent a platform token for such an engine.
 
-An engine for a real, general platform (a console emulator) is an ordinary shared runner instead.
+`custom` is **package-scoped**: a runner serving `custom` serves only launches from its own home package (chapter 02
+§2.7), everywhere a runner is matched: the chain search, a pinned chain, the per-step choices in a launch window,
+the play gate and validation. Another package's `custom` engine never runs this one, even when it would be a shorter
+route. Because a node has one home, "its own package" is a fact, never a choice between copies.
 
-*(VidyaGod: `ManifestModel::ServesPlatform`; a node's copies are `Node::Copies`.)*
+*(VidyaGod: `ManifestModel::ServesPlatform`.)*
 
 ## 10.7 Availability
 

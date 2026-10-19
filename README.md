@@ -28,7 +28,7 @@ content distribution.
 ## Build
 
 Nothing to build: this repository is the specification, in plain Markdown, on every platform. Read
-[`docs/00`–`20`](docs/) in order, or start with [the model in one page](#the-model-in-one-page) below.
+[`docs/00`–`21`](docs/) in order, or start with [the model in one page](#the-model-in-one-page) below.
 
 To build the reference implementation instead, see
 [VidyaGod](https://github.com/lorenzo-zurini/VidyaGod#build) (Linux and Windows).
@@ -81,8 +81,10 @@ games, cross-platform execution, peer-to-peer distribution, portable saves and r
   that contains one of the nodes it names, applied in the instance's order.
 - **Ownership, not override.** Everything is the package's unless `KEEP` gives it to the user; the most specific
   address wins. The user's state is captured after a run and restored before the next.
+- **One home per node.** A node lives in one package; others contain it by CID. Shared things are packages.
 - **Runners are never referenced.** The runner chain is found by capability: the shortest path of runners from the
-  entry's platform to the machine's.
+  entry's platform to the machine's. An engine for a family of games is a runner on a canonical platform token; an
+  engine for one game is `custom`, in that game's package.
 
 A console whose only emulator is a Windows program, on Linux:
 
@@ -126,6 +128,7 @@ Read the chapters in order the first time.
 | 18 | [Worked examples](docs/18-examples.md) | Complete packages, from a native game to a daisy chain. |
 | 19 | [Reference implementation map](docs/19-reference-implementation.md) | Where each rule lives in VidyaGod. |
 | 20 | [Conformance](docs/20-conformance.md) | The checklist a from-scratch implementation must satisfy. |
+| 21 | [Appendix: platform tokens](docs/21-platform-tokens.md) | The canonical tokens, engine kinds, naming rules. |
 
 ---
 

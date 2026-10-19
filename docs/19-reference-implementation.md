@@ -6,7 +6,7 @@ are illustrative, not normative, and names drift.
 
 | Chapter | Source | Key symbols |
 |---------|--------|-------------|
-| 02 Nodes | `src/cid.cpp`, `src/nodegraph*.cpp`, `src/manifestmodel.cpp` | `Cid::Canonical`, `Cid::OfNode`; `NodeGraph::GatherWorkingTree`, `FreezeToIndex`; `ParseNode`; `Node::Copies` |
+| 02 Nodes | `src/cid.cpp`, `src/nodegraph*.cpp`, `src/manifestmodel.cpp` | `Cid::Canonical`, `Cid::OfNode`; `NodeGraph::GatherWorkingTree`, `FreezeToIndex`; `ParseNode`; `NodeIndex::Duplicates` (one home) |
 | 03 Layers | `src/nodelower.cpp` | `CheckNode` / `CheckLayer` (the vocabulary), `LowerNode`, `LowerPlan`, `LowerEntry` |
 | 04 Content | `src/manifestmodel.cpp`, `src/vfsmount.cpp`, `external/VidyaGodFS` | `LayerLocator`, `IsRunnerBuildLayer`, `ZipFullyStored`, `BuildLayerSpec`; `vgdelta` for deltas |
 | 05 `NODE` layers · 12 Resolution | `src/fold.cpp` | `Fold::Resolve` (phases, expansion, occurrences, the fold), `TakeView`, `DecidingMentions`, `BuildGraftIndex`, `OfferedGrafts`, `ApplyGrafts`, `Unsatisfied`. Reference semantics: `tools/gen6/resolve.py`, held to the C++ by `tools/gen6/fold_gate.py` |
@@ -18,7 +18,7 @@ are illustrative, not normative, and names drift.
 | 11 Chaining | `src/launchresolver_chain.cpp`, `src/vfsmount.cpp`, `src/prelaunchwindow.cpp` | `ResolveChainIds`, `ResolveChainTail` (installed first), `FindBridge`, `ComposeGuestTarget`, `ApplyInnerEnv`, `InnerRunnerMountRel`; the chain combos |
 | 13 Ownership | `src/nodelower.cpp`, `src/launchresolver_persist.cpp`, `src/persistlayer.cpp`, `src/registrylayer.cpp` | `UserOwned`, take-backs in `LowerPlan`; `DerivePersistence`; `CapturePersistFiles`, `CapturePersistRegKeys` |
 | 14 Runtime | `src/vfsmount.cpp`, `src/containerwrapper.cpp`, `src/sandboxlayer*.cpp`, `external/VidyaGodFS` | `BuildLayerSpec`, `BuildContainerRuntime`, `Execute`, `Cleanup`, `CleanStaleRuntime`; bubblewrap / Sandboxie; `vidyagodfs` |
-| 15 Packages & sharing | `src/packagecatalog*.cpp`, `src/ipfswrapper.cpp`, `external/VidyaGodIPFS` | `BuildCatalogIndex`, `PublishLibrary`, `SeedNodeContent`, `PlanReceivedFetches`, `PruneStaleReceived`, `AdoptReceivedPackage`; the embedded Boxo node and its one rolling fetch queue |
+| 15 Packages & sharing | `src/packagecatalog*.cpp`, `src/appmodel.cpp`, `src/ipfswrapper.cpp`, `external/VidyaGodIPFS` | `BuildCatalogIndex`, `PublishLibrary` (rows with `needs`), `SharedWith`, `AppModel::pushSharesTo`, `SeedNodeContent`, `PlanReceivedFetches`, `PruneStaleReceived`, `AdoptReceivedPackage`; the embedded Boxo node and its one rolling fetch queue |
 | 16 Validation | `src/manifestmodel.cpp`, `src/cli/cliaudit.cpp` | `ValidateNodeGraph`, `FindCrossLayerCaseCollisions`; `--audit-packages` |
 | 17 CLI, instances | `src/main.cpp`, `src/cli/*.cpp`, `src/apppaths.cpp`, `src/instancestore.cpp` | argument parsing, `AcquireSingleInstanceLock`, `DumpResolution`; `AppPaths::DataRoot` and the overrides; `InstanceStore` |
 | Editor | `src/pkgdoc.cpp`, `src/pkgcanvas.cpp`, `src/pkggraph.cpp`, `src/pkgactions.cpp` | the package document (handles, undo, save = re-mint with the library cascade), the canvas, the field tables |

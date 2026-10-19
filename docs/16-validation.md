@@ -36,6 +36,8 @@ Errors:
   wildcard outside the last segment of a `FILES` address, or on a folder;
 - `ANY` not a non-empty list of CIDs; `NOT` not a CID.
 
+- the same node in two installed package folders (a node has one home, chapter 02 §2.7).
+
 Warnings: a node with no layers.
 
 ## 16.2 References and resolution

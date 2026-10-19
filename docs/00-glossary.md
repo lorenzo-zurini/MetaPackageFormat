@@ -76,7 +76,9 @@ the mount; runners inside it are nested in its guest (chapter 11 §11.5).
 rebuilt every launch and removed after (chapter 14).
 
 **Package** — a folder of node files and the content files they name, published together as one folder CID
-(chapter 15).
+(chapter 15). For a game, the game's folder.
+
+**Home** — the one package a node lives in (chapter 02 §2.7). Other packages contain it by CID; a copy is an error.
 
 **Library** — the local set of packages: a root holding named collections of package folders.
 

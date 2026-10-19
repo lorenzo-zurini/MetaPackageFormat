@@ -12,7 +12,8 @@ below. It is also a build order: each section runs once the ones before it do.
       whitespace, UTF-8; CIDv1, raw codec, sha2-256, base32.
 - [ ] **MUST** refuse unknown node fields and malformed layers (chapter 16 §16.1); a node that does not freeze or
       parse affects only itself and what references it.
-- [ ] **MUST** record every package folder holding a copy of a node, and read each node's content from its own folder.
+- [ ] **MUST** keep one home per node: read a node's content from its home package, treat a friend's catalog copy of
+      an installed package as a view of it, and report a node found in two installed packages as an error.
 
 ## 20.2 Resolution
 
@@ -45,7 +46,7 @@ below. It is also a build order: each section runs once the ones before it do.
 - [ ] **MUST** treat runners as `GUEST → HOST` edges and find the shortest chain to the machine platform, over
       installed runners first and all available runners only when installed ones cannot carry the launch, always
       ending in a native terminal (synthesised if none) (chapter 11 §11.4).
-- [ ] **MUST** scope `custom` to engines held by the launch's own package folder, at every place a runner is matched
+- [ ] **MUST** scope `custom` to engines whose home is the launch's home package, at every place a runner is matched
       (chapter 10 §10.6).
 - [ ] **MUST** refuse a launch with no route to the machine (I5) and execute only the terminal (I4).
 - [ ] **MUST** honour a valid pinned chain.
@@ -84,7 +85,9 @@ below. It is also a build order: each section runs once the ones before it do.
 
 - [ ] **MUST** fetch content by CID only when missing and verify fetched bytes.
 - [ ] **MUST** follow `NODE`, `SOURCE` and `TILE.COVER.SOURCE` when hydrating, never `ANY` or `NOT`.
-- [ ] **SHOULD** publish one share folder (node files) and one pin folder (plus content) per package, reproducibly.
+- [ ] **SHOULD** publish one share folder (node files) and one pin folder (plus content) per package, reproducibly,
+      with the packages each one needs, and share them closed over what they need.
+- [ ] **MUST NOT** fetch a node into a package other than its home.
 - [ ] **MUST** treat received node files and paths as untrusted: sanitise, bound, keep file names inside the package.
 
 ## 20.8 Validation
@@ -97,4 +100,4 @@ The most direct test of a new implementation is to resolve the same packages in 
 `--resolve-only` writes the plan, the chain, the variables and the environment as JSON, and its launch-matrix fixture
 (`tests/fixtures/launchmatrix`) exercises every feature with goldens for the plans and for what a real run sees.
 
-Back to the [README](../README.md).
+Next: [Appendix: platform tokens](21-platform-tokens.md).

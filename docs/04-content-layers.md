@@ -76,7 +76,7 @@ there is used as is; `SOURCE` is consulted only when it is missing, to fetch it 
 neither a present file nor a `SOURCE` is unavailable, and a launch that needs it MUST be refused with a diagnostic
 naming the file.
 
-When one node is held by several package folders (chapter 02 §2.6), any folder's copy will do.
+A node has one home (chapter 02 §2.7), so a content file has exactly one place.
 
 ## 4.3 Placement
 

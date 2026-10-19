@@ -86,7 +86,15 @@ SHOULD verify afterwards that every reference resolves. A reference held by some
 whose `ANY` names your node) cannot be re-minted by you: it goes stale, and the graft is simply no longer offered on the new version.
 This is why a graft's `ANY` should name the lowest node it needs, usually a pristine that never changes.
 
-The same node (same CID) MAY sit in several package folders, for example one engine shipped with two games. It is
-one node; the implementation remembers every folder that holds a copy (chapter 10 §10.6, chapter 15 §15.4).
+## 2.7 One home
+
+**A node has exactly one home package**: its file, and the content files it names, live in one package folder.
+Another package that uses it contains it by CID with a `NODE` layer, taking all of it or parts (chapter 05), and never
+copies it. Something several packages use (a library, a shared engine) is therefore a package of its own. A node
+found in two package folders is a validator error: delete the copy, keep the home.
+
+One home is what makes every "where" question a fact rather than a guess: where a node's files are read from, whether
+it is installed, which package an engine belongs to, what a package's pin holds. A friend's catalog copy of a package
+you have installed is a view of that package, not a second home (chapter 15 §15.5).
 
 Next: [Layers & addresses](03-layers-and-addresses.md).

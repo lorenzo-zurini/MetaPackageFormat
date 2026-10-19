@@ -20,11 +20,13 @@ apart and links them by CID: the descriptions are shared freely, the bytes are f
 └── <friend> - <library>/<package>/.package/    what friends shared, not yet downloaded
 ```
 
-A **package** is one folder: node files and the content files they name. Its folder name is presentation; nothing
-references it. Every node file in every package folder is read into one index keyed by CID (chapter 02 §2.5). The
-same node may be held by several folders (an engine two games ship, a friend's stub of a package you have); the
-implementation remembers every copy and reads from an installed one whose files are present, before a stub
-(chapter 10 §10.6).
+A **package** is one folder (for a game, the game's folder): node files and the content files they name. Its folder
+name is presentation; nothing references it. Every node file in every package folder is read into one index keyed by
+CID (chapter 02 §2.5).
+
+Every node has **one home package** (chapter 02 §2.7). A package that uses another package's nodes (a game using
+DxWnd, Proton using DXVK) contains them by CID with `NODE` layers and holds no copy. Shared things are therefore
+packages of their own: libraries in a library collection, shared engines among the runners.
 
 ## 15.2 Content CIDs: `SOURCE` and present-beats-fetch
 
@@ -69,7 +71,8 @@ To share packages, an implementation **publishes** them:
    each named `<cid>.json`, text only. Its CID is the package's address; its listing is the package's node list. And
    a **pin folder**: the same plus the package's content files (by CID, nothing copied), what a pinning service pins,
    so a pin holds exactly that package's bytes. Libraries a package uses are pinned by their own packages, once.
-4. **Announce** and record the share sheet: per library, the list of `{package name, share folder CID}`.
+4. **Announce** and record the share sheet: per library, the list of `{package name, share folder CID, needs}`,
+   where `needs` names the other packages this package's nodes contain.
 
 Publishing is reproducible: the same nodes and files give the same CIDs on any machine, so two people who publish the
 same package are indistinguishable seeders. Anything that changes node bytes for a cosmetic reason (an editor writing
@@ -82,21 +85,37 @@ not hold (a receiver relying on a pinning service could never fetch it).
 
 ## 15.5 Receiving
 
-A friend shares their share sheet. The receiver:
+What a friend receives is **closed over `needs`**: the packages of the libraries shared with them, plus every package
+those need, transitively, under its own library name. A friend given a game also gets the libraries it contains, each
+as its own package, once. A friend's catalog copy of a package you have installed is a view of that package, never a
+second home.
+
+The receiver:
 
 1. lands each package's share folder as `CATALOG/<friend> - <library>/<package>/.package/`: node files only, fetched
    one by one under their CID names, so a partial transfer resumes;
 2. completes each package against its folder's listing, and completes cross-package references the same way;
 3. builds the catalog shelf from those nodes (variants × tiled entries, merged by `UID`, chapter 09) and the graft
    index; a received stub is browsable and never offered as a graft (its content is not here);
-4. prunes a node file that neither its folder lists nor any closure reaches (an older version's copy).
+4. prunes a node file its folder does not list (an older generation's, or a copy an older build fetched in).
 
 A changed package is a changed folder CID; an unchanged one is not landed again. There is no library-level CID.
+Nothing is ever fetched into a package to fill a gap: a node a package contains arrives with its own package. A
+package that needs one that has not arrived (or is not shared) cannot be downloaded yet, and the implementation says
+which.
 
 **Downloading** a row **adopts** the packages its closures reach: each moves from `CATALOG` into `LIBRARY` under the
 same library and folder names, before any content is fetched, and is from then on an ordinary local package (its
-variants launch, its grafts are offered, it is re-published under the same CIDs). An install that would collide with
-an existing package name is refused, never merged.
+variants launch, its grafts are offered, it is re-published under the same CIDs).
+
+An install that would collide with an existing package name is refused, never merged, and a package already
+installed (or authored here) is never landed again as a stub beside itself: either would put a second copy of its
+nodes beside their home.
+
+**Updates are not yet specified.** When a friend re-mints a package you have installed (typically a library their
+newer games contain), its new generation does not arrive by itself, and a game of theirs that contains the new
+nodes waits, saying which node it needs. An implementation MUST NOT work around this by copying or merging nodes
+into a package that is not their home.
 
 Received bytes are untrusted: every path segment from a share is sanitised, sizes are bounded, and a node's content
 file names MUST stay inside its package (chapter 04).
