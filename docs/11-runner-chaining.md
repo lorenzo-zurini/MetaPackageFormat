@@ -53,6 +53,7 @@ function ResolveChain(library, launch, entry, pinned):
     all    = available runners (chapter 10 §10.7), sorted better-first:
                RECOMMENDED for the launched tile or its family,
                then in the launch's own package folder,
+               then serving fewer GUEST platforms,
                then by LABEL
     chain  = ChainOver(installed(all))          # installed runners first
     if chain is empty:
@@ -75,6 +76,9 @@ function ChainOver(runners):
 - **Shortest.** Breadth-first search gives the fewest runners: a direct native runner beats a route through another
   platform.
 - **Always at least the terminal.** Native content runs through the terminal alone.
+- **Specialist first.** Among otherwise equal runners, the one serving fewer platforms wins: a dedicated SNES
+  emulator before a multi-system one that also lists `snes`. A library can carry a multi-system emulator as an
+  alternative without it becoming every console's default; the user picks it per launch or per instance.
 - **Deterministic.** Runners are tried better-first, so the result is stable.
 - **`custom` is package-scoped** (chapter 10 §10.6) at every step, including pins.
 - **Pins.** The user (or a saved setting, VidyaGod's instance `RUNNER_CHAIN`, or the CLI's `--runner`) MAY pin a

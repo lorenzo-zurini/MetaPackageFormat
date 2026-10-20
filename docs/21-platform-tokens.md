@@ -58,8 +58,9 @@ when only one of its games is packaged, so nothing has to be re-minted when the 
 | `dos` | MS-DOS programs (DOSBox and its forks) |
 | `java_8`, `java_17`, `java_21`, `java_25` | Java bytecode needing at least that runtime version |
 
-**Consoles** (examples; the full set follows rule 4): `nes`, `snes`, `n64`, `gb`, `gbc`, `gba`, `nds`, `gamecube`,
-`wii`, `megadrive`, `mastersystem`, `saturn`, `dreamcast`, `psx`, `ps2`, `psp`, `xbox`.
+**Consoles and handhelds** (examples; the full set follows rule 4): `nes`, `fds` (the Famicom Disk System), `snes`,
+`n64`, `gb`, `gbc`, `gba`, `nds`, `gamecube`, `wii`, `megadrive`, `segacd`, `sega32x`, `mastersystem`, `gamegear`,
+`saturn`, `dreamcast`, `psx`, `ps2`, `ps3`, `ps4`, `psp`, `xbox`, `xbox360`, `j2me` (Java ME phone midlets).
 
 **Engine families:**
 
@@ -71,6 +72,8 @@ when only one of its games is packaged, so nothing has to be re-minted when the 
 | `quake`, `quake2`, `quake3` | Quake-engine game data | vkQuake, Yamagi Quake II, ioquake3 |
 | `build` | Build-engine game data (Duke Nukem 3D, Blood, Shadow Warrior) | Raze, EDuke32 |
 | `scummvm` | games ScummVM runs (it detects the engine itself) | ScummVM |
+| `tes3` | The Elder Scrolls III: Morrowind game data (Data Files, ESM/ESP) | OpenMW |
+| `rsdk_v3`, `rsdk_v4` | Retro Engine (RSDK) data files, by engine version (Sonic CD; Sonic 1 and 2 of 2013) | the RSDKv3 and RSDKv4 decompilations |
 
 A token not listed here is not wrong. If it names a family others will use, add it to this list.
 

@@ -94,7 +94,7 @@ enhancement is one layer with seventy-five ops.
 |-------|---------|
 | `MODE` | `Replace` \| `Poke` \| `Or` \| `Cave` |
 | `ANCHOR` | a hex signature locating the site, `??` a wildcard byte (`"8b ?? 24 08"`); it MUST match exactly one place. Or give `OFFSET`. |
-| `OFFSET` | a fixed address: a virtual address when at or above the PE image base, else a raw file offset. Hex (`"0x44be08"`) or decimal. |
+| `OFFSET` | a fixed address: a virtual address when at or above the PE image base, else a raw file offset. Hex (`"0x44be08"`) or decimal. A file that is not a PE image (an ELF, a data file) takes `ANCHOR`s and raw offsets; `Cave` needs a PE image. |
 | `EXPECT` | hex of the original bytes at the site. A mismatch is an error (§6.4); bytes already equal to the patched result are skipped (idempotent). Required for `Replace` and `Cave`, recommended for `Poke`, refused for `Or`. |
 | `APPLY` | `"prefix"` (default) or `"memory"` (below) |
 | `COMMENT` | what the op does. Seventy-five offsets without prose are unmaintainable. |
@@ -102,7 +102,7 @@ enhancement is one layer with seventy-five ops.
 ### `Replace`: overwrite bytes
 
 Writes `REPLACE` (hex) at the site. `REPLACE` may be shorter than `EXPECT`; it is padded with `0x90` (NOP) to the
-`EXPECT` length. The No-CD primitive.
+`EXPECT` length. The pad is x86 code, so only a PE image takes it: in any other file `REPLACE` covers all of `EXPECT`. The No-CD primitive.
 
 ### `Poke`: write a value
 
