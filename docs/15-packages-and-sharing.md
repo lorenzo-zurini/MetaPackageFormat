@@ -112,22 +112,55 @@ An install that would collide with an existing package name is refused, never me
 installed (or authored here) is never landed again as a stub beside itself: either would put a second copy of its
 nodes beside their home.
 
-**Updates are not yet specified.** When a friend re-mints a package you have installed (typically a library their
-newer games contain), its new generation does not arrive by itself, and a game of theirs that contains the new
-nodes waits, saying which node it needs. An implementation MUST NOT work around this by copying or merging nodes
-into a package that is not their home.
+## 15.6 Other versions of an installed package
 
-Received bytes are untrusted: every path segment from a share is sanitised, sizes are bounded, and a node's content
-file names MUST stay inside its package (chapter 04).
+A friend may share another version of a package you have installed: they re-minted it (a library, a new engine build
+for a recompiled game). There is **no ordering** between versions: two people who build the same package have equally
+good histories, so nothing is "newer". An installed package changes only when **you** choose a friend's version.
 
-## 15.6 The content backend
+- **Offered.** A friend's share folder for a package installed here (same library and package name) is compared with
+  the folder the installed node files make; the same files make the same folder CID, so this is computed locally. If
+  they differ, the package is shown as "<friend> has a different version". A version whose every node is already
+  installed (switched to before, with nodes beyond it kept for other games) is not offered again until one of those
+  kept nodes is contained by nothing.
+- **Staged.** The chosen folder is fetched beside the library, never inside `LIBRARY` or `CATALOG`, one stage per
+  friend and version. A package holding never-saved (draft) node files is refused.
+- **Switched.** Every node the version lists comes in. An installed node it does not list goes **only when nothing
+  installed still contains it**: other packages, and the new version itself. A library another game still uses stays
+  at the version that game contains, beside the new one. Containment counts; `ANY` and `NOT` do not.
+- **Content follows the node set.** A file only removed nodes named is deleted. Bytes already here under another
+  name are moved rather than fetched again. When two CIDs claim one file name in a package, each lives at its
+  **bumped name** (§15.6.1). The confirmation lists the files to be deleted and their size.
+- **Planned twice.** The switch is planned again when applied, against the library as it is then. If that plan
+  would delete a file the confirmation did not list, the switch is refused and must be reviewed again.
+- **Resumable.** The plan is recorded before the first change. A switch that stops part-way is finished from that
+  record when the same version is chosen again; a package half-switched is never planned afresh, since its files no
+  longer match its node files.
+- **Refused** while a game is running or a download into the package is in progress.
+- **Unaffected:** saves and kept files (owned by the family, chapter 13). Choices saved by node CID fall back to
+  defaults when the version they named is gone. Content the version names is fetched when next needed.
+
+A friend's game that contains nodes of a version you have not switched to waits, naming the node it needs. An
+implementation MUST NOT copy or merge nodes into a package that is not their home to work around it.
+
+### 15.6.1 Bumped names
+
+A node names its content file (`"ZIP": "DxWnd.zip"`) and its `SOURCE` says which bytes; the name is presentation,
+the CID is the identity. When one CID claims a name in a package, the file is that name. When two or more do (two
+versions of a library kept side by side), **each** lives at `<stem> [<last 8 characters of its CID>]<ext>`
+(`DxWnd [1a2b3c4d].zip`), so no version reads another's bytes. Names are compared **without case**: `dx.zip` and
+`DX.zip` are one file on a case-insensitive file system, so two CIDs claiming them are bumped apart on every
+platform. The rule depends only on the package's node files, so it is the same on every machine and before and after
+a download. Looking up a content file (a layer's, or a tile's cover) applies it.
+
+## 15.7 The content backend
 
 The current backend is **IPFS**: CIDs are both the address and the hash, and any peer holding a CID can serve it, so
 a popular package is served by everyone who has it. Friends are preferred providers. Fetches, provider searches and
 announcements share one bounded network queue, so a large download cannot flood a home router. Nothing in the format
 excludes other backends; an implementation MUST support the backends the packages it consumes use.
 
-## 15.7 Integrity and trust (non-normative)
+## 15.8 Integrity and trust (non-normative)
 
 A CID is a hash, so fetched bytes are self-verifying: content that does not hash to its CID is rejected. A CID does
 not say whether the publisher is trustworthy. Byte integrity is the format's; trust in a friend's packages is the

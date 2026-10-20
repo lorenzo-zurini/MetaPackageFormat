@@ -76,7 +76,8 @@ there is used as is; `SOURCE` is consulted only when it is missing, to fetch it 
 neither a present file nor a `SOURCE` is unavailable, and a launch that needs it MUST be refused with a diagnostic
 naming the file.
 
-A node has one home (chapter 02 §2.7), so a content file has exactly one place.
+A node has one home (chapter 02 §2.7), so a content file has exactly one place: its name in its package, or its
+bumped name when two versions of that name are kept side by side (chapter 15 §15.6.1).
 
 ## 4.3 Placement
 

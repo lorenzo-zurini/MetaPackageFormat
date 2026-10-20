@@ -88,6 +88,8 @@ below. It is also a build order: each section runs once the ones before it do.
 - [ ] **SHOULD** publish one share folder (node files) and one pin folder (plus content) per package, reproducibly,
       with the packages each one needs, and share them closed over what they need.
 - [ ] **MUST NOT** fetch a node into a package other than its home.
+- [ ] **MUST** change an installed package only when the user chooses a friend's version, keep every node something
+      installed still contains, and give colliding content files their bumped names (chapter 15 §15.6).
 - [ ] **MUST** treat received node files and paths as untrusted: sanitise, bound, keep file names inside the package.
 
 ## 20.8 Validation
