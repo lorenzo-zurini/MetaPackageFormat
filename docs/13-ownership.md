@@ -35,7 +35,7 @@ A map of address → `true`, `false` or options.
 
 | Address | Becomes |
 |---------|---------|
-| a `FILES` **folder** (a trailing `/`, or a last segment without an extension) | a **live** folder: the user's folder in the instance is mounted read-write at that place, over the package's files there. Writes land in the instance as they happen. |
+| a `FILES` **folder** (a trailing `/`, or a last segment without an extension) | a **live** folder: the user's folder in the instance is mounted read-write at that place, over the package's files there. Writes land in the instance as they happen. A package file the game deletes or renames away there stays deleted on later launches: the implementation records the deletion in the user's folder (VidyaGod: an overlayfs-style `.wh.<name>` marker) and never shows it. Removing the kept folder itself empties it. |
 | a `FILES` **file** (a last segment with an extension) | a **copied** file: the user's saved copy is put in place before the mount (it shadows the package's), and captured after the session |
 | a `FILES` **pattern** (`*` or `?` in the last segment) | a stored folder (`NAME`, default the pattern with wildcards as `_`) holding every matching file under its own name. Matching ignores case. Capture stores each match the session left, and drops a stored one only when this session put it there and the game deleted it, after a listing with no error. Restore puts every stored match back. |
 | a `REG` **key** | its subtree, stored in the instance and merged into the composed hives before the run, captured after. It must name a key below a hive: a whole hive cannot be kept. |

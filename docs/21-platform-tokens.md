@@ -67,10 +67,11 @@ when only one of its games is packaged, so nothing has to be re-minted when the 
 | Token | Content | Runners (examples) |
 |-------|---------|--------------------|
 | `infinity` | Infinity Engine game data (Baldur's Gate, Icewind Dale, Planescape: Torment) | GemRB |
-| `doom`, `doom_boom`, `doom_zdoom` | Doom-engine IWADs and PWADs, by the features they need | GZDoom, PrBoom+, Chocolate Doom |
-| `heretic`, `hexen`, `strife` | the other id Tech 1 games | GZDoom, Chocolate Heretic/Hexen/Strife |
+| `doom`, `doom_boom`, `doom_zdoom` | Doom-engine IWADs and PWADs, by the features they need | UZDoom, GZDoom, PrBoom+, Chocolate Doom |
+| `heretic`, `hexen`, `strife` | the other id Tech 1 games | UZDoom, GZDoom, Chocolate Heretic/Hexen/Strife |
 | `quake`, `quake2`, `quake3` | Quake-engine game data | vkQuake, Yamagi Quake II, ioquake3 |
-| `build` | Build-engine game data (Duke Nukem 3D, Blood, Shadow Warrior) | Raze, EDuke32 |
+| `build` | Build-engine game data (Duke Nukem 3D, Blood, Shadow Warrior, PowerSlave) | Raze, EDuke32 |
+| `wolf3d` | Wolfenstein 3D-engine game data (Wolfenstein 3D, Spear of Destiny and its missions, Super 3D Noah's Ark) | ECWolf, LZWolf |
 | `scummvm` | games ScummVM runs (it detects the engine itself) | ScummVM |
 | `tes3` | The Elder Scrolls III: Morrowind game data (Data Files, ESM/ESP) | OpenMW |
 | `rsdk_v3`, `rsdk_v4` | Retro Engine (RSDK) data files, by engine version (Sonic CD; Sonic 1 and 2 of 2013) | the RSDKv3 and RSDKv4 decompilations |
