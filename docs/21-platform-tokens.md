@@ -74,6 +74,8 @@ when only one of its games is packaged, so nothing has to be re-minted when the 
 | `scummvm` | games ScummVM runs (it detects the engine itself) | ScummVM |
 | `tes3` | The Elder Scrolls III: Morrowind game data (Data Files, ESM/ESP) | OpenMW |
 | `rsdk_v3`, `rsdk_v4` | Retro Engine (RSDK) data files, by engine version (Sonic CD; Sonic 1 and 2 of 2013) | the RSDKv3 and RSDKv4 decompilations |
+| `jak1`, `jak2`, `jak3` | a Jak and Daxter game's disc, for the GOAL engine | OpenGOAL |
+| `pikmin`, `pikmin2` | Pikmin and Pikmin 2 game data (GameCube) | Open Nectar |
 
 A token not listed here is not wrong. If it names a family others will use, add it to this list.
 
