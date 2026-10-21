@@ -84,6 +84,10 @@ rows; picking a row selects that node and that entry.
   then the rest by name.
 - A validator refuses a `VARIANT` node with no tiled effective entry, and a `RECOMMENDED` UID the node does not
   present.
+- A validator SHOULD warn about a tile no variant presents (its card has no row; a graft's own card is exempt, its rows
+  are the versions it applies onto), and about a tile whose presentation has no `TITLE`. The usual cause of the
+  second is a recommended variant that carries only `{"UID"}` while the title sits on another variant: put the full
+  tile in a node every variant contains (the tile at the base), and keep only the `UID` on the variants.
 - A variant whose requirements fail (an `ANY` unmet, a `NOT` hit, chapter 12 §12.5) is listed but blocked, with the
   reason.
 - An implementation SHOULD hide a tile none of whose rows has content present locally (it is in the catalog, not the
