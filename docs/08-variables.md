@@ -102,7 +102,8 @@ Names follow the key caps of the user's layout; modifiers have sides:
 `right alt`, `left meta`, `right meta`, `menu`, `caps lock`, `num lock`, `scroll lock`, `print screen`, `pause`, `minus`,
 `equals`, `left bracket`, `right bracket`, `backslash`, `semicolon`, `quote`, `backquote`, `comma`, `period`, `slash`,
 `keypad 0` … `keypad 9`, `keypad period`, `keypad divide`, `keypad multiply`, `keypad minus`, `keypad plus`,
-`keypad enter`, `mouse left`, `mouse right`, `mouse middle`, `mouse 4`, `mouse 5`; and a game controller's, named by
+`keypad enter`, `mouse left`, `mouse right`, `mouse middle`, `mouse 4`, `mouse 5`, `mouse wheel up`, `mouse wheel down`
+(a turn of the wheel away from the user is up); and a game controller's, named by
 position as on an Xbox pad: `pad a`, `pad b`, `pad x`, `pad y`, `pad back`, `pad guide`, `pad start`, `pad left stick`,
 `pad right stick`, `pad left shoulder`, `pad right shoulder`, `pad left trigger`, `pad right trigger`,
 `pad left stick up` / `down` / `left` / `right`, `pad right stick up` / `down` / `left` / `right` (a trigger or stick binds
