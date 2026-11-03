@@ -57,7 +57,7 @@ package.
 ## 7.3 `ENV`: the process environment
 
 ```json
-{ "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "LD_LIBRARY_PATH": null } }
+{ "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%SteamAppId%", "LD_LIBRARY_PATH": null } }
 ```
 
 A map of name → value. Values MUST be strings (quote a number); `%TOKEN%`s are expanded at launch. `null` removes

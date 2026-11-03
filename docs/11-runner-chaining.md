@@ -48,6 +48,8 @@ available authored terminal is preferred.
 
 ```
 function ResolveChain(library, launch, entry, pinned):
+    if pinned is empty and entry.RECOMMENDEDRUNNER names a runner (by LABEL) serving entry.HOST:
+        pinned = [that runner]                  # a soft pin: honoured only where a pin would be, below
     start  = entry.HOST
     goal   = machine platform
     all    = available runners (chapter 10 §10.7), sorted better-first:
@@ -68,6 +70,10 @@ function ChainOver(runners):
     return bridge + [terminal]                  # an installed terminal, else any available one, else synthesized
 ```
 
+- **The entry's runner.** A game entry's `RECOMMENDEDRUNNER` (chapter 09 §9.1) is the only place content names a
+  runner, and it only recommends one. It stands in for the instance's pin when there is none, so installed runners
+  still come first. A recommended runner that is not installed, while installed ones carry the launch, is passed
+  over, and a label the library lacks changes nothing.
 - **Installed first.** A longer chain of installed runners beats a shorter one that still has to be downloaded:
   with a Windows engine and Proton installed, a game with both a Windows and a Linux build of its engine runs on the
   Windows one rather than waiting for the Linux one. Only when nothing installed can carry the launch is the chain

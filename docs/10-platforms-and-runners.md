@@ -33,7 +33,7 @@ itself a program of the host platform.
 - The native terminal: `linux64 → linux64`.
 
 The edges of every available runner form the **platform graph**; running content is finding a path through it
-(chapter 11). A package never names its runner (I9).
+(chapter 11). A package never depends on a runner; a game entry may only recommend one (`RECOMMENDEDRUNNER`, I9).
 
 ## 10.4 Anchors and drives: where a runner puts things
 

@@ -38,6 +38,7 @@ function substitute(text, vars):
 | `%UID%` | the launched tile's `UID` |
 | `%PackageUID%` | the family's root `UID` (the install folder, the owner of the instance) |
 | `%PackageName%`, `%GameName%` | the launched tile's title |
+| `%SteamAppId%` | the launched tile's `META.STEAMAPPID`, else its nearest parent tile's (an expansion runs as its base game); `"0"` when none, as Steam says "no app". What a Proton runner gives the game as its Steam app id, which Proton and ProtonFixes key their per-game fixes on. Never the package UID: a UID can be another game's real app id. |
 | `%ScreenWidth%`, `%ScreenHeight%` | the primary display's size (`"0"` when unknown) |
 | `%RuntimePath%` | the runtime mount, as a host path |
 | `%RunnerMount%` | where the boundary runner's build is mounted, as a host path (inside an inner runner's own fields: that runner's build, chapter 11 §11.6) |
@@ -239,3 +240,43 @@ it. A package's own optional features are variables; a change that someone else 
 `PreLaunchWindow` for the controls.)*
 
 Next: [`EXEC`, tiles & variants](09-exec-tiles-variants.md).
+
+## 8.8 Options that go both ways
+
+Some options are written into a file the user keeps, such as a game's settings file. The game changes those values
+too, in its own settings menu, and then the file holds the truth. Such an option is **read back** from the user's
+saved copy of the file when the launch window opens, after a run while the window stays open, and before a
+command-line launch. The value read becomes the instance's saved value (tier 2 of §8.5), so the window shows the
+game's setting and the launch writes it back unchanged. A per-launch override still wins; nothing is read while the
+instance is running.
+
+An option reads back when all of these hold:
+
+- **It has a `UI`.** A hidden variable is not a setting, so it stays one-way, and so do a `secret`, an `EVAL` and a
+  table.
+- **It is written by a keyed edit** (`ConfigWrite`, `JsonSet` or `XmlSet`, chapter 06) into a place the user keeps,
+  and the edit's `VALUE` is the option's token once, with only literal text around it:
+  `"Resolution=": "%res%"`, `"key_%jump:map:keys%"`.
+- **Its format can be undone.** No format, `bool` (`true` back to `1`, `false` back to `0`), `winpath`, or
+  `map:TABLE` whose entries are distinct literal strings and whose table has no `WHEN`. A value missing from such a
+  table passes through only when the table has no `ELSE`.
+- **What was read is a value the option can hold:** an `enum`'s choice, a key name for a `key`, a number within `MIN`
+  and `MAX` for an `int` or `float`, text matching `PATTERN`.
+
+Nothing is read when several such edits write one option and the files disagree, from a link, or from a file larger
+than a settings file can be. A value the game removed from its file is not read either: what it means is the game's
+own default, which the package may not know. An empty file is a save cut short, not a removal. A `ConfigWrite` line
+that is not there was never written.
+
+**Who wins.** The instance remembers what each option's file last held: what a launch's edit really wrote (noted once
+the session has stored what it keeps, so a session that died before that changes nothing), or what was last read back.
+
+- **The file holds something else:** the game changed it.
+  - If the instance's value is still the one last known, the game's value is taken.
+  - If the option was changed in the launcher too since, the launcher's choice wins.
+- **The file still holds what was last known:** nothing changed in the game, and the launcher's value stands.
+
+An option the package writes only as a default (no take-back, chapter 13 §13.4) is never written once the user has a
+copy, so its file always decides.
+
+*(VidyaGod: `OptionReadBack` in `src/optionreadback.cpp`; the last-known values are the instance's `LAST_IN_FILE`.)*

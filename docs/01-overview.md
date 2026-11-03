@@ -96,8 +96,10 @@ A conforming implementation MUST preserve these. Later chapters refer to them.
   them gone before deleting any runtime tree (chapter 14 §14.6).
 - **I8 — Present beats fetch.** A content file present at its path is authoritative; its `SOURCE` CID is used only to
   obtain a missing file (chapter 15 §15.2).
-- **I9 — Nothing names what grows.** References point from newer to older. A package never names its runner, a
-  library never names its users, a pristine never names its grafts. Grouping, offering and chaining are derived.
+- **I9 — Nothing names what grows.** References point from newer to older. A package never depends on a runner, a
+  library never names its users, a pristine never names its grafts. Grouping, offering and chaining are derived. The
+  one exception is soft: a game's entry may *recommend* a runner by label (`RECOMMENDEDRUNNER`), which the chain
+  prefers when it is installed and ignores when it is not (chapter 11 §11.4).
 
 ## 1.7 Relationship to the reference implementation
 

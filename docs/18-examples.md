@@ -158,7 +158,7 @@ Chain: `[vortexemu, proton, native]`. Proton is the boundary; vortexemu's build 
     { "DIR": "%WineSysWow64Dir%", "TARGET": "FILES/pfx/drive_c/windows/syswow64" },
     { "EDIT": [ { "MODE": "Overwrite", "VALUE": "%PROTON_VERSION%" } ], "TARGET": "FILES/version" },
     { "VARS": { "PROTON_VERSION": { "DEFAULT": "GE-Proton7-55" } } },
-    { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "LD_LIBRARY_PATH": null } },
+    { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%SteamAppId%", "SteamAppId": "%SteamAppId%", "LD_LIBRARY_PATH": null } },
     { "EXEC": [ { "LABEL": "geproton_7_55_runner_exec", "HOST": "linux64", "GUEST": ["win32", "win64"],
                   "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath:winpath%"],
                   "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true,

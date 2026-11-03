@@ -136,13 +136,27 @@ After the process exits:
 
 An implementation MUST NOT delete an ephemeral tree while a mount that reaches owned data could still be traversed.
 It MUST run this teardown after every launch it started, from every front end (a GUI and a command line alike), and
-also after a launch that mounted and was then refused.
+also after a launch that mounted and was then refused. Told to quit while a game runs (a logout, an interrupt, a
+service manager's stop), it SHOULD end the game as a user's stop does and run this teardown before it exits; a launch
+not yet at its game stops there instead of starting it.
 
 ## 14.7 Stale runtimes
 
-A process can crash and leave mounts behind. Before assembling a runtime, an implementation MUST look for mounts still
-present under that launch's scratch root, unmount them (with the same save-safety gate), and only then clear the stale
-tree. A single-instance guard (chapter 17 §17.4) lets it treat any such mount at startup as debris.
+A process can crash, or be killed, and leave its scratch tree and mounts behind. Before assembling a runtime, an
+implementation MUST look for mounts still present under that launch's scratch root, unmount them (with the same
+save-safety gate), and only then clear the stale tree.
+
+At startup it SHOULD clear every scratch tree whose launch is gone, the same way: debris piles up otherwise, and a
+scratch root in memory fills it. Whether a launch is gone is a fact about its owner, not a guess from age or from a
+guard: scratch roots can be shared by more than one running implementation (two data roots on one machine). So a
+launch holds a lock on its scratch tree from assembling the runtime to the end of its teardown, one the operating
+system drops when the process dies however it dies, and a tree whose lock nobody holds is debris. A launch whose
+scratch tree is locked by another live launch (the same instance started twice) is refused.
+
+*(VidyaGod: `<scratch>.lock` beside the scratch folder, so clearing the folder never removes it: an exclusive `flock`,
+taken before anything is cleared or mounted, in `VfsMount::ClaimSession` / `SweepDeadSessions`; the
+quit is `QuitSignals` for SIGTERM, SIGINT and SIGHUP on Linux. On Windows sessions are cleared by their instance's next
+launch only.)*
 
 ## 14.8 What an implementation must provide
 

@@ -65,6 +65,29 @@ reads as `{}`). Every other key, and key order, is kept; comments are accepted o
 that is not JSON, or a pointer through a value that is neither object nor array, fails the op and leaves the file
 untouched. A bool option is written with the `bool` format: `"%fullscreen:bool%"`. It writes `FILES/<file>#<KEY>`.
 
+### `XmlSet`: set one value in an XML file
+
+```json
+{ "MODE": "XmlSet", "KEY": "/Attributes/Attr[@name='g_language']/@value", "VALUE": "%language%" }
+```
+
+`KEY` is a path of elements from the root, each matched by its name and, optionally, attribute predicates
+(`[@name='value']`, several allowed, either quote). It ends in an attribute (`/@value`), or names an element whose text
+is the value. The first element matching each step is the one meant. `VALUE` is written as text (escaped as XML needs).
+
+- **Only the value changes.** Every other byte of the file stays as it was: its declaration, comments, quoting and
+  indentation.
+- **Missing parts are created.** A missing element is created with its predicates' attributes and placed after its
+  parent's last child, indented like that child. A missing attribute is added to its element, and an absent or empty
+  file becomes the path's document. A game that leaves a setting out of its file while it is at its default is set
+  this way.
+- **`!` steps into XML stored inside an attribute (or text).** That value is a document of its own, and the path after
+  the `!` is read in it: `…/Attr[@name='keybinds_settings']/@value!/keybinds/superaction[@name='jump']/control[@slot='0']/@input`.
+- **Refusals leave the file untouched.** The op fails on a file that is not well-formed XML, a root other than the
+  path's, text set on an element that holds elements, or a value holding an entity that only a DTD defines.
+
+It writes `FILES/<file>#<KEY>`.
+
 ### `Overwrite`: the whole file
 
 ```json

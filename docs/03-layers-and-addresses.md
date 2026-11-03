@@ -54,7 +54,7 @@ that option without repeating it.
   "FILES/%GameDir%/game.ini"` writes that file. An absent `TARGET` on a content or `NODE` layer means `FILES` (the
   root of the current placement).
 - **`#` ends the path.** Everything after it is the key, one opaque component that may contain `/` or spaces
-  (`FILES/%GameDir%/Default.cfg#/W:`). `ConfigWrite` and `JsonSet` ops write such keyed addresses; every other edit
+  (`FILES/%GameDir%/Default.cfg#/W:`). `ConfigWrite`, `JsonSet` and `XmlSet` ops write such keyed addresses; every other edit
   writes the whole file.
 - `FILES` and `REG` are trees: an address may name a folder or a key, and a `null` or a `KEEP` on it covers
   everything beneath it.
