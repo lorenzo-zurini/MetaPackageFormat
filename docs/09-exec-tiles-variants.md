@@ -27,7 +27,11 @@ node is what the user can pick.
 | `CONTENT_ROOT`, `PREFIX_GENERATE`, `UNIFIED_RUNTIME`, `GUEST_ROOTS`, `DRIVES` | | runner | The runner's runtime layout (chapter 10). |
 
 `%ContentPath%` and `%Content%` expose a game's `EXE` to its runner (relative to the content root, and as a host
-path). `EXE` is matched against the real content case-exactly (chapter 04 §4.4).
+path). An `EXE` outside the content root (a program installed beside the game, in `%ProgramFiles32%`) is still
+relative to it, climbing out with `..`, so a runner that names programs as "<guest content root>\%ContentPath:winpath%"
+names it too. `%ContentPath%` joins folders with `/`; a Windows runner turns it into one backslashed path with `:winpath`,
+as a program that takes its own folder from its command line (everything before the last `\`) reads a mixed path
+wrong. `EXE` is matched against the real content case-exactly (chapter 04 §4.4).
 
 An entry carries no environment and no condition of its own: the environment is an `ENV` layer, and a conditional
 entry is an `EXEC` layer with a `WHEN`.
@@ -101,7 +105,7 @@ game (Horn of the Abyss over Heroes III) is published this way.
 
 ```jsonc
 { "LABEL": "geproton_runner", "HOST": "linux64", "GUEST": ["win32", "win64"],
-  "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath%"],
+  "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath:winpath%"],
   "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true,
   "GUEST_ROOTS": { "%GameDir%": "C:\\%PackageUID%", "%Documents%": "C:\\users\\steamuser\\Documents" },
   "DRIVES": { "C:": "%PrefixRoot%/drive_c" } }

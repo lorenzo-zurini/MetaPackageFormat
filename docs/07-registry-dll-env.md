@@ -27,8 +27,8 @@ written from an anchor (`"%GameDir%"`, `"%ProgramFiles32%\\X\\x.ax"`); the runne
 
 **`ARCH`** is a list of `"32"` and/or `"64"`: the bitness of the program that reads the keys. The tree is written once
 per listed architecture; for `"32"` on a 64-bit prefix the runtime inserts `Wow6432Node` after `Software` so the key
-lands where a 32-bit program looks. Never write `Wow6432Node` yourself. No `ARCH` means no redirection: the tree is
-written as given.
+lands where a 32-bit program looks. Never write `Wow6432Node` yourself. `ARCH` is **required**: a `REG` layer without
+it is refused, because a 32-bit program's `HKLM\Software` keys written to the 64-bit view are silently never read.
 
 Addresses are `REG/<hive>/<key…>/<value>`, compared without case, per architecture. A value name and a subkey name
 cannot be the same in one key; a tool that flattens the tree for editing MUST refuse to write one over the other.
@@ -68,9 +68,10 @@ undoes an earlier set. A ticked graft's `ENV` folds above the variant's, so a mo
 declares it.
 
 **Along the runner chain.** Each runner resolves its own node, so each link has its own folded environment. At
-launch the host environment is taken, then the links are applied from the outermost inwards, so **the innermost
-(closest to the content) wins a shared name**, and the game's own `ENV` is applied last, over every runner. A game's
-`null` removes a name even if its runner sets it. An `EXEC` entry carries no environment; how a program needs to be
+launch the host environment is taken (with `HOME` and the XDG base directories pointing at the launch's private home,
+where the runtime gives it one: chapter 14 §14.5), then the links are applied from the outermost inwards, so **the
+innermost (closest to the content) wins a shared name**, and the game's own `ENV` is applied last, over every runner. A game's `null` removes a
+name even if its runner sets it. An `EXEC` entry carries no environment; how a program needs to be
 started is a fact of the node, so it is a layer.
 
 *(VidyaGod: `Fold`'s `ENV` fold; `LaunchResolver::ApplyInnerEnv` for runners nested inside the boundary;

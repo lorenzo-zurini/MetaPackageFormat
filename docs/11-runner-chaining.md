@@ -111,7 +111,9 @@ For `[vortexemu, proton, native]`, boundary `proton`, a Vortex game with family 
 `C:\9001\__runner_<id>__\vortexemu.exe`. The content mounts at the content root as usual.
 
 **Guest paths.** The boundary's guest template is its `%GameDir%` guest path followed by the relative path:
-`C:\9001\%REL%`, with `/` turned into `\` in `%REL%`. A runtime-relative path becomes a guest path through it.
+`C:\9001\%REL%`, with `/` turned into `\` in `%REL%`. A runtime-relative path becomes a guest path through it. A
+native boundary, whose `%GameDir%` is a runtime path (chapter 10 §10.4), joins with `/`:
+`%RuntimePath%/n64/9001/%REL%`.
 
 **An inner runner's `%RunnerMount%`** is its own build folder: `""` inside its `EXE` (so `%RunnerMount%/vortexemu.exe`
 is the build-relative `vortexemu.exe`), and the folder's guest path inside its `ARGS` and `ENV`. A Windows engine

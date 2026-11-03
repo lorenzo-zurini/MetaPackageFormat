@@ -55,16 +55,58 @@ each guest drive is in its runtime layout:
 - **`DRIVES`** maps each guest drive to a path in the runtime layout. A guest path the launch *places* (a content
   `TARGET`, an edit's file, a kept file) is first substituted, then moved to where its drive lives: the longest
   matching drive wins, drives compare without case, a path under no mapped drive stays as written. Every anchor's
-  guest path MUST be on a drive `DRIVES` lays out (a validator refuses `E:` with no `E:` drive).
+  guest path MUST be on a drive `DRIVES` lays out (a validator refuses `E:` with no `E:` drive), or be spelled from a
+  variable (below).
 - A value the run **wrote** (a captured registry value `C:\Program Files (x86)\X\x.ax`) is re-spelled from the most
   specific anchor before it is stored, so the user's state stays valid under another runner.
 
-The anchors in effect are the **boundary** runner's (chapter 11 §11.5). Validators check packages against the anchors
-the runners in the library declare; runners that disagree about an anchor's guest path are warned about.
+**A native guest is its runtime.** A runner whose guest is not a separate machine (a Linux engine on Linux, a
+Windows engine on Windows) has no drives to map: the program sees the runtime's real paths. Its anchors are spelled
+from `%RuntimePath%`, and it declares no `DRIVES`:
 
-A native engine uses the same mechanism to give a game a folder: doukutsu-rs declares
-`"GUEST_ROOTS": {"%GameDir%": "C:\\cavestory"}` and `"DRIVES": {"C:": "game"}`, so a package's `%GameDir%/data`
-lands at `game/cavestory/data` in its runtime.
+```jsonc
+"CONTENT_ROOT": "n64/%PackageUID%",
+"GUEST_ROOTS":  { "%GameDir%": "%RuntimePath%/n64/%PackageUID%" }
+```
+
+A guest path at or below `%RuntimePath%` is placed at its path below the runtime, before any drive is considered
+(a Windows runtime path begins with the host's drive letter, never a guest's): `%GameDir%/oot.o2r` lands at
+`n64/<uid>/oot.o2r`, and a value naming `%GameDir%` (an argument, an environment variable, an edited config line)
+reads the host path the program sees, `/…/RUNTIME/n64/<uid>`. So an engine's Linux and Windows builds spell the
+game folder the same way, `%GameDir%`, and declare the same roots; each reads `%GameDir%` from the boundary that
+runs it. The Linux build is its own boundary and reads the runtime path. On Linux the Windows build runs inside
+Proton (chapter 11 §11.5), where only Proton's anchors are read, and gets `C:\<uid>`; on a Windows host its guest is
+its runtime, as the Linux build's is on Linux.
+
+**The host's own Windows.** A runner that carries Windows programs on a Windows host (VidyaGod's built-in
+`windows-native`) has a guest that is the machine itself, but a program there still looks for its saves and its
+system files in the machine's own folders. Its anchors therefore say the host's real paths, from the `%Host…%`
+tokens (chapter 08 §8.2), and only the game folder is in the runtime:
+
+```jsonc
+"CONTENT_ROOT": "drive_c/%PackageUID%",
+"GUEST_ROOTS":  { "%GameDir%":  "%RuntimePath%\\drive_c\\%PackageUID%",
+                  "%AppData%":  "%HostAppData%",
+                  "%SysDir32%": "%HostSysDir32%", … },
+"DRIVES":       { "C:": "drive_c" }
+```
+
+The text a value reads (`%AppData%` in an argument, an edited config line, a registry value) is the real folder; the
+place a layer anchored there is laid out is `drive_c/…` in the runtime, through `DRIVES`. Nothing a package places is
+written into the machine's own folders: before the program starts, the runtime's `drive_c` outside the game folder is
+copied into the program's sandbox, which shows it at the real paths over the machine's own files (chapter 14 §14.5).
+
+A guest path is therefore on a drive or begins with a `%variable%` (`%RuntimePath%`, another anchor, a `VARS` key
+resolved at launch); a bare relative or host-absolute path (`n64/x`, `/opt/x`) names no place in any guest and is
+refused.
+
+The anchors in effect are the **boundary** runner's (chapter 11 §11.5). Validators check packages against the anchors
+the runners in the library declare; runners that disagree about an anchor's guest path are warned about. A native
+runner's runtime folder is its own layout, not a guest path packages are checked against, and is not compared.
+
+A native engine gives a game its folder the same way: doukutsu-rs declares
+`"GUEST_ROOTS": {"%GameDir%": "%RuntimePath%/game/cavestory"}`, so a package's `%GameDir%/data` lands at
+`game/cavestory/data` in its runtime and `CAVESTORY_DATA_DIR: "%GameDir%/data"` names it.
 
 A runner's own layers are written in its own layout, with relative targets (`FILES/files/lib64`, `FILES/pfx`).
 

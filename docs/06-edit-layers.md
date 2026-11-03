@@ -41,7 +41,7 @@ before it left it.
 
 ## 6.2 Text ops
 
-Text ops read CRLF and LF alike and write LF.
+Text ops read CRLF and LF alike and write LF. `Delete` is listed with them: it changes the file system, not bytes.
 
 ### `ConfigWrite`: replace a line by its prefix
 
@@ -84,6 +84,26 @@ Appends `VALUE` as a line unless a line equal to it already exists. Creates the 
 first if the file did not end in one. This is the load-order primitive: each mod appends its own line, so the file
 lists exactly the ticked mods, in graft order.
 
+### `Delete`: remove a file or a folder
+
+```json
+{ "EDIT": [ { "MODE": "Delete", "COMMENT": "PCGW: skip the intro movie" } ],
+  "TARGET": "FILES/%GameDir%/videos/intro.bik", "WHEN": "%skip_intro% == 1" }
+```
+
+Removes the `TARGET` from the runtime as composed beneath it: a file, or a folder with everything in it. The content
+layers that provided it are untouched; the removal lives in the session's writable layer (a deletion marker over the
+files beneath) and is gone after the session like every other write. A link is removed as a link, never followed. The
+op takes no other field than `COMMENT` and `WHEN`. Nothing at the `TARGET` is a failure (§6.4): the name is a typo, or
+the content beneath changed. This is how a fix that says "delete or rename the file" is expressed, when the file is
+named somewhere the package cannot patch (inside a compressed archive the game reads).
+
+**A `Delete` never reaches the user's state.** One whose `TARGET` is an address the user owns, lies inside a kept folder
+(taken back or not: a kept folder is served live, so the removal would be stored with the user's files), contains a kept
+address, or names a file a kept pattern matches, is refused by the validator and at launch (chapter 13). The launch
+judges the place the `TARGET` **resolves** to, not how it is written: `videos/../Saves`, another anchor naming the same
+folder or a `%variable%` segment are the same place. A package removes only what is the package's.
+
 ## 6.3 Binary ops
 
 Binary ops patch an executable over its **pristine** bytes. The pristine file is stored once and content-addressed,
@@ -92,10 +112,10 @@ enhancement is one layer with seventy-five ops.
 
 | Field | Meaning |
 |-------|---------|
-| `MODE` | `Replace` \| `Poke` \| `Or` \| `Cave` |
+| `MODE` | `Replace` \| `ReplaceAll` \| `Poke` \| `Or` \| `Cave` |
 | `ANCHOR` | a hex signature locating the site, `??` a wildcard byte (`"8b ?? 24 08"`); it MUST match exactly one place. Or give `OFFSET`. |
 | `OFFSET` | a fixed address: a virtual address when at or above the PE image base, else a raw file offset. Hex (`"0x44be08"`) or decimal. A file that is not a PE image (an ELF, a data file) takes `ANCHOR`s and raw offsets; `Cave` needs a PE image. |
-| `EXPECT` | hex of the original bytes at the site. A mismatch is an error (§6.4); bytes already equal to the patched result are skipped (idempotent). Required for `Replace` and `Cave`, recommended for `Poke`, refused for `Or`. |
+| `EXPECT` | hex of the original bytes at the site. A mismatch is an error (§6.4); bytes already equal to the patched result are skipped (idempotent). Required for `Replace`, `ReplaceAll` and `Cave`, recommended for `Poke`, refused for `Or`. |
 | `APPLY` | `"prefix"` (default) or `"memory"` (below) |
 | `COMMENT` | what the op does. Seventy-five offsets without prose are unmaintainable. |
 
@@ -103,6 +123,14 @@ enhancement is one layer with seventy-five ops.
 
 Writes `REPLACE` (hex) at the site. `REPLACE` may be shorter than `EXPECT`; it is padded with `0x90` (NOP) to the
 `EXPECT` length. The pad is x86 code, so only a PE image takes it: in any other file `REPLACE` covers all of `EXPECT`. The No-CD primitive.
+
+### `ReplaceAll`: every match of a pattern
+
+Takes no site (`ANCHOR` and `OFFSET` are refused): `EXPECT` is the pattern, and every place it occurs becomes
+`REPLACE`, of the same length. For a fix that rewrites one header wherever it appears, such as the sample rate in
+each of a sound archive's thousands of WAV headers. Ops run in their order, so a later op may match what an earlier
+one wrote, as the fix's own tool would. A file where `EXPECT` occurs nowhere but `REPLACE` does is already patched
+(skipped); one where neither occurs is the wrong file (§6.4). Not for `APPLY: "memory"`.
 
 ### `Poke`: write a value
 

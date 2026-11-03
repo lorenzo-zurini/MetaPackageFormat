@@ -50,7 +50,8 @@ below. It is also a build order: each section runs once the ones before it do.
       (chapter 10 §10.6).
 - [ ] **MUST** refuse a launch with no route to the machine (I5) and execute only the terminal (I4).
 - [ ] **MUST** honour a valid pinned chain.
-- [ ] **MUST** place anchored paths through the boundary runner's `GUEST_ROOTS` and `DRIVES` (chapter 10 §10.4).
+- [ ] **MUST** place anchored paths through the boundary runner's `GUEST_ROOTS` and `DRIVES`, a guest path in the
+  runtime at its path below it (chapter 10 §10.4).
 - [ ] **MUST** compose outer links by concatenation and inner links inside the boundary's guest: builds at
       `<CONTENT_ROOT>/__runner_<id>__`, guest paths from the boundary's `%GameDir%`, an inner runner's
       `%RunnerMount%` its own build folder, its `ENV` merged under the game's (chapter 11 §11.6).
@@ -68,6 +69,8 @@ below. It is also a build order: each section runs once the ones before it do.
 - [ ] **MUST** compose the registry per launch from pristine hives, `REG` layers, kept subtrees and take-backs
       (chapter 14 §14.4) for prefix runners.
 - [ ] **MUST** build the process environment as chapter 07 §7.3 says.
+- [ ] **SHOULD** give the launched program a private home, made per launch, with the user's real home read-only to it
+      (chapter 14 §14.5).
 
 ## 20.6 Ownership and save safety
 

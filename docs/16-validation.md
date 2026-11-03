@@ -20,17 +20,22 @@ Errors:
 - a `TARGET` that is not a `FILES` address (content, `EDIT`, `NODE`);
 - `NODE` not a CID string; `TAKE` not a list of addresses and `[address, name]` pairs; two `TAKE` selections landing on
   one address;
-- `EDIT` without ops or without a `TARGET` file; an op without `MODE`; an op field that is not a scalar;
-- a binary op with neither `ANCHOR` nor `OFFSET`; `Replace` without `REPLACE`; `Poke` or `Or` without `VALUE`; `Cave`
-  without `PAYLOAD`; `Or` with `EXPECT`;
-- `REG` not a tree; `ARCH` not a list of `"32"`/`"64"`;
+- `EDIT` without ops or without a `TARGET` file; an op without `MODE`; an op field that is not a scalar; a `Delete` op
+  with any field but `MODE`, `COMMENT` and `WHEN`;
+- a binary op with neither `ANCHOR` nor `OFFSET` (but `ReplaceAll`, which takes neither); `Replace` or `ReplaceAll`
+  without `REPLACE`; `ReplaceAll` without `EXPECT`, or with a `REPLACE` of another length; `Poke` or `Or` without
+  `VALUE`; `Cave` without `PAYLOAD`; `Or` with `EXPECT`;
+- `REG` not a tree; `ARCH` missing, empty or not a list of `"32"`/`"64"`; a `Wow6432Node` key under a hive's `Software`;
 - `VARS` not `{KEY: declaration}`; `DEFAULT`, `COMMENT`, `WHEN`, `UI.SECTION` not strings; `UI` not an object; `EVAL`
-  not a boolean;
+  not a boolean; a `UI.CONTROL` that is not one of chapter 08's; a `key` option whose literal `DEFAULT` is not a key
+  name (chapter 08 §8.3); a `MAP` that is not an object of strings, a `MAP` table with a `UI`, an `ELSE` that is not a
+  string or not on a table;
 - `ENV` or `DLL` values that are neither strings nor `null`;
 - `EXEC` not a non-empty list; an entry without `LABEL`; two entries with one label; `HOST`, `EXE`, `WORKDIR`,
   `CONTENT_ROOT` not strings; `GUEST`, `ARGS` not string lists; `PREFIX_GENERATE`, `UNIFIED_RUNTIME` not booleans;
 - `GUEST_ROOTS` keys that are not `%Anchor%`s, values that are not paths, anchors spelled from each other in a
-  circle, an anchor on a drive `DRIVES` does not lay out; `DRIVES` values that are not paths;
+  circle, an anchor on a drive `DRIVES` does not lay out, an anchor neither on a drive nor spelled from a `%variable%`
+  (`n64/x`, `/opt/x`); `DRIVES` values that are not paths;
 - `TILE` fields of the wrong type; a `COVER` that is not `{FILE, SOURCE, SIZE}` or whose file leaves the package;
 - `KEEP` not a map; an address outside `FILES` and `REG`; a value that is not `true`, `false` or an options object; a
   wildcard outside the last segment of a `FILES` address, or on a folder;
@@ -61,6 +66,8 @@ Errors:
 - a `ZIP` with a compressed entry;
 - a `DELTA` with no content beneath it at its target to rebuild from;
 - a **covered** `EDIT`: beneath a later layer that replaces its file (chapter 06 §6.1);
+- a `Delete` whose `TARGET` reaches what the user keeps: an owned address, anything inside a kept folder, a folder
+  holding a kept address, a file a kept pattern matches (chapter 06 §6.2);
 - two layers providing paths that differ only in case (chapter 04 §4.4);
 - an entry's `EXE` that matches a content file only case-insensitively.
 
@@ -95,13 +102,15 @@ Warnings:
 ## 16.6 Variables and conditions
 
 Errors: a malformed `WHEN`; a layer `WHEN` reading a variable declared only in a gated layer; a reference to a variable
-that is neither built in, an anchor, nor declared.
+that is neither built in, an anchor, nor declared; a `%KEY:map:TABLE%` naming a table no `VARS` declares.
 
-Warnings: an option (`UI`) referenced nowhere.
+Warnings: an option (`UI`) referenced nowhere; two `key` options of one node and `SECTION` bound to the same key by
+default.
 
 ## 16.7 Ownership
 
-Errors: a `KEEP` of a whole registry hive.
+Errors: a `KEEP` of a whole registry hive; two `FILES` addresses of one node stored under the same name (their `NAME`s,
+else their last segments, compared without case), since only one of them could be kept.
 
 Warnings: a `KEEP` of a whole namespace (`FILES`); a `KEEP` `NAME` reserved for the instance's own state; a launch
 option written into a user-owned file without a take-back (chapter 13 §13.4).

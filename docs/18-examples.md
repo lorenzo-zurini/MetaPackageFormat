@@ -61,14 +61,16 @@ Linux and Windows builds:
     { "NODE": "bafkrei…doukutsu_1_0_0_6" },
     { "ZIP": "Cave Story - Aeon Genesis Translation 1.03.zip", "SOURCE": "QmeGfexn…", "TARGET": "FILES/%GameDir%" } ] }
 
-// the engine, as the package's own runner (Linux build; the Windows build is the same with HOST "win64")
+// the engine, as the package's own runner (Linux build: its guest is its runtime, chapter 10 §10.4)
 { "LABEL": "doukutsu_rs_1_0_0_linux64_exec", "LAYERS": [
     { "ZIP": "doukutsu-rs 1.0.0 - Linux x64.zip", "SOURCE": "QmRS8s48…", "TARGET": "FILES/__doukutsu-rs" },
-    { "ENV": { "CAVESTORY_DATA_DIR": "%RuntimePath%/game/cavestory/data", "XDG_DATA_HOME": "%TempPath%/doukutsu-rs" } },
+    { "ENV": { "CAVESTORY_DATA_DIR": "%GameDir%/data", "XDG_DATA_HOME": "%TempPath%/doukutsu-rs" } },
     { "EXEC": [ { "LABEL": "doukutsu_rs_1_0_0_linux64_exec", "HOST": "linux64", "GUEST": ["custom"],
                   "EXE": "%RunnerMount%/__doukutsu-rs/doukutsu-rs", "ARGS": [],
                   "CONTENT_ROOT": "game/cavestory",
-                  "GUEST_ROOTS": { "%GameDir%": "C:\\cavestory" }, "DRIVES": { "C:": "game" } } ] } ] }
+                  "GUEST_ROOTS": { "%GameDir%": "%RuntimePath%/game/cavestory" } } ] } ] }
+
+// the Windows build is the same with HOST "win64" and its .exe; inside Proton it reads %GameDir% from Proton (C:\8333)
 
 // the engine variant: the translation's data folder, nothing else, run by the package's engine
 { "LABEL": "doukutsu-rs", "VARIANT": "doukutsu-rs (open-source engine)", "LAYERS": [
@@ -158,7 +160,7 @@ Chain: `[vortexemu, proton, native]`. Proton is the boundary; vortexemu's build 
     { "VARS": { "PROTON_VERSION": { "DEFAULT": "GE-Proton7-55" } } },
     { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%PackageUID%", "LD_LIBRARY_PATH": null } },
     { "EXEC": [ { "LABEL": "geproton_7_55_runner_exec", "HOST": "linux64", "GUEST": ["win32", "win64"],
-                  "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath%"],
+                  "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath:winpath%"],
                   "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true,
                   "GUEST_ROOTS": { "%GameDir%": "C:\\%PackageUID%", "%UserProfile%": "C:\\users\\steamuser",
                                    "%Documents%": "C:\\users\\steamuser\\Documents",
