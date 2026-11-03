@@ -32,6 +32,19 @@ its offset inside the zip, so the download *is* the install, with no extraction 
 DEFLATE entry MUST be refused at validation and publish, never discovered at launch. Create archives with
 `zip -0 -r`.
 
+**Links.** A symbolic link stored in the archive (a Unix link entry, its target as the entry's bytes) is served in one
+of two ways:
+
+- **As the file it points to,** when it resolves to a file inside the archive. Its target is read against the link's own
+  folder, in the archive's own names. Such a link was written for the archive's tree, and its target may not exist
+  where the layer is mounted (a template's `drivers/x.sys -> ../../lib/x.sys`).
+- **As the link it is, its target as stored,** for any other link: an absolute target, one that climbs out of the
+  archive, one to a folder, or a dangling one. It is resolved where the game is, inside the runtime and the sandbox, as
+  an installed copy's link would be (a self-mounting bundle's `entrypoint -> /nix/store/…`).
+
+A `DELTA`'s archive is served the same way. A program outside the sandbox that reads or writes the runtime never
+follows a link that leads out of it (chapters 06, 13).
+
 ### `FILE`
 
 One file: a ROM, a loose DLL, a cover image. **`TARGET` is the containing folder**; the file keeps its name and

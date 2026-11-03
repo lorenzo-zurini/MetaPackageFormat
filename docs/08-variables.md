@@ -18,6 +18,7 @@ function substitute(text, vars):
         end = indexOf(text, '%', start + 1)
         if end == -1: out += text[i:]; break              # an unmatched '%': keep the rest verbatim
         out += text[i:start]
+        if end == start + 1: out += "%"; i = end + 1; continue    # "%%": a literal '%'
         name, fmt = split_first(text[start+1 : end], ':')
         if name in vars: out += (fmt == "" ? vars[name] : render(vars[name], fmt))
         else:            out += text[start : end+1]       # unknown: the whole token stays, visible
@@ -26,6 +27,10 @@ function substitute(text, vars):
 ```
 
 - Tokens are paired `%`s, scanned left to right, never overlapping. A name MUST NOT contain `:`.
+- **`%%` is a literal `%`**, written where the format carries a `%` verbatim: a registry value an installer names
+  `%%Value%%` is written `"%%%%Value%%%%"`, and a value of 100 percent `"100%%"`. A variable's value keeps the escape
+  while variables resolve against each other (§8.5) and loses it once, where it is written out, so `"100%%%%"` is
+  written as `100%%`. A lone `%` that pairs with nothing is text too, but `%%` is the way to be sure.
 - An **unknown** name leaves the whole token in place, never an empty string: a missing variable stays visible, and a
   validator reports it (§8.7).
 - One substitution is a single pass; it does not re-expand what it inserted. (Variables are resolved against each
