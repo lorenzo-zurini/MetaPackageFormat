@@ -40,8 +40,9 @@ entry is an `EXEC` layer with a `WHEN`.
 ## 9.2 The `EXEC` fold
 
 Entries fold **per label, per field**. A later layer's entry with the same `LABEL` changes only the fields it gives:
-objects merge recursively, any other value replaces, `null` deletes a field. The folded entries keep the order in
-which each label was **first** declared.
+objects merge recursively, any other value replaces, `null` deletes a field. A tile's `COVER` is the exception: it is
+one image (`FILE`, `SOURCE` and `SIZE` describe the same bytes), so a later `COVER` replaces the one beneath it whole. The
+folded entries keep the order in which each label was **first** declared.
 
 This is how one entry serves a whole version history: the pristine declares `Play` with its `EXE` and tile, a later
 version that renamed the executable declares `{"LABEL": "Play", "EXE": "%GameDir%/new.exe"}`, and everything else
@@ -61,7 +62,7 @@ A **tile** is one presentable game: a `TILE` object on an entry.
 | `UID` | the tile's identity, a string. Faces with the same `UID` anywhere (other nodes, other packages) are one tile. |
 | `PARENTUID` | the family it belongs to: an expansion's base game (`"803"` → `"802"`). Absent: the tile is a family root. |
 | `TITLE` | the title shown |
-| `COVER` | `{FILE, SOURCE, SIZE}`: an image in the node's package, by file name and CID |
+| `COVER` | `{FILE, SOURCE, SIZE}`: an image in the node's package, by file name and CID. `FILE` is required; `SOURCE` and `SIZE` are stamped at publish. Folds whole (§9.2). |
 | `META` | free-form presentation fields (year, developer, series, …) |
 
 An effective entry carrying a tile is a **face** of its node. Because the entry folds, every version shows the tile

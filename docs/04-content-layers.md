@@ -12,6 +12,7 @@ Content layers put **files** into the runtime. They are the bulk of any package.
 | `SOURCE` | (`ZIP` `FILE` `DELTA`) the CID of the file's bytes: how to obtain it when absent (chapter 15) |
 | `SIZE` | (`ZIP` `FILE` `DELTA`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
 | `TARGET` | the `FILES` address the content is placed under (default `FILES`, the root of the current placement) |
+| `BASE_TARGETS` | (`DELTA`) the `FILES` addresses whose content, concatenated in order, is the delta's base (default: `TARGET`) |
 
 A file name MUST stay inside the package: no `..` segment, no absolute path. Nodes arrive from peers, and an escaping
 name would make a download write outside the package folder.
@@ -64,6 +65,11 @@ the delta's node contains below it. A chain of deltas therefore reads like a ver
     … ] }
 ```
 
+- **Several bases.** `BASE_TARGETS`, a list of `FILES` addresses, makes the base the nearest content beneath the delta
+  at each address, **concatenated in that order** (a delta built over a game's install and its CD music folder, which
+  a later release ships in the game folder). Absent, the base is `[TARGET]`. Each address is placed with the delta's
+  node, like its `TARGET`. A validator refuses an empty list, a non-`FILES` address, one named twice, and
+  `BASE_TARGETS` on any layer but a `DELTA`.
 - The delta is **opaque**: what it reconstructs replaces everything beneath it at its target, including loose files
   and directories that were not part of its base.
 - A delta MUST reconstruct the complete tree. Authoring one from an overlay zip that holds only the changed files

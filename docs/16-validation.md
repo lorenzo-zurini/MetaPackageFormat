@@ -36,9 +36,10 @@ Errors:
 - `GUEST_ROOTS` keys that are not `%Anchor%`s, values that are not paths, anchors spelled from each other in a
   circle, an anchor on a drive `DRIVES` does not lay out, an anchor neither on a drive nor spelled from a `%variable%`
   (`n64/x`, `/opt/x`); `DRIVES` values that are not paths;
-- `TILE` fields of the wrong type; a `COVER` that is not `{FILE, SOURCE, SIZE}` or whose file leaves the package;
+- `TILE` fields of the wrong type; a `COVER` that is not `{FILE, SOURCE, SIZE}`, has no `FILE`, or whose file leaves the package;
 - `KEEP` not a map; an address outside `FILES` and `REG`; a value that is not `true`, `false` or an options object; a
-  wildcard outside the last segment of a `FILES` address, or on a folder;
+  kept `REG/HKLM/Software…` key without `ARCH`, an `ARCH` that is not a list of distinct `"32"`/`"64"`, or one on a
+  `FILES` address; a wildcard outside the last segment of a `FILES` address, or on a folder;
 - `ANY` not a non-empty list of CIDs; `NOT` not a CID.
 
 - the same node in two installed package folders (a node has one home, chapter 02 §2.7).

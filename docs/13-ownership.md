@@ -18,7 +18,7 @@ A map of address → `true`, `false` or options.
 | Value | Meaning |
 |-------|---------|
 | `true` | the address (a file, a folder, a registry key, and everything beneath it) is the user's |
-| `{ "NAME": …, "CLOUD": … }` | the same, with options: `NAME` is the folder name it is stored under in the instance (one path segment; default: the address's last segment); `CLOUD` (default `true`) marks it eligible for cloud sync, `false` for machine-specific state (a shader cache) |
+| `{ "NAME": …, "CLOUD": …, "ARCH": … }` | the same, with options: `NAME` is the folder name it is stored under in the instance (one path segment; default: the address's last segment); `CLOUD` (default `true`) marks it eligible for cloud sync, `false` for machine-specific state (a shader cache); `ARCH` (a `REG` key only) is the bitness of the program that reads it, as on a `REG` layer (§13.2) |
 | `false` | **takes back**: the address is the package's again, even inside something the user owns |
 
 - Addresses are `FILES/…` or `REG/…` only. A variable's value is never kept: what the user picks for an option lives
@@ -39,6 +39,13 @@ A map of address → `true`, `false` or options.
 | a `FILES` **file** (a last segment with an extension) | a **copied** file: the user's saved copy is put in place before the mount (it shadows the package's), and captured after the session |
 | a `FILES` **pattern** (`*` or `?` in the last segment) | a stored folder (`NAME`, default the pattern with wildcards as `_`) holding every matching file under its own name. Matching ignores case. Capture stores each match the session left, and drops a stored one only when this session put it there and the game deleted it, after a listing with no error. Restore puts every stored match back. |
 | a `REG` **key** | its subtree, stored in the instance and merged into the composed hives before the run, captured after. It must name a key below a hive: a whole hive cannot be kept. |
+
+A `REG` address is the key as the program names it, without `Wow6432Node` (chapter 07). A 32-bit program's
+`HKLM\Software` is a different key in the hive (under `Wow6432Node`), so a kept key under `HKLM/Software` carries
+`ARCH`, a list of `"32"` and/or `"64"` like a `REG` layer's: the key is kept where a program of each listed bitness has
+it, each one stored as its own key. A validator refuses a kept `HKLM/Software` key without `ARCH` (kept in the 64-bit
+view, a 32-bit game's settings are silently never captured). Elsewhere (`HKCU`, shared by both) `ARCH` changes nothing.
+A take-back (`false`) judges a value by its address alone and carries no `ARCH`.
 
 A pattern names files in one folder: wildcards only in the last segment, and never on a folder (`…/*/`). A bare
 `FILES` (the whole runtime) is an authoring aid for discovering what a game writes, never something to ship; an

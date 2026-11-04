@@ -28,7 +28,8 @@ written from an anchor (`"%GameDir%"`, `"%ProgramFiles32%\\X\\x.ax"`); the runne
 **`ARCH`** is a list of `"32"` and/or `"64"`: the bitness of the program that reads the keys. The tree is written once
 per listed architecture; for `"32"` on a 64-bit prefix the runtime inserts `Wow6432Node` after `Software` so the key
 lands where a 32-bit program looks. Never write `Wow6432Node` yourself. `ARCH` is **required**: a `REG` layer without
-it is refused, because a 32-bit program's `HKLM\Software` keys written to the 64-bit view are silently never read.
+it is refused, because a 32-bit program's `HKLM\Software` keys written to the 64-bit view are silently never read. A
+kept key names its view the same way (`KEEP` … `{"ARCH": ["32"]}`, chapter 13 §13.2).
 
 Addresses are `REG/<hive>/<key…>/<value>`, compared without case, per architecture. A value name and a subkey name
 cannot be the same in one key; a tool that flattens the tree for editing MUST refuse to write one over the other.
