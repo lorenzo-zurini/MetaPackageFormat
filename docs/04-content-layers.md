@@ -70,10 +70,20 @@ the delta's node contains below it. A chain of deltas therefore reads like a ver
   a later release ships in the game folder). Absent, the base is `[TARGET]`. Each address is placed with the delta's
   node, like its `TARGET`. A validator refuses an empty list, a non-`FILES` address, one named twice, and
   `BASE_TARGETS` on any layer but a `DELTA`.
-- The delta is **opaque**: what it reconstructs replaces everything beneath it at its target, including loose files
-  and directories that were not part of its base.
-- A delta MUST reconstruct the complete tree. Authoring one from an overlay zip that holds only the changed files
-  produces a delta that hides the rest of the base.
+- **What "beneath" means.** Among the `ZIP` and `DELTA` layers at one address, in stack order, a **chain** is a `ZIP`
+  and the deltas directly above it whose base includes that address (absent `BASE_TARGETS` counts), or a delta whose
+  `BASE_TARGETS` leave that address out (it was built elsewhere) and the deltas directly above it built over it. The
+  content beneath a delta at an address is that address's latest chain member, or, until a chain begins there, its
+  latest `ZIP`. A `ZIP` stacked over a chain is an ordinary layer above it, never a base. So each version history
+  (each Steam depot) is one unbroken run: a delta placed on another depot's chain is built over the wrong bytes.
+- The delta **replaces its base**: where it is mounted, the content its base was read from (each address's archive,
+  and whatever that archive was itself rebuilt from) is hidden, so a file the newer version dropped never shows
+  through. Nothing else beneath is: another archive at the same target (a Steam language depot beside the main
+  depot, each its own zip and its own chain) shows through the delta as it would through any zip. A base mounted
+  partly outside the delta keeps what lies outside it. Every base inside the delta's `TARGET` is hidden there, so a
+  base that is only a source of shared bytes (deduplication) MUST lie outside it, or the delta must also rebuild it.
+- A delta MUST reconstruct the complete tree of what it replaces. Authoring one from an overlay zip that holds only
+  the changed files produces a delta that hides the rest of its base.
 - Reading an entry costs `O(log n)` in the chain length, so a thousand versions can ship as one chain. An
   implementation MAY flatten a chain internally.
 - A delta whose nearest content beneath is not the one it was built on fails its base size check. It MUST NOT be

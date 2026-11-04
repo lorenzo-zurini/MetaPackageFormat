@@ -66,6 +66,9 @@ Errors:
 
 - a `ZIP` with a compressed entry;
 - a `DELTA` with no content beneath it at its target to rebuild from;
+- a `DELTA` whose base, as "beneath" picks it (chapter 04 §4.1), is not the size its header says it was built over:
+  an archive slipped in between (a patch zip over the archive it was built on) becomes the base, and the delta
+  cannot rebuild;
 - a **covered** `EDIT`: beneath a later layer that replaces its file (chapter 06 §6.1);
 - a `Delete` whose `TARGET` reaches what the user keeps: an owned address, anything inside a kept folder, a folder
   holding a kept address, a file a kept pattern matches (chapter 06 §6.2);
