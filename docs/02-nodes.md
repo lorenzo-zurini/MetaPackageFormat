@@ -39,8 +39,13 @@ A node's identity is the **CID of its canonical bytes** (invariant I1):
    (`bafkrei…`).
 
 This is exactly the CID an IPFS node gives the canonical bytes added as a file with Kubo's default parameters
-(256 KiB chunks, raw leaves): a node of up to 256 KiB is one raw block. An implementation MAY refuse a node larger
-than 256 KiB (VidyaGod does).
+(256 KiB chunks, raw leaves), because **a node is at most 256 KiB** (262,144 bytes of canonical form): one raw block,
+fetched and verified in one piece. A larger node has no CID of this kind, and an implementation MUST refuse it.
+
+The limit never limits what a node can say. A long list is split: move a run of its layers into a node of their own
+and put one `NODE` layer naming it where they were. A `NODE` layer expands in place (§5.1), so the composed result is
+the same layer for layer. A long run of `Delete` edits usually shrinks by itself first: one `Delete` of a folder
+removes everything in it (§6.2).
 
 The same bytes give the same CID on every machine, with no network. Changing anything that is part of the node,
 including `COMMENT`, `LABEL` or the order of layers, makes a new node. Every node that contains it then names an old

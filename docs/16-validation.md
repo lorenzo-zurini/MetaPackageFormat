@@ -12,6 +12,7 @@ lowers every launchable as a launch would, without mounting.)*
 
 Errors:
 
+- a node file whose canonical form is over 256 KiB (§2.3), named by its file, with the split that brings it under;
 - a node field other than `CID LABEL POS COMMENT VARIANT RECOMMENDED SECTION LAYERS`; a field of the wrong type;
   `LAYERS` missing or not a list; an empty `VARIANT` or `SECTION`;
 - a layer with no type key or with two; a field its type does not take;

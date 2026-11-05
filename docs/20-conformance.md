@@ -9,7 +9,7 @@ below. It is also a build order: each section runs once the ones before it do.
       by the CID of its canonical bytes (I1, chapter 02 §2.3); a working tree's stored `CID` handles are resolved by
       freezing.
 - [ ] **MUST** compute canonical bytes exactly: `CID` and `POS` dropped, keys sorted by code point, no insignificant
-      whitespace, UTF-8; CIDv1, raw codec, sha2-256, base32.
+      whitespace, UTF-8; CIDv1, raw codec, sha2-256, base32; refuse a node whose canonical bytes are over 256 KiB.
 - [ ] **MUST** refuse unknown node fields and malformed layers (chapter 16 §16.1); a node that does not freeze or
       parse affects only itself and what references it.
 - [ ] **MUST** keep one home per node: read a node's content from its home package, treat a friend's catalog copy of
