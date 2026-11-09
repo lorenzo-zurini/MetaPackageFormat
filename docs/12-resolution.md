@@ -23,8 +23,8 @@ Walking the expansion bottom to top:
   variable declaration, an entry field.
 - **`null` deletes**: a value or, for a `REG` key, the key and everything beneath it; for `ENV`, the name; for `DLL`,
   the policy; in an entry, the field.
-- **An `EDIT` applies to the value beneath it** at its position, and a `DELTA` reconstructs from the content beneath
-  it at its target (chapters 04 and 06).
+- **An `EDIT` applies to the value beneath it** at its position, and a `DELTA` reconstructs from the files it names by
+  `SOURCE`, wherever the fold places them (chapters 04 and 06).
 - **`KEEP` folds per address** like everything else (chapter 13).
 - **Entries fold per label and field**, in first-declared order (chapter 09 §9.2).
 

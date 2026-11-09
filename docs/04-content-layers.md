@@ -12,7 +12,7 @@ Content layers put **files** into the runtime. They are the bulk of any package.
 | `SOURCE` | (`ZIP` `FILE` `DELTA`) the CID of the file's bytes: how to obtain it when absent (chapter 15) |
 | `SIZE` | (`ZIP` `FILE` `DELTA`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
 | `TARGET` | the `FILES` address the content is placed under (default `FILES`, the root of the current placement) |
-| `BASE_TARGETS` | (`DELTA`) the `FILES` addresses whose content, concatenated in order, is the delta's base (default: `TARGET`) |
+| `BASE_SOURCES` | (`DELTA`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base |
 
 A file name MUST stay inside the package: no `..` segment, no absolute path. Nodes arrive from peers, and an escaping
 name would make a download write outside the package folder.
@@ -23,7 +23,7 @@ name would make a download write outside the package folder.
 |------|----------------|-----------|------------|
 | `ZIP` | a **STORE (uncompressed) zip** | its entries, under `TARGET`, served from inside the zip without extraction | yes |
 | `FILE` | one regular file | that file, at `TARGET/<its name>` | yes |
-| `DELTA` | a `.vgdelta` over the content beneath it | the reconstructed archive's entries, under `TARGET`, read on demand | yes |
+| `DELTA` | a `.vgdelta` over the layers it names | the reconstructed archive's entries, under `TARGET`, read on demand | yes |
 | `DIR` | a directory tree | its files, under `TARGET` | no: local only |
 
 ### `ZIP`
@@ -54,40 +54,46 @@ another name, contain its node and rename it with a `TAKE` pair (chapter 05).
 
 ### `DELTA`
 
-A `.vgdelta` is a random-access binary delta that reconstructs a **complete** archive from a base. **The base is the
-nearest content beneath the delta at its own `TARGET`**: the archive (or delta) of the node it was built on, which
-the delta's node contains below it. A chain of deltas therefore reads like a version history:
+A `.vgdelta` is a random-access binary delta that reconstructs a **complete** archive from a base. **A delta names its
+base:** `BASE_SOURCES` lists the `SOURCE` CIDs of the `ZIP` and `DELTA` layers it was built over, and their bytes,
+concatenated in that order, are the base. A delta's bytes are an archive, so a delta can name another delta, and a
+chain of deltas reads like a version history:
 
 ```jsonc
 { "LABEL": "wc3_1_27a", "LAYERS": [
-    { "NODE": "bafkrei…wc3_1_26a" },                                    // its base, at FILES/%GameDir%
-    { "DELTA": "delta_from__wc3_1_26a.vgdelta", "SOURCE": "Qm…", "TARGET": "FILES/%GameDir%" },
+    { "NODE": "bafkrei…wc3_1_26a" },                         // its 1.26a archive: { "DELTA": …, "SOURCE": "Qm…26a" }
+    { "DELTA": "delta_from__wc3_1_26a.vgdelta", "SOURCE": "Qm…27a", "BASE_SOURCES": ["Qm…26a"],
+      "TARGET": "FILES/%GameDir%" },
     … ] }
 ```
 
-- **Several bases.** `BASE_TARGETS`, a list of `FILES` addresses, makes the base the nearest content beneath the delta
-  at each address, **concatenated in that order** (a delta built over a game's install and its CD music folder, which
-  a later release ships in the game folder). Absent, the base is `[TARGET]`. Each address is placed with the delta's
-  node, like its `TARGET`. A validator refuses an empty list, a non-`FILES` address, one named twice, and
-  `BASE_TARGETS` on any layer but a `DELTA`.
-- **What "beneath" means.** Among the `ZIP` and `DELTA` layers at one address, in stack order, a **chain** is a `ZIP`
-  and the deltas directly above it whose base includes that address (absent `BASE_TARGETS` counts), or a delta whose
-  `BASE_TARGETS` leave that address out (it was built elsewhere) and the deltas directly above it built over it. The
-  content beneath a delta at an address is that address's latest chain member, or, until a chain begins there, its
-  latest `ZIP`. A `ZIP` stacked over a chain is an ordinary layer above it, never a base. So each version history
-  (each Steam depot) is one unbroken run: a delta placed on another depot's chain is built over the wrong bytes.
-- The delta **replaces its base**: where it is mounted, the content its base was read from (each address's archive,
-  and whatever that archive was itself rebuilt from) is hidden, so a file the newer version dropped never shows
-  through. Nothing else beneath is: another archive at the same target (a Steam language depot beside the main
-  depot, each its own zip and its own chain) shows through the delta as it would through any zip. A base mounted
-  partly outside the delta keeps what lies outside it. Every base inside the delta's `TARGET` is hidden there, so a
-  base that is only a source of shared bytes (deduplication) MUST lie outside it, or the delta must also rebuild it.
+There is no implicit base. A base is named by its content, never by where it is placed, so a delta keeps its base
+however the package around it is rearranged, and one delta can be built over any bytes the package holds: a version
+over the version before it, a macOS build over the Windows build at another address, a Wine prefix over Wine and DXVK.
+
+- **Naming.** `BASE_SOURCES` is REQUIRED on a `DELTA` and allowed on nothing else. A validator refuses it absent or
+  empty, an entry that is not a non-empty string, a CID named twice, and `BASE_SOURCES` on any other layer. A layer named as a base
+  MUST carry its `SOURCE`: a tool that makes a delta over a layer without one computes that layer's CID first.
+- **Resolving.** Each entry is the file its CID names: any `ZIP` or `DELTA` layer in the launch's fold (chapter 12)
+  whose `SOURCE` is that CID. One CID is one file, so where it is placed — beneath the delta or above it, whatever its
+  `TARGET`, seen whole or through a `TAKE` — never changes the bytes: a zip's file, or a delta's reconstructed archive.
+  A delta naming a file that is not in its launch (not contained, or gated off by `WHEN`) MUST be refused at validation
+  and MUST NOT be mounted.
+- **What it replaces.** Where the delta is mounted, it hides every placement of a file it names (and of whatever that
+  file was itself rebuilt from) that lies beneath it in the fold **inside the places the delta is mounted** (its
+  `TARGET`, or where a `TAKE` places what it shows) — so a file the newer
+  version dropped never shows through, however many times the package contains its base. Outside it, a base is only a
+  source of bytes and stays as it is: a macOS depot rebuilt over the Windows depots at `%GameDir%` leaves them there
+  untouched. Nothing the delta does not name is hidden: another archive at the same target (a Steam language depot
+  beside the main depot) shows through as it would through any zip, and a `ZIP` stacked above the delta is an ordinary
+  layer above it. A delta that cannot rebuild hides nothing.
 - A delta MUST reconstruct the complete tree of what it replaces. Authoring one from an overlay zip that holds only
   the changed files produces a delta that hides the rest of its base.
 - Reading an entry costs `O(log n)` in the chain length, so a thousand versions can ship as one chain. An
   implementation MAY flatten a chain internally.
-- A delta whose nearest content beneath is not the one it was built on fails its base size check. It MUST NOT be
-  mounted as if it had reconstructed, and the implementation MUST report it.
+- A delta whose named bases are not the bytes it was built over fails its base check: their joined size against the
+  size the delta records (an authoring tool also checks the hash it records). It MUST NOT be mounted as if it had
+  reconstructed, and the implementation MUST report it.
 
 ### `DIR`
 
