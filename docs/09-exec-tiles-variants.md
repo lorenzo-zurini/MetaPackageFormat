@@ -22,7 +22,7 @@ node is what the user can pick.
 | `GUEST` | list of strings | runner | The platforms the runner provides. Non-empty ⇒ a runner entry. |
 | `EXE` | string | both | What to run. A game's: a path in the runtime, from an anchor (`%GameDir%/game.exe`), or empty for content a runner finds itself (a classpath in `ARGS`). A runner's: its program (`%RunnerMount%/proton`), or empty / `%Content%` for a pass-through. |
 | `ARGS` | list of strings | both | One element per argv entry, verbatim: spaces are safe and nothing is re-split. An element that substitutes to `""` is dropped. |
-| `WORKDIR` | string | game | The working directory. Default: the directory of `EXE`. |
+| `WORKDIR` | string | both | The working directory. A game's: where it starts (default: the directory of its `EXE`). A runner's: where a game it runs starts when the game names none — for a program that must start in its own folder (an emulator with a portable layout: `%RunnerMount%/…`). A game's own `WORKDIR` wins. |
 | `RECOMMENDEDRUNNER` | string | game | A runner's `LABEL` this entry runs best on: a version the game needs, such as a Proton build whose GameInput works. A soft pin (chapter 11 §11.4): the default chain starts with it when it is installed and carries the launch here. Otherwise the default chain is used as if the field were absent. An instance's own choice of runner wins over it. A validator warns when no runner in the library has the label. |
 | `TILE` | object | game | What the shelf shows for this entry (§9.3). |
 | `CONTENT_ROOT`, `PREFIX_GENERATE`, `UNIFIED_RUNTIME`, `GUEST_ROOTS`, `DRIVES` | | runner | The runner's runtime layout (chapter 10). |
@@ -126,7 +126,7 @@ program = the runner's EXE (substituted)                       # /…/RUNNER/pro
 args    = the runner's ARGS (substituted, empty ones dropped)   # waitforexitandrun  C:\7804\aom.exe
         + the game entry's ARGS (substituted, empty ones dropped)
 env     = chapter 07 §7.3
-workdir = the game entry's WORKDIR, else the directory of its EXE
+workdir = the game entry's WORKDIR, else its runner's WORKDIR, else the directory of its EXE
 ```
 
 Exactly one process is started. Chains of runners nest (chapter 11).
