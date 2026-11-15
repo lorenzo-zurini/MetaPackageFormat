@@ -77,6 +77,9 @@ is the value. The first element matching each step is the one meant. `VALUE` is 
 
 - **Only the value changes.** Every other byte of the file stays as it was: its declaration, comments, quoting and
   indentation.
+- **A UTF-16 file stays UTF-16.** A file that starts with a UTF-16 byte-order mark (`FF FE` or `FE FF`, as Age of
+  Mythology's profiles do) is read in that encoding and written back in it, mark included. One that is not valid
+  UTF-16 (an odd length, an unpaired surrogate) fails the op, as does a `VALUE` that is not UTF-8 text.
 - **Missing parts are created.** A missing element is created with its predicates' attributes and placed after its
   parent's last child, indented like that child. A missing attribute is added to its element, and an absent or empty
   file becomes the path's document. A game that leaves a setting out of its file while it is at its default is set
