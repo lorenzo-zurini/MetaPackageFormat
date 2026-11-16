@@ -116,6 +116,14 @@ position as on an Xbox pad: `pad a`, `pad b`, `pad x`, `pad y`, `pad back`, `pad
 when pushed past half; one already pushed when the capture starts must return to the centre first), `pad dpad up`,
 `pad dpad down`, `pad dpad left`, `pad dpad right`, `pad misc`, `pad paddle 1` … `pad paddle 4`, `pad touchpad`.
 
+**Combinations.** A key or mouse button pressed while modifiers are held is one name: the modifiers, side-less, in the
+order `ctrl`, `alt`, `shift`, `meta`, each at most once, then the key, joined by `+`: `shift+1`, `ctrl+a`,
+`ctrl+shift+f`, `alt+mouse wheel up`. No key name contains a `+`. A pad's buttons take no modifiers, and neither does
+a modifier's own key: a modifier pressed and released alone is bound by its side (`left shift`). The launch window waits
+on a modifier's press, binds the combination when a key or button follows, and binds the modifier alone when it is
+released first. A game spells combinations its own way through a table like any other name (`shift+1` → `shift-1`):
+a table matches whole values, so it lists each combination the game takes.
+
 A key option's `DEFAULT` is its binding until the user rebinds it; the launch window names the default beside a binding
 that differs from it and offers to put it back. A primary and a secondary binding are two `key` options (`jump`,
 `jump_alt`). The launch window marks two options of one `SECTION` bound to the same key.

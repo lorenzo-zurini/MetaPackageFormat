@@ -78,17 +78,27 @@ untouched. A bool option is written with the `bool` format: `"%fullscreen:bool%"
 { "MODE": "XmlSet", "KEY": "/Attributes/Attr[@name='g_language']/@value", "VALUE": "%language%" }
 ```
 
-`KEY` is a path of elements from the root, each matched by its name and, optionally, attribute predicates
-(`[@name='value']`, several allowed, either quote). It ends in an attribute (`/@value`), or names an element whose text
-is the value. The first element matching each step is the one meant. `VALUE` is written as text (escaped as XML needs).
+`KEY` is a path of elements from the root, each matched by its name and, optionally, predicates, several allowed,
+either quote: `[@name='value']` on an attribute's value, `[child='text']` on a child element's text (any child of that
+name holding exactly that text). It ends in an attribute (`/@value`), or names an element whose text is the value; an
+element matched by a child predicate holds elements, so the path goes on past it. The first element matching each step
+is the one meant. `VALUE` is written as text (escaped as XML needs).
+
+```json
+{ "MODE": "XmlSet", "KEY": "/playerprofile/keymapdata[name='Select Group 1'][actiontype='0']/event", "VALUE": "%group1:map:aom_keys%" }
+```
+
+Age of Mythology's profile stores each rebind as a `<keymapdata>` told apart only by its children, so its `<name>` and
+`<actiontype>` pick the one meant.
 
 - **Only the value changes.** Every other byte of the file stays as it was: its declaration, comments, quoting and
   indentation.
 - **A UTF-16 file stays UTF-16.** A file that starts with a UTF-16 byte-order mark (`FF FE` or `FE FF`, as Age of
   Mythology's profiles do) is read in that encoding and written back in it, mark included. One that is not valid
   UTF-16 (an odd length, an unpaired surrogate) fails the op, as does a `VALUE` that is not UTF-8 text.
-- **Missing parts are created.** A missing element is created with its predicates' attributes and placed after its
-  parent's last child, indented like that child. A missing attribute is added to its element, and an absent or empty
+- **Missing parts are created.** A missing element is created with its predicates' attributes and, in predicate
+  order, its predicates' children, and placed after its parent's last child, indented like that child (on that child's
+  line when the child shares its parent's line). A missing attribute is added to its element, and an absent or empty
   file becomes the path's document. A game that leaves a setting out of its file while it is at its default is set
   this way.
 - **`!` steps into XML stored inside an attribute (or text).** That value is a document of its own, and the path after
