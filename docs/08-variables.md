@@ -267,9 +267,10 @@ An option reads back when all of these hold:
 
 - **It has a `UI`.** A hidden variable is not a setting, so it stays one-way, and so do a `secret`, an `EVAL` and a
   table.
-- **It is written by a keyed edit** (`ConfigWrite`, `JsonSet` or `XmlSet`, chapter 06) into a place the user keeps,
+- **It is written by a keyed edit** (`ConfigWrite`, `JsonSet`, `XmlSet` or `LineFlag`, chapter 06) into a place the user keeps,
   and the edit's `VALUE` is the option's token once, with only literal text around it:
-  `"Resolution=": "%res%"`, `"key_%jump:map:keys%"`.
+  `"Resolution=": "%res%"`, `"key_%jump:map:keys%"`. Or it is written by a `LineFlag` whose `VALUE` is the option's
+  token alone, with no format: the line there reads `1`, the line gone reads `0`.
 - **Its format can be undone.** No format, `bool` (`true` back to `1`, `false` back to `0`), `winpath`, or
   `map:TABLE` whose entries are distinct literal strings and whose table has no `WHEN`. A value missing from such a
   table passes through only when the table has no `ELSE`.

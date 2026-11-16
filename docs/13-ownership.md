@@ -66,7 +66,7 @@ whatever a game or its runner changed under an owned address is kept. Scope `KEE
 
 ## 13.4 Options in owned files
 
-An option chosen in the launch window that writes into a user-owned file (a `ConfigWrite`, `JsonSet` or `XmlSet` whose `VALUE`
+An option chosen in the launch window that writes into a user-owned file (a `ConfigWrite`, `JsonSet`, `XmlSet` or `LineFlag` whose `VALUE`
 or `WHEN` names the option) would apply on the first launch only, because afterwards the user's copy wins. Its key
 must be taken back:
 

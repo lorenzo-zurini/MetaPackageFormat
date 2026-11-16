@@ -127,6 +127,23 @@ Appends `VALUE` as a line unless a line equal to it already exists. Creates the 
 first if the file did not end in one. This is the load-order primitive: each mod appends its own line, so the file
 lists exactly the ticked mods, in graft order.
 
+### `LineFlag`: a line whose presence is the setting
+
+```json
+{ "MODE": "LineFlag", "KEY": "+EasyDragMilitary", "VALUE": "%aom_easydrag%", "IF_EXISTS": true }
+```
+
+Some settings files hold a switch as a bare line: Age of Mythology: The Titans turns on easy military drag-select
+with a `+EasyDragMilitary` line in `persistent.cfg`, and removes the line when it is turned off. `KEY` is that line
+(one line, not blank). With `VALUE` `1`, the line is made present: if no line equals `KEY`, it is appended, after a
+newline if the file did not end in one, and the file is created if absent. With `VALUE` `0`, every line equal to
+`KEY` is removed and every other line is kept byte for byte; a missing file already holds no such line, so nothing is
+created. Any other `VALUE` is a failure (§6.4), and a validator refuses a literal one. Lines are equal when they are
+equal after trimming surrounding whitespace; case is kept, and a longer line that starts with `KEY` is a different
+line. Unlike the other text ops, the appended line takes the file's own line ending: CRLF in a file that has CRLF
+lines, LF otherwise. A `LineFlag` writes the keyed address `FILES/<file>#<KEY>`, so `KEEP` can take that one line
+back, and a `LineFlag` whose `VALUE` is an option's token alone reads back by the line's presence (chapter 08 §8.8).
+
 ### `Delete`: remove a file or a folder
 
 ```json
@@ -215,7 +232,8 @@ cannot apply MUST be reported, never dropped silently.
 
 - A binary op whose `EXPECT` does not match (and whose result is not already present) is an error naming the file,
   the offset and the bytes found; the file stays unpatched.
-- A text op that fails (a `ConfigWrite` on a missing file, a `JsonSet` on a non-JSON file) is an error naming its
+- A text op that fails (a `ConfigWrite` on a missing file, a `JsonSet` on a non-JSON file, a `LineFlag` whose `VALUE`
+  is neither `1` nor `0`) is an error naming its
   mode, key and file. An `IF_EXISTS` op skipped for a missing file has not failed.
 - An implementation MUST NOT report a launch with failed edits as clean. It MAY still start the game (VidyaGod does,
   with the errors in the launch log and its verdict), since a failed setting is usually not a reason to refuse play.
