@@ -24,6 +24,12 @@ either a text file or a binary. Every string field is `%TOKEN%`-substituted befo
 MAY carry `COMMENT`, and MAY carry its own `WHEN`, which is evaluated against the fully resolved variables (unlike a
 layer's `WHEN`, chapter 08 §8.6).
 
+A text op other than `Delete` MAY carry `"IF_EXISTS": true`: while its file does not exist, the op is skipped. It
+neither creates the file nor fails. This is for a file the game writes itself on its first run, such as a profile:
+created earlier by an edit, it would hold only the edited value, and the game would read that stub as its own. Once
+the game has written the file, the op applies like any other. A skipped op is not a failure (§6.4) and leaves no
+error. On a binary op, `true` is refused: the package provides the file it patches.
+
 ## 6.1 Where an edit applies
 
 **An edit applies to the value beneath it**: the file as composed by every content layer below it in the fold, after
@@ -50,7 +56,8 @@ Text ops read CRLF and LF alike and write LF. `Delete` is listed with them: it c
 ```
 
 Every line that **starts with** `KEY` becomes `KEY + VALUE`; other lines are kept. If no line matches, the file is
-unchanged (the key is not appended; use `AppendLine`). The op fails if the file does not exist. It writes the keyed
+unchanged (the key is not appended; use `AppendLine`). The op fails if the file does not exist (with `IF_EXISTS`, it
+is skipped). It writes the keyed
 address `FILES/<file>#<KEY>`.
 
 ### `JsonSet`: set one value in a JSON file
@@ -199,7 +206,7 @@ cannot apply MUST be reported, never dropped silently.
 - A binary op whose `EXPECT` does not match (and whose result is not already present) is an error naming the file,
   the offset and the bytes found; the file stays unpatched.
 - A text op that fails (a `ConfigWrite` on a missing file, a `JsonSet` on a non-JSON file) is an error naming its
-  mode, key and file.
+  mode, key and file. An `IF_EXISTS` op skipped for a missing file has not failed.
 - An implementation MUST NOT report a launch with failed edits as clean. It MAY still start the game (VidyaGod does,
   with the errors in the launch log and its verdict), since a failed setting is usually not a reason to refuse play.
 - An edit whose file resolves outside the runtime is refused.
