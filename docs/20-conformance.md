@@ -88,8 +88,8 @@ below. It is also a build order: each section runs once the ones before it do.
 
 - [ ] **MUST** fetch content by CID only when missing and verify fetched bytes.
 - [ ] **MUST** follow `NODE`, `SOURCE` and `TILE.COVER.SOURCE` when hydrating, never `ANY` or `NOT`.
-- [ ] **SHOULD** publish one share folder (node files) and one pin folder (plus content) per package, reproducibly,
-      with the packages each one needs, and share them closed over what they need.
+- [ ] **SHOULD** publish a share sheet (each node's CID → `<library>/<package>/<file>`, files named by their labels)
+      and one pin folder per package, reproducibly, and share entries closed over what their nodes contain.
 - [ ] **MUST NOT** fetch a node into a package other than its home.
 - [ ] **MUST** change an installed package only when the user chooses a friend's version, keep every node something
       installed still contains, and give colliding content files their bumped names (chapter 15 §15.6).

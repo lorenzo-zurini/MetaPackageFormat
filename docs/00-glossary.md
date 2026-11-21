@@ -75,8 +75,11 @@ the mount; runners inside it are nested in its guest (chapter 11 §11.5).
 **Runtime** — the overlay mount assembled for one launch at `%RuntimePath%`, plus the session's scratch space. It is
 rebuilt every launch and removed after (chapter 14).
 
-**Package** — a folder of node files and the content files they name, published together as one folder CID
-(chapter 15). For a game, the game's folder.
+**Package** — a folder of node files and the content files they name, published together (chapter 15). For a game,
+the game's folder.
+
+**Share sheet** — what publishing records and a friend receives: every shared node's CID → `<library>/<package>/<file>`
+(chapter 15 §15.4). A package is its entries; what it uses from other packages is read from its nodes.
 
 **Home** — the one package a node lives in (chapter 02 §2.7). Other packages contain it by CID; a copy is an error.
 

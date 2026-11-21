@@ -67,9 +67,24 @@ referenced (I9).
 
 ## 2.5 Files on disk
 
-**One node per file.** A package folder holds node files, each named `<cid>.json` and containing the node, beside
-the content files those nodes name (chapter 15 §15.1). An implementation reads every `.json` file in a package
-folder that is a node object (it has a `LAYERS` array) and keys it by its CID.
+**One node per file.** A package folder holds node files, each containing one node, beside the content files those
+nodes name (chapter 15 §15.1). An implementation reads every `.json` file in a package folder that is a node object (it
+has a `LAYERS` array) and keys it by its CID: the CID of its canonical bytes (§2.3), never its file name.
+
+**A node file is named by its label.** The name is presentation, so that a person reading a package folder, or a share
+sheet (chapter 15 §15.4), sees what each node is. It depends only on the package's nodes, so every machine gives a
+node the same name:
+
+1. The node's `LABEL`, made one safe file name (the same rule every received folder name goes through): each byte
+   but ASCII letters, digits, space and `_ - . [ ] ( )` becomes `_`; at most 120 bytes; a name of only dots becomes as
+   many `_`; a trailing `.` or space becomes `_`; a Windows device name (`CON`, `NUL`, `COM1`…, with any extension)
+   gets a leading `_`. A node with no `LABEL`, or an empty one, is named `node`.
+2. `.json` is added.
+3. When two or more of the package's nodes claim one name, or a node claims the name of one of the package's content
+   files, **each** of them is named `<name> [<last 8 characters of its CID>].json` instead (chapter 15 §15.6.1).
+   Names are compared without case.
+
+Publishing names every published node's file by this rule (chapter 15 §15.4).
 
 The **working tree** is what an author edits. A hand-written tree MAY give each node a stored `CID` field, a handle
 that other nodes' `NODE`, `ANY` and `NOT` layers use before any real CID exists. **Freezing** resolves the handles:
@@ -77,8 +92,8 @@ nodes are frozen in dependency order (contained before containing), each handle 
 CID its target froze to, and the frozen node's own CID follows from its bytes. A reference to a handle that did not
 freeze is an error for that node only; the rest of the library freezes.
 
-A node whose file carries no `CID` field is keyed by the CID in its file name, or, failing that, by a synthetic key
-that nothing can reference. Two files with the same handle and different content mean a stale or forged handle: the
+A node whose file carries no `CID` field is keyed by the CID of its bytes; while it is being frozen, it is a node nothing
+in the working tree references by handle. Two files with the same handle and different content mean a stale or forged handle: the
 first one read keeps the handle, and the other is still indexed under its own CID, never dropped.
 
 *(VidyaGod: `NodeGraph::GatherWorkingTree` and `FreezeToIndex` in `nodegraph*.cpp`.)*

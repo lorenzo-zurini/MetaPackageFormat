@@ -9,15 +9,15 @@ apart and links them by CID: the descriptions are shared freely, the bytes are f
 <data root>/LIBRARY/
 ├── VidyaGod/                                   a library: a named collection of packages
 │   ├── [8333][v1.0] Cave Story/                 a package folder
-│   │   ├── bafkreihh2d2rpsgouxvmjfoni3az….json  node files, each named by its CID
-│   │   ├── bafkreifjjxmj2pay24ffvgdejkpg….json
+│   │   ├── Cave Story 1.0.0.6.json              node files, each named by its label (chapter 02 §2.5)
+│   │   ├── doukutsu-rs 1.0.0.json
 │   │   ├── Doukutsu Monogatari 1.0.0.6.zip      content files the nodes name
 │   │   └── doukutsu-rs 1.0.0 - Linux x64.zip
 │   └── …
 ├── VidyaGodRunners/                            runners are packages like any other
 └── VidyaGodLibraries/                          shared libraries (DirectX redistributables, dgVoodoo, …)
 <data root>/CATALOG/
-└── <friend> - <library>/<package>/.package/    what friends shared, not yet downloaded
+└── <friend> - <library>/<package>/            what friends shared, not yet downloaded: node files only
 ```
 
 A **package** is one folder (for a game, the game's folder): node files and the content files they name. Its folder
@@ -67,12 +67,23 @@ To share packages, an implementation **publishes** them:
    CID and size in the node (`SOURCE`, `SIZE`). Recording a `SOURCE` changes the node's bytes, so the node, and every
    node that references it, is re-minted (chapter 02 §2.6).
 2. **Freeze** every node into its canonical bytes (chapter 02 §2.3) and store them.
-3. **Make the package folders.** Per package, a **share folder**: a UnixFS directory of the package's node files,
-   each named `<cid>.json`, text only. Its CID is the package's address; its listing is the package's node list. And
-   a **pin folder**: the same plus the package's content files (by CID, nothing copied), what a pinning service pins,
-   so a pin holds exactly that package's bytes. Libraries a package uses are pinned by their own packages, once.
-4. **Announce** and record the share sheet: per library, the list of `{package name, share folder CID, needs}`,
-   where `needs` names the other packages this package's nodes contain.
+3. **Name the node files** by the rule of chapter 02 §2.5.
+4. **Record the share sheet**: every published node's CID and where it lives,
+   `<library>/<package>/<file>`:
+
+   ```json
+   { "bafkreidjdddotl4tkepmmh2ipd4e36bdkotwkomzb3hsr5b45dy455slyi": "VidyaGodLibraries/xinput/xinput_content.json",
+     "bafkreics4hd3k4unjsyv2ajblg5zqk75qdkmuysxrsb4jr4ukzs6zzcgwu": "VidyaGod/[6518][v1.0] Angry Birds Seasons/Angry Birds Seasons 4.1.0.json" }
+   ```
+
+   A package is the entries under its `<library>/<package>/`, and nothing else: a package has no CID and no record of
+   its own. A CID is one key, so a node has one path: the sheet cannot hold a copy. What a package uses from
+   another one is read from its nodes (their `NODE` layers name CIDs) and found in the sheet, never recorded again.
+5. **Make a pin folder** per package, for a pinning service: a UnixFS folder of the package's node files under their
+   names (`package/`) and its content files (`content/`, by CID, nothing copied), so one pin holds exactly that
+   package's bytes. A library a package uses is pinned by its own package, once. The pin folder is the publisher's:
+   it is never shared, and a receiver never reads one.
+6. **Announce** every node and pin folder.
 
 Publishing is reproducible: the same nodes and files give the same CIDs on any machine, so two people who publish the
 same package are indistinguishable seeders. Anything that changes node bytes for a cosmetic reason (an editor writing
@@ -85,24 +96,31 @@ not hold (a receiver relying on a pinning service could never fetch it).
 
 ## 15.5 Receiving
 
-What a friend receives is **closed over `needs`**: the packages of the libraries shared with them, plus every package
-those need, transitively, under its own library name. A friend given a game also gets the libraries it contains, each
-as its own package, once. A friend's catalog copy of a package you have installed is a view of that package, never a
-second home.
+What a friend receives is the share sheet's entries of the libraries shared with them, **closed over containment**:
+every node one of those entries contains (`NODE` layers, transitively) comes along with its whole package, under its
+own library name. A friend given a game also gets the libraries it contains, each as its own package, once. The
+closure is worked out by the sender each time it sends, from the nodes themselves. A friend's catalog copy of a
+package you have installed is a view of that package, never a second home.
+
+The sheet a friend sends is the receiver's **allow-list**: a block is stored only when its CID is an entry, and only at
+that entry's path, once its bytes hash to that CID.
 
 The receiver:
 
-1. lands each package's share folder as `CATALOG/<friend> - <library>/<package>/.package/`: node files only, fetched
-   one by one under their CID names, so a partial transfer resumes;
-2. completes each package against its folder's listing, and completes cross-package references the same way;
-3. builds the catalog shelf from those nodes (variants × tiled entries, merged by `UID`, chapter 09) and the graft
+1. lands each entry as `CATALOG/<friend> - <library>/<package>/<file>`, every segment made a safe name (chapter 02
+   §2.5); fetched one file at a time, so a partial transfer resumes. Names that clash are compared without case, and
+   **every** claimant is told apart, so no name depends on the order entries arrive in: packages whose names make one
+   folder name each land in `<folder> (<the last 8 hex digits of the 64-bit FNV-1a hash of its name>)`; entries of one
+   package whose names make one file name are each `<stem> [<last 8 characters of its CID>].json`. A receiver bounds
+   how many entries it takes, and takes a package whole or not at all;
+2. builds the catalog shelf from those nodes (variants × tiled entries, merged by `UID`, chapter 09) and the graft
    index; a received stub is browsable and never offered as a graft (its content is not here);
-4. prunes a node file its folder does not list (an older generation's, or a copy an older build fetched in).
+3. prunes a node file of a received package that the package's entries do not name (an older generation's).
 
-A changed package is a changed folder CID; an unchanged one is not landed again. There is no library-level CID.
-Nothing is ever fetched into a package to fill a gap: a node a package contains arrives with its own package. A
-package that needs one that has not arrived (or is not shared) cannot be downloaded yet, and the implementation says
-which.
+A changed package is changed entries; an unchanged one is not landed again. There is no library-level CID. Nothing is
+ever fetched into a package to fill a gap: a node a package contains arrives with its own package. A package that
+contains a node that has not arrived (or is not shared) cannot be downloaded yet, and the implementation names the node
+by its path in the sheet when one is known.
 
 **Downloading** a row **adopts** the packages its closures reach: each moves from `CATALOG` into `LIBRARY` under the
 same library and folder names, before any content is fetched, and is from then on an ordinary local package (its
@@ -118,16 +136,17 @@ A friend may share another version of a package you have installed: they re-mint
 for a recompiled game). There is **no ordering** between versions: two people who build the same package have equally
 good histories, so nothing is "newer". An installed package changes only when **you** choose a friend's version.
 
-- **Offered.** A friend's share folder for a package installed here (same library and package name) is compared with
-  the folder the installed node files make; the same files make the same folder CID, so this is computed locally. If
-  they differ, the package is shown as "<friend> has a different version". A version whose every node is already
-  installed (switched to before, with nodes beyond it kept for other games) is not offered again until one of those
-  kept nodes is contained by nothing.
-- **Staged.** The chosen folder is fetched beside the library, never inside `LIBRARY` or `CATALOG`, one stage per
-  friend and version. A package holding never-saved (draft) node files is refused.
+- **Offered.** A friend's entries for a package installed here (same library, and the folder that package would land
+  in, §15.5) are compared with the installed package's nodes, CID for CID. If they differ, the package is shown as "<friend> has a different
+  version". A version whose every node is already installed (switched to before, with nodes beyond it kept for other
+  games) is not offered again until one of those kept nodes is contained by nothing.
+- **Staged.** The version's nodes are fetched beside the library, never inside `LIBRARY` or `CATALOG`, one stage per
+  friend and version. A package holding never-saved (draft) node files, whose bytes are not their canonical form, is
+  refused.
 - **Switched.** Every node the version lists comes in. An installed node it does not list goes **only when nothing
   installed still contains it**: other packages, and the new version itself. A library another game still uses stays
-  at the version that game contains, beside the new one. Containment counts; `ANY` and `NOT` do not.
+  at the version that game contains, beside the new one. Containment counts; `ANY` and `NOT` do not. The node files
+  are then named by the rule (chapter 02 §2.5) over the package's new set of nodes.
 - **Content follows the node set.** A file only removed nodes named is deleted. Bytes already here under another
   name are moved rather than fetched again. When two CIDs claim one file name in a package, each lives at its
   **bumped name** (§15.6.1). The confirmation lists the files to be deleted and their size.
@@ -151,7 +170,7 @@ versions of a library kept side by side), **each** lives at `<stem> [<last 8 cha
 (`DxWnd [1a2b3c4d].zip`), so no version reads another's bytes. Names are compared **without case**: `dx.zip` and
 `DX.zip` are one file on a case-insensitive file system, so two CIDs claiming them are bumped apart on every
 platform. The rule depends only on the package's node files, so it is the same on every machine and before and after
-a download. Looking up a content file (a layer's, or a tile's cover) applies it.
+a download. Node files are named the same way (chapter 02 §2.5). Looking up a content file (a layer's, or a tile's cover) applies it.
 
 ## 15.7 The content backend
 
