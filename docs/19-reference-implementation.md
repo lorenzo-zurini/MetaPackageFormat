@@ -32,7 +32,7 @@ are illustrative, not normative, and names drift.
 - **The overlay is its own project**: `vidyagodfs` (a submodule) mounts the JSON layer spec: union, zip by offset,
   deltas, part-of-a-source mounts, passthroughs, with a watchdog that unmounts if the launcher dies.
 - **The content backend is its own project**: `VidyaGodIPFS` (a submodule, Go/Boxo), an in-process IPFS node behind a
-  small C ABI: storage, fetch, seeding, friends.
+  small C ABI: storage, fetch, seeding, peers.
 - **Testing.** Unit tests on synthetic graphs; `tools/launch_matrix.py` (a fixture covering every launch feature, with
   plan goldens from `--resolve-only` and a real `--node` run whose probe reports what it saw); `tools/mutate.sh`
   (every test must fail when the code it guards is broken). Comparing `--resolve-only` dumps for the same packages is

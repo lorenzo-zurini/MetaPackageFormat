@@ -78,14 +78,14 @@ rebuilt every launch and removed after (chapter 14).
 **Package** — a folder of node files and the content files they name, published together (chapter 15). For a game,
 the game's folder.
 
-**Share sheet** — what publishing records and a friend receives: every shared node's CID → `<library>/<package>/<file>`
+**Share sheet** — what publishing records and a peer receives: every shared node's CID → `<library>/<package>/<file>`
 (chapter 15 §15.4). A package is its entries; what it uses from other packages is read from its nodes.
 
 **Home** — the one package a node lives in (chapter 02 §2.7). Other packages contain it by CID; a copy is an error.
 
 **Library** — the local set of packages: a root holding named collections of package folders.
 
-**Catalog** — what friends have shared: their package folders' node files, browsable before anything is downloaded.
+**Catalog** — what peers have shared: their package folders' node files, browsable before anything is downloaded.
 
 **Hydrate** — fetch the content a resolution needs. **Publish** — freeze nodes, add their content and announce the
 package folder.

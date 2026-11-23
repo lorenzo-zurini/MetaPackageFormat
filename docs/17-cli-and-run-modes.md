@@ -95,7 +95,7 @@ help; it starts the GUI.
 | `--hydrate <cid>` | fetch a node's content |
 | `--import-package`, `--import-runner` | download a game, install a runner |
 | `--publish`, `--seed <dir>`, `--mint <dir>` | publish the library, re-seed content, freeze a working tree (chapter 15) |
-| `--friend-code`, `--friend-add`, `--friend-ls` | the friend list sharing goes through |
+| `--peer-code`, `--peer-add`, `--peer-ls` | the peer list sharing goes through |
 
 `--resolve-only` is the most useful for conformance testing: it exercises resolution, the chain and variables, and
 its output can be compared with a golden. But a green sweep proves only what its path touches: a resolve says nothing

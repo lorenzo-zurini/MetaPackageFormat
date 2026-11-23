@@ -12,7 +12,7 @@ below. It is also a build order: each section runs once the ones before it do.
       whitespace, UTF-8; CIDv1, raw codec, sha2-256, base32; refuse a node whose canonical bytes are over 256 KiB.
 - [ ] **MUST** refuse unknown node fields and malformed layers (chapter 16 §16.1); a node that does not freeze or
       parse affects only itself and what references it.
-- [ ] **MUST** keep one home per node: read a node's content from its home package, treat a friend's catalog copy of
+- [ ] **MUST** keep one home per node: read a node's content from its home package, treat a peer's catalog copy of
       an installed package as a view of it, and report a node found in two installed packages as an error.
 
 ## 20.2 Resolution
@@ -91,7 +91,7 @@ below. It is also a build order: each section runs once the ones before it do.
 - [ ] **SHOULD** publish a share sheet (each node's CID → `<library>/<package>/<file>`, files named by their labels)
       and one pin folder per package, reproducibly, and share entries closed over what their nodes contain.
 - [ ] **MUST NOT** fetch a node into a package other than its home.
-- [ ] **MUST** change an installed package only when the user chooses a friend's version, keep every node something
+- [ ] **MUST** change an installed package only when the user chooses a peer's version, keep every node something
       installed still contains, and give colliding content files their bumped names (chapter 15 §15.6).
 - [ ] **MUST** treat received node files and paths as untrusted: sanitise, bound, keep file names inside the package.
 

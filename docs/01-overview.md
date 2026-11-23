@@ -68,7 +68,7 @@ names its runner: the runner chain is found by capability.
   (`PARENTUID` = the base game). Both tiles share one family, one install folder and one set of owned state.
 - **Multi-edition games.** Several variants contain one pristine and differ by a delta or an option.
 - **Cross-platform execution.** A console ROM, a Windows emulator and Proton compose by capability.
-- **Peer-to-peer distribution.** Every node and every content file is addressed by CID; a friend can serve them.
+- **Peer-to-peer distribution.** Every node and every content file is addressed by CID; a peer can serve them.
 - **Portable saves.** What the user owns is captured into the instance by name, independent of the runner layout.
 - **Reproducible runtimes.** A launch is a pure function of the nodes, the instance and the runner chain.
 

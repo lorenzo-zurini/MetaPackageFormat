@@ -17,7 +17,7 @@ apart and links them by CID: the descriptions are shared freely, the bytes are f
 ├── VidyaGodRunners/                            runners are packages like any other
 └── VidyaGodLibraries/                          shared libraries (DirectX redistributables, dgVoodoo, …)
 <data root>/CATALOG/
-└── <friend> - <library>/<package>/            what friends shared, not yet downloaded: node files only
+└── <peer> - <library>/<package>/            what peers shared, not yet downloaded: node files only
 ```
 
 A **package** is one folder (for a game, the game's folder): node files and the content files they name. Its folder
@@ -96,18 +96,18 @@ not hold (a receiver relying on a pinning service could never fetch it).
 
 ## 15.5 Receiving
 
-What a friend receives is the share sheet's entries of the libraries shared with them, **closed over containment**:
+What a peer receives is the share sheet's entries of the libraries shared with them, **closed over containment**:
 every node one of those entries contains (`NODE` layers, transitively) comes along with its whole package, under its
-own library name. A friend given a game also gets the libraries it contains, each as its own package, once. The
-closure is worked out by the sender each time it sends, from the nodes themselves. A friend's catalog copy of a
+own library name. A peer given a game also gets the libraries it contains, each as its own package, once. The
+closure is worked out by the sender each time it sends, from the nodes themselves. A peer's catalog copy of a
 package you have installed is a view of that package, never a second home.
 
-The sheet a friend sends is the receiver's **allow-list**: a block is stored only when its CID is an entry, and only at
+The sheet a peer sends is the receiver's **allow-list**: a block is stored only when its CID is an entry, and only at
 that entry's path, once its bytes hash to that CID.
 
 The receiver:
 
-1. lands each entry as `CATALOG/<friend> - <library>/<package>/<file>`, every segment made a safe name (chapter 02
+1. lands each entry as `CATALOG/<peer> - <library>/<package>/<file>`, every segment made a safe name (chapter 02
    §2.5); fetched one file at a time, so a partial transfer resumes. Names that clash are compared without case, and
    **every** claimant is told apart, so no name depends on the order entries arrive in: packages whose names make one
    folder name each land in `<folder> (<the last 8 hex digits of the 64-bit FNV-1a hash of its name>)`; entries of one
@@ -132,16 +132,16 @@ nodes beside their home.
 
 ## 15.6 Other versions of an installed package
 
-A friend may share another version of a package you have installed: they re-minted it (a library, a new engine build
+A peer may share another version of a package you have installed: they re-minted it (a library, a new engine build
 for a recompiled game). There is **no ordering** between versions: two people who build the same package have equally
-good histories, so nothing is "newer". An installed package changes only when **you** choose a friend's version.
+good histories, so nothing is "newer". An installed package changes only when **you** choose a peer's version.
 
-- **Offered.** A friend's entries for a package installed here (same library, and the folder that package would land
-  in, §15.5) are compared with the installed package's nodes, CID for CID. If they differ, the package is shown as "<friend> has a different
+- **Offered.** A peer's entries for a package installed here (same library, and the folder that package would land
+  in, §15.5) are compared with the installed package's nodes, CID for CID. If they differ, the package is shown as "<peer> has a different
   version". A version whose every node is already installed (switched to before, with nodes beyond it kept for other
   games) is not offered again until one of those kept nodes is contained by nothing.
 - **Staged.** The version's nodes are fetched beside the library, never inside `LIBRARY` or `CATALOG`, one stage per
-  friend and version. A package holding never-saved (draft) node files, whose bytes are not their canonical form, is
+  peer and version. A package holding never-saved (draft) node files, whose bytes are not their canonical form, is
   refused.
 - **Switched.** Every node the version lists comes in. An installed node it does not list goes **only when nothing
   installed still contains it**: other packages, and the new version itself. A library another game still uses stays
@@ -159,7 +159,7 @@ good histories, so nothing is "newer". An installed package changes only when **
 - **Unaffected:** saves and kept files (owned by the family, chapter 13). Choices saved by node CID fall back to
   defaults when the version they named is gone. Content the version names is fetched when next needed.
 
-A friend's game that contains nodes of a version you have not switched to waits, naming the node it needs. An
+A peer's game that contains nodes of a version you have not switched to waits, naming the node it needs. An
 implementation MUST NOT copy or merge nodes into a package that is not their home to work around it.
 
 ### 15.6.1 Bumped names
@@ -175,14 +175,14 @@ a download. Node files are named the same way (chapter 02 §2.5). Looking up a c
 ## 15.7 The content backend
 
 The current backend is **IPFS**: CIDs are both the address and the hash, and any peer holding a CID can serve it, so
-a popular package is served by everyone who has it. Friends are preferred providers. Fetches, provider searches and
+a popular package is served by everyone who has it. Peers are preferred providers. Fetches, provider searches and
 announcements share one bounded network queue, so a large download cannot flood a home router. Nothing in the format
 excludes other backends; an implementation MUST support the backends the packages it consumes use.
 
 ## 15.8 Integrity and trust (non-normative)
 
 A CID is a hash, so fetched bytes are self-verifying: content that does not hash to its CID is rejected. A CID does
-not say whether the publisher is trustworthy. Byte integrity is the format's; trust in a friend's packages is the
-user's choice of friends, and the sandbox (chapter 14 §14.5) limits what a package can reach.
+not say whether the publisher is trustworthy. Byte integrity is the format's; trust in a peer's packages is the
+user's choice of peers, and the sandbox (chapter 14 §14.5) limits what a package can reach.
 
 Next: [Validation](16-validation.md).

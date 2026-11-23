@@ -102,7 +102,7 @@ first one read keeps the handle, and the other is still indexed under its own CI
 
 Editing a node changes its CID. An editor that saves a node MUST re-mint every node in the library that references
 it (by `NODE`, `ANY` or `NOT`), in dependency order, so that no reference is left pointing at the old bytes, and
-SHOULD verify afterwards that every reference resolves. A reference held by someone else's package (a friend's graft
+SHOULD verify afterwards that every reference resolves. A reference held by someone else's package (a peer's graft
 whose `ANY` names your node) cannot be re-minted by you: it goes stale, and the graft is simply no longer offered on the new version.
 This is why a graft's `ANY` should name the lowest node it needs, usually a pristine that never changes.
 
@@ -114,7 +114,7 @@ copies it. Something several packages use (a library, a shared engine) is theref
 found in two package folders is a validator error: delete the copy, keep the home.
 
 One home is what makes every "where" question a fact rather than a guess: where a node's files are read from, whether
-it is installed, which package an engine belongs to, what a package's pin holds. A friend's catalog copy of a package
+it is installed, which package an engine belongs to, what a package's pin holds. A peer's catalog copy of a package
 you have installed is a view of that package, not a second home (chapter 15 §15.5).
 
 Next: [Layers & addresses](03-layers-and-addresses.md).
