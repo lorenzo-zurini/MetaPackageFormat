@@ -68,7 +68,7 @@ Warnings:
 Errors:
 
 - a `ZIP` with a compressed entry;
-- a `DELTA` without `BASE_SOURCES`, or naming a file that is not in its launch (no `ZIP` or `DELTA` there carries that
+- a `DELTA` without `BASE_SOURCES`, or naming a file that is not in its launch (no `ZIP`, `FILE` or `DELTA` there carries that
   `SOURCE`; chapter 04 §4.1);
 - a `DELTA` whose named bases, concatenated, are not the size its header says it was built over;
 - a **covered** `EDIT`: beneath a later layer that replaces its file (chapter 06 §6.1);

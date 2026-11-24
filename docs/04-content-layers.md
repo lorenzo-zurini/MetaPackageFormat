@@ -55,9 +55,9 @@ another name, contain its node and rename it with a `TAKE` pair (chapter 05).
 ### `DELTA`
 
 A `.vgdelta` is a random-access binary delta that reconstructs a **complete** archive from a base. **A delta names its
-base:** `BASE_SOURCES` lists the `SOURCE` CIDs of the `ZIP` and `DELTA` layers it was built over, and their bytes,
-concatenated in that order, are the base. A delta's bytes are an archive, so a delta can name another delta, and a
-chain of deltas reads like a version history:
+base:** `BASE_SOURCES` lists the `SOURCE` CIDs of the `ZIP`, `FILE` and `DELTA` layers it was built over, and their
+bytes, concatenated in that order, are the base. A delta's bytes are an archive, so a delta can name another delta, and
+a chain of deltas reads like a version history:
 
 ```jsonc
 { "LABEL": "wc3_1_27a", "LAYERS": [
@@ -67,6 +67,18 @@ chain of deltas reads like a version history:
     … ] }
 ```
 
+A `FILE`'s bytes are the file as it is: a disc image is stored as it was dumped, and the files extracted from it are a
+delta over it, with no archive around the image:
+
+```jsonc
+{ "LABEL": "jsrf_files", "LAYERS": [
+    { "NODE": "bafkrei…jsrf_disc" },                         // { "FILE": "JSRF (USA).iso", "SOURCE": "Qm…iso", "TARGET": "FILES/%GameDir%" }
+    { "DELTA": "JSRF - disc files.vgdelta", "SOURCE": "Qm…files", "BASE_SOURCES": ["Qm…iso"], "TARGET": "FILES/%GameDir%" },
+    … ] }
+```
+
+Where the files are mounted the image they were rebuilt from does not show beside them (what it replaces, below).
+
 There is no implicit base. A base is named by its content, never by where it is placed, so a delta keeps its base
 however the package around it is rearranged, and one delta can be built over any bytes the package holds: a version
 over the version before it, a macOS build over the Windows build at another address, a Wine prefix over Wine and DXVK.
@@ -74,9 +86,10 @@ over the version before it, a macOS build over the Windows build at another addr
 - **Naming.** `BASE_SOURCES` is REQUIRED on a `DELTA` and allowed on nothing else. A validator refuses it absent or
   empty, an entry that is not a non-empty string, a CID named twice, and `BASE_SOURCES` on any other layer. A layer named as a base
   MUST carry its `SOURCE`: a tool that makes a delta over a layer without one computes that layer's CID first.
-- **Resolving.** Each entry is the file its CID names: any `ZIP` or `DELTA` layer in the launch's fold (chapter 12)
-  whose `SOURCE` is that CID. One CID is one file, so where it is placed — beneath the delta or above it, whatever its
-  `TARGET`, seen whole or through a `TAKE` — never changes the bytes: a zip's file, or a delta's reconstructed archive.
+- **Resolving.** Each entry is the file its CID names: any `ZIP`, `FILE` or `DELTA` layer in the launch's fold
+  (chapter 12) whose `SOURCE` is that CID. One CID is one file, so where it is placed — beneath the delta or above it,
+  whatever its `TARGET`, seen whole or through a `TAKE` — never changes the bytes: a zip's file, a file's own bytes, or
+  a delta's reconstructed archive.
   A delta naming a file that is not in its launch (not contained, or gated off by `WHEN`) MUST be refused at validation
   and MUST NOT be mounted.
 - **What it replaces.** Where the delta is mounted, it hides every placement of a file it names (and of whatever that
