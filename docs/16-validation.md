@@ -24,7 +24,8 @@ Errors:
 - `EDIT` without ops or without a `TARGET` file; an op without `MODE`; an op field that is not a scalar; a `Delete` op
   with any field but `MODE`, `COMMENT` and `WHEN`; `IF_EXISTS` that is not a boolean, or `true` on a binary op; a `LineFlag`
   whose `KEY` is missing, blank or more than one line, or without `VALUE`, or whose literal `VALUE` is neither `1`
-  nor `0`;
+  nor `0`; `SECTION` on an op that is not a `ConfigWrite`, or one that is not a header line (a name in brackets, no
+  bracket inside); `ABSENT` on an op that is not a `ConfigWrite`, `JsonSet` or `XmlSet`;
 - a binary op with neither `ANCHOR` nor `OFFSET` (but `ReplaceAll`, which takes neither); `Replace` or `ReplaceAll`
   without `REPLACE`; `ReplaceAll` without `EXPECT`, or with a `REPLACE` of another length; `Poke` or `Or` without
   `VALUE`; `Cave` without `PAYLOAD`; `Or` with `EXPECT`;

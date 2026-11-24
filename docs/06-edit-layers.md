@@ -60,6 +60,25 @@ unchanged (the key is not appended; use `AppendLine`). The op fails if the file 
 is skipped). It writes the keyed
 address `FILES/<file>#<KEY>`.
 
+**In a section.** An INI file's `[section]`s and a TOML file's `[tables]` hold the same key in several places, and a
+program that rewrites its file keeps only the values that differ from its defaults, in its own order:
+
+```json
+{ "MODE": "ConfigWrite", "SECTION": "[display.quality]", "KEY": "surface_scale = ", "VALUE": "%xemu_scale%" }
+```
+
+`SECTION` is the section's header line, found by its name: blanks around its dotted parts (`[ display . quality ]`), a
+comment after it and a byte-order mark do not count, and when no header matches exactly, one that differs only in case
+does (an INI's `[graphics]` for `[Graphics]`; not in a `.toml` file, where that is another table). The section runs to
+the next header line (the next section, table or array of tables; a line inside a multi-line array or string is no
+header). A line of the section that starts with `KEY`, or (for a `KEY` ending in `=`
+and blanks) names the same key with other spacing or an indent, becomes `KEY + VALUE` (its indent kept). None there:
+`KEY + VALUE` is added at the section's end (before the blank lines closing it). No such section: the header and the
+line are added at the end of the file. Lines added to a file in CRLF end in CRLF; adding a key or a section to a file
+that has text is logged as a warning (a misspelt `KEY` or `SECTION` shows there). A file that does not
+exist is created (with `IF_EXISTS`, the op is skipped), so a program's settings can be given before its first run. It
+writes the keyed address `FILES/<file>#<SECTION><KEY>`: `FILES/%GameDir%/xemu.toml#[display.quality]surface_scale = `.
+
 ### `JsonSet`: set one value in a JSON file
 
 ```json
