@@ -236,8 +236,10 @@ Moves `EXPECT` (at least 5 bytes, room for a `jmp rel32`) into a **code cave** a
 
 ### `APPLY: "memory"`
 
-`"prefix"` (the default) patches the runtime's copy of the file on disk: it works for every runner and every launch
-path, because it is what the loader reads. `"memory"` patches the **running process** instead: the process is created
+`"prefix"` (the default) patches the file as the runtime serves it: it works for every runner and every launch path,
+because it is what the loader reads. Only the patched bytes cost anything: an implementation reads a file where its
+ops look (the header, the sites, one pass for a scan) and need not copy it whole; a one-byte fix to a disc image is
+one byte. `"memory"` patches the **running process** instead: the process is created
 suspended, patched, then resumed before its first instruction. Use it only when the file on disk must stay pristine
 (anti-tamper that checksums the executable).
 
@@ -246,7 +248,10 @@ creates the process itself (VidyaGod's `vglobby`, which also hosts DirectPlay se
 `Poke`, and only with an `OFFSET` that is a virtual address. This mode is optional for an implementation. An op it
 cannot apply MUST be reported, never dropped silently.
 
-*(VidyaGod: `BinaryPatch::ApplyOne` in `binarypatch.cpp`; `APPLY: "memory"` becomes `vglobby --mem-patch` arguments.)*
+*(VidyaGod: `BinaryPatch::ApplyOne` in `binarypatch.cpp`. Before the mount, `PlanReadTime` resolves the `"prefix"` ops
+on files the layers serve and hands their bytes to the mount (VidyaGodFS's spec `patches`), which serves them on every
+read without copying the file; a file the user's copy serves is written after the mount, only its changed bytes.
+`APPLY: "memory"` becomes `vglobby --mem-patch` arguments.)*
 
 ## 6.4 Failures
 
