@@ -285,7 +285,9 @@ that is not there was never written.
 **A key the game leaves out.** A program that saves only the values that differ from its defaults removes a key when
 the user sets it back. The package that knows that default says so with `ABSENT` on the `ConfigWrite`, `JsonSet` or
 `XmlSet` op: the option's value while the key is not in a file that has any text (a value the option can hold, as
-above). `"ABSENT": "1"` on xemu's `surface_scale` reads its scale back as 1 once the user picks 1x in xemu.
+above). `"ABSENT": "1"` on xemu's `surface_scale` reads its scale back as 1 once the user picks 1x in xemu. It reads
+so only after the file held a value VidyaGod knows (one a launch wrote or read back): a file from before the option
+existed, without the key, was never written, so the option keeps its value and the launch writes it.
 
 **Who wins.** The instance remembers what each option's file last held: what a launch's edit really wrote (noted once
 the session has stored what it keeps, so a session that died before that changes nothing), or what was last read back.
