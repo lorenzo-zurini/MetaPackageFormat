@@ -545,3 +545,27 @@ happen: ~10% of decisions, scattered, ≈0.47 bits per decision just to locate t
 Next lever: predict where flips happen. A flip needs a near-tie, so the price margin between version 1's choice and its
 cheapest alternative, under version 2's exact prices (which the reader tracks), becomes the context for adaptively
 coding the flip flags.
+
+### 22.14.2 Margin-coded corrections (measured, `~/Storage/tmp/vacuum/disco/margin2.c`)
+
+Same delta structure, with the corrections coded as a model the reader replays exactly:
+- **Flip flags,** one per predicted decision, arithmetic-coded. The context is the price margin between the prediction
+  and its cheapest alternative under the EXACT replayed probabilities (40 buckets), × prediction kind × source (a v1
+  decision start, or the remainder of a covering v1 match).
+  - Flip rate by margin: 91% when the prediction looks 4 bits/byte worse, 10% when it looks better.
+- **On a flip:** the rank among cheap alternatives ordered by bit cost (57% rank 0).
+- **Escapes, structured:** kind, then length, then index. Kinds: a rep slot; the predicted distance; a distance a
+  nearby v1 decision used; or the RANK of the distance among the closest earlier places holding the same 3/4 bytes
+  (52% rank 0 for lengths ≥ 4; the reader builds these chains from the content, 1.5 s per 136 MiB).
+  - Of 1.67M escapes, only 120K remain raw.
+- Coders and models restart at every checkpoint, so random access holds.
+
+| Disco 11-07 → 11-11 | Delta | Reader |
+|---|---|---|
+| today | 43.5 MiB | memcpy |
+| plain corrections (dual.c) | 8.4 MiB | 55 MB/s per core |
+| margin flags | 6.3 MiB | 32 MB/s per core |
+| **margin flags + structured escapes** | **3.9 MiB: flags/ranks/escapes 2.9 + raw 0.2 + checkpoints 0.8 (11.2× smaller)** | 28 MB/s decoded per core, parallel across checkpoints; random 4K/64K p50 29 ms; full block and all random reads BIT-EXACT; no search, no store |
+
+Next: checkpoints coded as deltas of the previous one (≈ halves 0.8 MiB); richer flag contexts; a cheaper margin for
+reader speed.
