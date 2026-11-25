@@ -492,5 +492,25 @@ a reader rebuilds the match finder from the 512 KiB window, loads the state, and
 | **stored states + content delta** | **~0.35 MiB** (161 KiB + 177 KB) | ~32 s of encoding, parallel and lazy (~4 s wall on 8 cores) |
 | content delta + one full re-encode | 161 KiB | 30 s sequential + a local store |
 
-Open: a cheaper reader using transplanted match candidates instead of the match finder (the match finder is ~60% of
-the encoder's time), with corrections for what that misses; chunk size versus latency (8 MiB → 1.9 s cold).
+**The CPU floor, measured.** A predictor ran the SDK's own optimizer (`GetOptimum`) with the exact state and cheap
+candidates: bt4's exact hash2/hash3 heads, version 1's transplanted match, and the K closest earlier 4-byte
+occurrences. It took the true decision wherever its own differed and logged a correction. Its stream was bit-exact
+every time.
+
+| K | corrections | stored | reader CPU (136 MiB block) |
+|---|---|---|---|
+| 0 | 3.05% | 3.9 MiB | 24 s |
+| 4 | 1.63% | 2.2 MiB | 30 s |
+| 16 | 1.06% | 1.4 MiB | 39 s |
+
+Even with K = 0 the optimal parser alone costs ~15–20 s: it is the irreducible floor for rebuilding LZMA decisions
+without storing them. The predictor is dominated by the skeleton of states (fewer bytes at similar CPU).
+
+**Design: two blobs per changed LZMA block, both in the delta, content-addressed, fetched per device.**
+- The SKELETON OF STATES (~10 KB per 8 MiB) is always fetched: exact chunked re-encode, parallel and lazy.
+- The TRANSPLANT CORRECTIONS (7.6 MiB for Disco's update) are an optional accelerator: replay only, no search, for
+  slow devices.
+
+Alternatively a device can fetch the rebuilt block from another of the user's devices over the LAN.
+
+Open: chunk size versus cold-read latency (8 MiB → 1.9 s); the binary layout of both blobs.
