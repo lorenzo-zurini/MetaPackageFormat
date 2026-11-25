@@ -36,6 +36,11 @@ that is exact, and deltas **pieces against pieces**.
 | **unit map** | where each unit of a piece sits in the shipped file, its length, and its recipe; part of the skeleton |
 | **description** | a declarative, bidirectional layout of a container format (22.5) |
 | **registry** | the closed set of named functions a description may call: hashes, ciphers, codecs (22.5.3) |
+| **layer** | one encoding step wrapped around content (a container, a codec, a cipher); real files nest them (22.11) |
+| **decisions** | what a layer's encoder chose (literal runs, matches, block headers), in NEUTRAL form (22.11.2) |
+| **family** | a parametric reference encoder in the registry (LZ77 hash-chain parser, …); **knobs** are its parameters |
+| **corrections** | where a layer's real decisions differ from its family's proposal under the fitted knobs (22.11.3) |
+| **read program** | the flat COPY / ADD / GENERATE program a reader compiles from all layers of a piece (22.12) |
 
 ## 22.3 The anchor
 
@@ -109,7 +114,8 @@ The only code a description may call: format hashes (`mpq.hash`), ciphers (`mpq.
 A codec is **round-trip** (it has an exact re-encode for a recipe) or **decode-only** (it can be read through, never
 rebuilt: e.g. Oodle, whose encoder is proprietary).
 
-A procedural oddity (name-keyed encryption, a seeded obfuscation) becomes a new named registry function, never script.
+A procedural oddity (name-keyed encryption, a seeded obfuscation) becomes a new named registry function, or, until
+the registry has one, a tier-3 function carried in the package (22.5.5).
 
 ### 22.5.4 Prototype evidence
 
@@ -123,6 +129,25 @@ with zip64 and data descriptors), `w3x.json` (the Warcraft III map wrapper, whic
   - the 1.16 GB WC3 package zip (100%).
 - **Write direction:** a file replaced inside War3Patch.mpq **and** inside the encrypted, offset-keyed War3xLocal.mpq,
   with the archive laid out fresh: it reads back correctly, and every other file is identical.
+
+### 22.5.5 Expressiveness: four tiers (USER 2026-11-25: "expressive enough to express every conceivable archive format")
+
+A closed list of declarative constructs cannot express every format: some are genuinely procedural (custom ciphers,
+executable packers, self-describing scripts). The language therefore has four tiers. All four are DATA, and one dumb
+reader interprets them all ("smart data, dumb reader").
+
+| Tier | What | Covers |
+|------|------|--------|
+| 1. **Declarative core** | fields, placement, arrays, conditions, computed fields, alignment, ordering (22.5.2) | most container layouts |
+| 2. **Codec families + knobs** | a registry family named with its parameters (22.11): LZ77 hash-chain parsers, Huffman, range/arithmetic coders, LZW, BWT, block ciphers, hashes | nearly every codec ever shipped, including "unknown" in-house ones |
+| 3. **Carried functions** | a tiny sandboxed, deterministic, total (fuel-bounded), memory-bounded bytecode function stored in the package: bytes in, bytes out, no I/O | the truly procedural remainder; promoted into the registry once common |
+| 4. **Corrections** | where the spec under-describes an encoder, the differences are stored (22.11.3) | an INCOMPLETE spec is still bit-exact; it only costs bytes |
+
+- Authoring is case by case, by reverse engineering, at mint (USER 2026-11-25). The fitter (22.11.3) is the authoring
+  tool: its corrections show exactly where a spec is incomplete. A quirk found there becomes a knob, and its
+  corrections drop to zero.
+- The acceptance test does not change: re-serialize an unchanged archive byte-identical.
+- Open: tier 3's machine (a WASM subset or our own VM), and its fuel and memory limits.
 
 ## 22.6 Pieces: stored or decoded, chosen per piece
 
@@ -157,9 +182,13 @@ with zip64 and data descriptors), `w3x.json` (the Warcraft III map wrapper, whic
   - A fresh encoder primed with the 32 KiB of decoded content before the checkpoint reproduces the rest bit-exactly.
     Measured: 803/803 block boundaries across 22 KCD2 members.
   - A checkpoint costs two integers; the skeleton grows about 0.05%.
-- **LZMA single streams:** checkpoints are not yet proven; their state is the range coder, the probability model and
-  the bt4 match finder. Until proven, an LZMA piece is decoded only if its dedup win pays for a whole-unit re-encode.
-  Otherwise it stays stored.
+- **LZMA single streams:** proven with token replay (22.11.1). A checkpoint is the coding state only: probabilities,
+  four repeat distances, the state, and the range coder's registers. That is 16 KB for `lc3 lp0 pb2`, with no match
+  finder and no prices. Checkpoints are DERIVED by one replay pass and live in RAM; they are never stored.
+  - Measured on Unity blocks (16 MiB decoded each): 1,600 random 4 KiB and 64 KiB reads of the shipped bytes were all
+    bit-exact. p50 2.5–2.9 ms, p99 ≤ 6.8 ms; a whole-block replay runs at 240–370 MB/s decoded.
+  - Space checkpoints by SHIPPED bytes, not decoded ones. These blocks compress 16:1, so checkpoints every 64 KiB of
+    decoded data would take 4× the shipped size in RAM.
 
 ### 22.7.3 Reading (USER, 2026-11-25: "no cache"; "the skeleton map is the cache")
 
@@ -170,6 +199,9 @@ A read of bytes X..Y of a shipped archive:
 3. Return the bytes. No unit larger than the mint-time bound (e.g. 256 KiB of decoded input) is ever re-encoded per read.
 
 The RAM block cache holds recently produced units. There is no disk cache and no first-run reconstruction.
+
+Derived state (LZMA checkpoints, a piece's compiled read program, 22.12) lives in RAM. It is built when a piece is
+first touched, bounded, and evicted like cache blocks. It is never written to disk and never transported.
 
 ### 22.7.4 The skeleton lives in the delta (agreed 2026-11-25)
 
@@ -189,7 +221,10 @@ With archives described, a mod overrides single inner files.
 ## 22.9 Open questions
 
 - The binary layout of a tree delta (listing, kinds, piece references) and the node keys that name it.
-- LZMA checkpoints (22.7.2).
+- Tier-3 carried functions: the machine and its limits (22.5.5).
+- The neutral decision format, and how a description names a layer's framing over it (22.11.2).
+- Bit-level read programs: static-Huffman layers (deflate blocks) fold in as table lookups at bit offsets; not yet
+  prototyped (22.12).
 - Pairing unnamed pieces better than "whole previous version" (CASC root/encoding files give names).
 - CASC: newer `data.###` archives open with empty 30-byte entries and have free space between entries. A splitter
   accepts an entry only when a `BLTE` blob follows its header, otherwise it resyncs. (A splitter that trusted a misread
@@ -227,3 +262,95 @@ Warcraft III, 8 versions, every cost a real `.vgdelta` from today's generator:
 
 Today's `.vgdelta` writer itself left ~20% on the table against `zstd --patch-from` on the same input (333 vs 422 MiB
 for WC3 1.31.1's stored pieces). That gap is independent of decoding.
+
+Nested layers (128 KiB of real WC3 files, version 2 = 20 small rewrites and one insertion):
+
+| Stack | Today (delta of the shipped files) | Decoded: content delta + per-layer data |
+|-------|-------------------------------------|-----------------------------------------|
+| 20 layers, every encoder treated as unknown (raw decisions) | 198 KiB | 110 KiB |
+| 20 layers, neutral decisions | 198 KiB | 98 KiB |
+| 20 layers, recipe first | 198 KiB | 5.2 KiB |
+| 21 layers, unknown lazy LZ above LZW, decisions stored | 218 KiB | 51 KiB |
+| 21 layers, the same, fitted (knobs + corrections) | 218 KiB | 6.6 KiB |
+| 21 layers, the same, with the TOO_FAR quirk as a knob | 218 KiB | **3.0 KiB** |
+
+Every stack rebuilt bit-identical from content + per-layer data. A 16-layer copy-class stack compiled into one read
+program (22.12): every random read and a full sequential read were bit-exact, with no layer run at read time.
+
+## 22.11 Layers: recipes, decisions, families
+
+Real files nest encodings: a zip member holding a Unity bundle of LZ4 blocks, an MPQ sector zlib-compressed and then
+encrypted. A piece is peeled top-down into its content plus, per layer, what it takes to re-encode that layer exactly.
+
+### 22.11.1 What each layer stores
+
+Each layer stores the cheapest of these that reproduces it, decided at mint by rebuilding and comparing:
+
+| Form | Stored | When |
+|------|--------|------|
+| **recipe** | a codec and its parameters, read from the stream where possible (22.7.1) | the encoder is identified (stock zlib, liblzma, bzip2, …) |
+| **family + knobs + corrections** | knob values and the differences (22.11.3) | an unidentified encoder of a known kind |
+| **decisions** | the encoder's choices in neutral form (22.11.2) | nothing better fits |
+
+- **Token replay:** with decisions (or knobs) in hand, re-encoding runs only the entropy coder: no search, no prices.
+  It is bit-exact for any encoder: deflate 5/5 KCD2 members at 271–307 MB/s, LZMA 6/6 Unity blocks at 209–336 MB/s.
+- Literals are never stored in decisions. They are the layer below's bytes; a decision stores only run lengths.
+
+### 22.11.2 Neutral form (USER 2026-11-25: "all this should be encoded in the data")
+
+- Decisions are stored as a neutral token list: literal-run lengths and (length, distance) matches, plus verbatim
+  block headers where a format has them. Never in the encoder's own framing.
+- The framing (LZSS flag bytes grouping eight items, LZ4's nibble token, a game's control bytes) is a deterministic
+  function of the token list and is DESCRIBED, not stored.
+- Why: framing aligns tokens in groups, so one insertion shifts every group after it. Measured on LZSS: v2 delta 14.4 KiB
+  in the encoder's framing, 2.3 KiB in neutral form, 0 after fitting.
+
+### 22.11.3 Families, fitting, corrections
+
+- Nearly every LZ encoder ever shipped is a hash-chain parser that differs from the others only in a few knobs:
+  - hash length, minimum and maximum match, window, chain depth;
+  - lazy or greedy, insertion policy, end-of-buffer limits;
+  - quirks such as zlib's TOO_FAR (a 3-byte match more than 4 KiB back is dropped).
+- The registry holds the family as ONE reference parser.
+- **Fitting (mint):** knobs the stream reveals are read from it: minimum and maximum length, a window that covers the
+  largest distance. The rest are searched.
+- **Corrections:** the reference parser runs in lockstep with the real decisions, follows them, and records only where
+  its proposal differs. Correct by construction for ANY encoder; zero corrections means the encoder is now a recipe.
+- **Measured:**
+  - An independent lazy LZ with a planted TOO_FAR quirk: its knobs were found exactly (hash 3, min 3, max 130, window
+    8191, chain 8, lazy, insert-all). Its corrections, 5.8 KB against 77.6 KB of neutral decisions, were exactly the
+    quirk. With the quirk as a knob: 0.
+  - LZSS and LZ4: 0 corrections.
+- **Chaotic layers.** LZW, bzip2, adaptive Huffman and adaptive coders re-randomize everything above them, so a layer
+  above one re-parses brand-new bytes every version. As decisions that costs its whole parse (51 KiB of the 21-layer
+  stack). Fitted, the knobs are the same in both versions, so it costs only corrections (0 here).
+- The same scheme extends to every other family: code-length tables for Huffman, model parameters for arithmetic
+  coders, code width and reset policy for LZW.
+
+## 22.12 Flattening: one read program per piece
+
+USER 2026-11-25: "the sum of the format data of the layers produces the exact recipe to decode the data in one go".
+
+- Every byte a layer emits is either **copied** from the layer below or **generated** by the layer itself.
+  - Copied: container members, stored data, the literal runs of byte-aligned LZ formats (LZ4, LZSS, PackBits, most game
+    LZs), bytes passed through a positional XOR or a per-byte table.
+  - Generated: headers, match tokens, flag bytes.
+- A layer's description plus its per-layer data therefore yields a program over its input: `COPY(range, transform)`
+  and `ADD(bytes)`.
+- Programs COMPOSE, exactly like `.vgdelta` segments flatten (chapter 04). An upper COPY of a range is replaced by the
+  slice of the lower program under it; XOR keys and per-byte tables compose into one.
+- All copy-class layers of a piece collapse into ONE program over the content. A read is a binary search plus memcpy,
+  whatever the depth.
+- **Adaptive coders are GENERATE steps:** LZMA's range coder, arithmetic coders, LZW, adaptive Huffman, chained
+  ciphers. Their output bits depend on all earlier bits, so they must run, from the nearest derived checkpoint (22.7.2).
+  - Everything below a GENERATE step (where its literals come from) and above it (who copies its bytes) still flattens.
+  - **Read cost = the number of GENERATE steps on the path, not the number of layers.** In practice that is 0
+    (LZ4/Unity, stored containers) or 1 (zip/deflate, MPQ/zlib, LZMA).
+- **Static Huffman** (deflate blocks) is a per-symbol table at bit offsets. It is expected to fold into the program as
+  a lookup, not a GENERATE step; not yet prototyped.
+- **Compiled, never stored.** The program is derived from the per-layer data when a piece is first touched, and kept in
+  RAM like derived checkpoints (22.7.3).
+  - Compiling touches no content bytes: it is arithmetic over the layers' tables. Composing 16 layers of a 128 KiB
+    piece took 0.4 s in the Python prototype.
+  - Storing it would be wrong: the program is large (300 KiB serialized there), and its version-2 delta (121 KiB) is
+    larger than today's delta of the shipped files (70 KiB). The per-layer data behind it deltas to about 3 KiB.
