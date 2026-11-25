@@ -608,3 +608,23 @@ near-tie lattice) or the state skeleton (which costs CPU at read time).
 - **The fair comparison** is the game's own LZMA decompression of what we serve (stock liblzma, one thread): 94–98 MB/s
   decoded = ~30 MB/s shipped. On the PC we produce the shipped bytes ~2× faster than the game consumes them. On the
   Deck (4 cores, ~0.5×) roughly even. The RAM block cache makes repeat reads free.
+
+### 22.14.5 Depth-free: predict from the anchor (measured)
+
+Predicting version N's decisions from version N−1's would chain: N−1's decisions must be rebuilt first, then N−2's,
+down to the anchor, so depth would cost. Instead every version predicts from the ANCHOR's decisions:
+- they are free, by parsing its shipped stream;
+- positions map through the composed content map, which flattens like any delta chain.
+
+Measured, Disco version 7 predicted directly from the first build (7 updates apart; content delta 245 KiB):
+**3,634 KiB**, against 3,621 KiB from version 6. Distance costs nothing, because the encoder's chaos already flips ~10%
+of decisions for any edit.
+
+So a version's LZMA layer data stands alone: corrections vs the anchor + checkpoints. Reading any version is one step
+from the anchor, whatever its depth. The decision stream is parsed from shipped bytes and the range coder is the same
+for every LZMA encoder, so this needs NO recipe: unknown LZMA encoders and SDK versions work as they are.
+
+Status of LZMA: bit-exact, replay-only, no local store, depth-free, encoder-agnostic; ~12–13× smaller than today on
+Disco and Subnautica; the reader serves shipped bytes ~2× faster than the game decompresses them (PC, 8 threads).
+Not optimal: an update costs ~8% of the shipped stream however small the change. Window-level prediction (the
+near-tie lattice) is the lead for going below that.
