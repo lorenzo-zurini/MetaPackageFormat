@@ -223,8 +223,9 @@ With archives described, a mod overrides single inner files.
 - The binary layout of a tree delta (listing, kinds, piece references) and the node keys that name it.
 - Tier-3 carried functions: the machine and its limits (22.5.5).
 - The neutral decision format, and how a description names a layer's framing over it (22.11.2).
-- Bit-level read programs: static-Huffman layers (deflate blocks) fold in as table lookups at bit offsets; not yet
-  prototyped (22.12).
+- A compact in-RAM encoding of read programs (22.12).
+- Token replay for Oodle-class formats: it needs only their bitstream writer (the open decoders define it), not the
+  proprietary encoder's search. Unproven.
 - Pairing unnamed pieces better than "whole previous version" (CASC root/encoding files give names).
 - CASC: newer `data.###` archives open with empty 30-byte entries and have free space between entries. A splitter
   accepts an entry only when a `BLTE` blob follows its header, otherwise it resyncs. (A splitter that trusted a misread
@@ -346,8 +347,20 @@ USER 2026-11-25: "the sum of the format data of the layers produces the exact re
   - Everything below a GENERATE step (where its literals come from) and above it (who copies its bytes) still flattens.
   - **Read cost = the number of GENERATE steps on the path, not the number of layers.** In practice that is 0
     (LZ4/Unity, stored containers) or 1 (zip/deflate, MPQ/zlib, LZMA).
-- **Static Huffman** (deflate blocks) is a per-symbol table at bit offsets. It is expected to fold into the program as
-  a lookup, not a GENERATE step; not yet prototyped.
+- **Static Huffman folds in (proven).** Within a deflate block the tables are fixed, so the output is a pure function of
+  position. The program holds header bits (verbatim), literal runs (content bytes through the block's code table) and
+  match / end-of-block codes (generated bits), each with its bit offset. A read starts at any entry: no checkpoints,
+  no encoder state.
+  - Measured on 22 KCD2 `.pak` members (339 KiB – 4.4 MiB), one i9-10900K core:
+    - 44,000 random 4 KiB / 64 KiB reads and every full sequential read were bit-exact.
+    - p50 0.11–0.17 ms, p99 ≤ 0.37 ms.
+    - Sequential: 240–435 MB/s of shipped bytes, FASTER than zlib inflating the same streams (187–324 MB/s) and 10–20×
+      a zlib re-encode (13–41 MB/s).
+    - Compile: 1.4–16 ms per member.
+  - Compiling a bit-level layer reads the content (a literal's code length depends on its byte); copy-class layers do
+    not.
+  - RAM: 24-byte entries make the program 1–3× the shipped size. To compact it: an index every 64 entries, varint
+    entries.
 - **Compiled, never stored.** The program is derived from the per-layer data when a piece is first touched, and kept in
   RAM like derived checkpoints (22.7.3).
   - Compiling touches no content bytes: it is arithmetic over the layers' tables. Composing 16 layers of a 128 KiB
