@@ -591,3 +591,20 @@ window rebuilt per checkpoint. It gives identical results on the Disco pair.
 bundle (Disco: 8% too), because the encoder's price-state chaos spans the whole stream. Corrections cap every LZMA
 update at ~8% of today's. Going further, toward cost proportional to the change, needs window-level prediction (the
 near-tie lattice) or the state skeleton (which costs CPU at read time).
+
+### 22.14.4 Reader speed (measured, `margin6.c`/`margin7.c`)
+
+- **Where the time went:** the same-bytes chain index (16 MB hash heads → a cache miss per position), escape
+  decoding, and neighbour lookups. With cache-resident heads (64K buckets) and a narrower neighbour search: 29 MB/s
+  decoded per core (from 20), random p50 30–34 ms, delta unchanged (3.6 MiB).
+- **Parallel:** checkpoints are independent entry points, so a bundle read splits over cores. Disco's 136 MiB block:
+  | threads | wall | decoded | shipped |
+  |---|---|---|---|
+  | 2 | 2.53 s | 57 MB/s | |
+  | 4 | 1.26 s | 113 MB/s | 36 MB/s |
+  | 8 | 0.75 s | 191 MB/s | 61 MB/s |
+
+  All bit-exact.
+- **The fair comparison** is the game's own LZMA decompression of what we serve (stock liblzma, one thread): 94–98 MB/s
+  decoded = ~30 MB/s shipped. On the PC we produce the shipped bytes ~2× faster than the game consumes them. On the
+  Deck (4 cores, ~0.5×) roughly even. The RAM block cache makes repeat reads free.
