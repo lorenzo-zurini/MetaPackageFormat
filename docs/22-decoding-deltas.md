@@ -628,3 +628,125 @@ Status of LZMA: bit-exact, replay-only, no local store, depth-free, encoder-agno
 Disco and Subnautica; the reader serves shipped bytes ~2× faster than the game decompresses them (PC, 8 threads).
 Not optimal: an update costs ~8% of the shipped stream however small the change. Window-level prediction (the
 near-tie lattice) is the lead for going below that.
+
+### 22.14.6 Remembered near-ties: measured, not adopted (2026-11-26)
+
+A side study (Fable) proposed a memory lattice: per content place, every decision any earlier version shipped there,
+re-decided at read time by a window-level shortest path that replays the 7-Zip SDK's price model. Facts it established,
+which stand:
+- the SDK's match finder is a pure function of the content (74.8M positions compared, 0 differing candidate lists);
+  only the price state drifts;
+- the parse is made of independent windows whose prices are frozen at the window start;
+- the lineage saturates: decisions never seen before fall from 9.5% to 1.6% with seven remembered versions.
+
+Built as one reader and measured over a real lineage (Disco v1..v9, the anchor as base of every delta, memory = the
+hunks earlier deltas shipped, 22 checkpoints, every read bit-exact): 4,659 / 3,968 / 3,697 / 3,657 / 3,390 / 3,380 /
+3,277 / 4,873 / 4,737 KiB. Margin coding (22.14.2) at the same checkpoint spacing is ~3,050 KiB for v7. With the
+previous version as base it reached 1,909 KiB, but that base is not depth-free. Not adopted: it needs a reader that
+carries one encoder's brain, and under depth-free it does not win.
+
+Kept from the build: checkpoints only need to cover parallelism for streams games read whole (Unity LZMA bundles are
+decompressed start to end), so one per 2 MiB shipped; an index over content needs only the format's window (22.15).
+
+## 22.15 The coding algebra (USER 2026-11-26: "we just discovered new algebra that we didn't axiomize yet")
+
+22.13's nodes treat each coder as a black box: PACK for deflate, GENS for LZMA, FRAME for each LZ framing. Under the
+hood every one of them is the same few primitives wired differently, and so is the predictor that makes their deltas
+small. The reader implements the PRIMITIVES, once. A format, and an encoder family, is a description that composes them,
+shipped as data. Nothing in the reader knows a format or an encoder.
+
+### 22.15.1 Sorts
+
+| Sort | What it is |
+|---|---|
+| Content `X` | the decoded bytes; the lineage (22.11) |
+| Token `t` | one decision in content coordinates: `Lit` at place `p`; `Copy(p, len, dist)`; plus any choice the format leaves the encoder, e.g. `asRep` (code a copy through the history even though a fresh distance exists) |
+| Decisions `T` | the token sequence covering `X` |
+| History `H` | a state machine stepped by tokens: rep slots (k distances, an update rule), a format state (LZMA's 12 states) |
+| Model `M` | per token, a tree of binary or n-ary SYMBOLS, each coded under a SLOT chosen by a context expression over `H`, the place and the content (previous byte, match byte, position bits) |
+| Slot | a probability with an update rule (adaptive: shift `s`, bit width `b`) or a static code (lengths from a header) |
+| Coder `C` | turns (symbol, slot) into output bits: range coder, arithmetic coder, Huffman emitter, FSE/tANS, raw bits or bytes; bit order and carry rules are knobs |
+| Framing `F` | blocks, headers, end markers, checksums: functions of `T`, `X` and the coder's output |
+
+### 22.15.2 Axioms
+
+1. **Replay.** Shipped bytes are a pure function `S = F(C(M(H(T), X)))`. Given the description, `X` and `T`, the
+   reader replays; it never searches. Every primitive is lossless: decoding `S` gives back exactly `X` and `T`.
+2. **Neutrality.** `T` is stored in content coordinates. Whatever the format derives from it (symbol codes, rep
+   indices, flag bytes, nibble packing, block headers that are functions of the tokens) is never stored. Only true
+   choices are decisions: `asRep`, a rep slot when two slots hold the same distance, a block split, a header the
+   encoder picked.
+3. **Transport.** A content map (a SEQ, 22.13) carries tokens: `Copy(p, len, dist)` maps to the new version when its
+   bytes and its source lie in copied segments; it lands at `(p', len, p' − q')`. Decisions of any version are
+   therefore available in any other version's coordinates, through the flattened map, at no depth cost.
+4. **Window.** Every format has a window `W` (deflate 32 KiB, LZMA the dictionary size, LZ4 64 KiB). No distance
+   exceeds it. Any index over content (same-bytes chains, hashes) needs only the last `W` bytes, and a candidate
+   beyond `W` does not exist. (Measured: 1.6 GiB of whole-file chains → 15 MiB per reader, same results.)
+5. **Cost.** A model prices itself: `cost(t | state) = −log₂ P_M(t | state)`, read from the same slots the coder uses
+   (adaptive: current probabilities; static: code lengths; raw: bit counts). There is no separate price description.
+   An encoder's own price tables (refresh counters, snapshots) are NOT part of the format: if a family needs them,
+   they are family knobs (22.15.4).
+6. **Prediction.** A predicted token is a deterministic function of: the transported anchor token at this place (the
+   default), the candidates (literal, every history slot, the same-bytes chain within `W` ranked closest first) and
+   their costs. Prediction is the same for every format; only the model behind the costs differs.
+7. **Correction.** `T = predict ⊕ corrections`: a flip flag per token in contexts of the cost margin, the token kind
+   and the previous flip, a rank among the candidates, and escapes (history slot, transported distance, neighbour
+   distance, chain rank, then raw). The correction coder is itself an instance of the algebra (adaptive binary slots +
+   range coder).
+8. **Checkpoint.** The state of `H`, every slot and the coder at a token boundary is a checkpoint, stored as data.
+   Any read resumes from any checkpoint. Placement is a knob of the piece: one per unit of parallelism for streams
+   read whole, denser for random access.
+9. **Closure.** A coding node `CODE(description, X, T)` composes with SEQ above and below exactly as 22.12 states:
+   what is copied flattens, what is generated runs. 22.13's PACK, GENS and FRAME are CODE nodes whose descriptions
+   differ: PACK has static slots (flattens per block), GENS has adaptive slots (runs from checkpoints), FRAME has raw
+   bytes (copies its literals).
+
+### 22.15.3 Formats as descriptions (on paper)
+
+| Format | Tokens | History | Model | Coder | Framing |
+|---|---|---|---|---|---|
+| deflate | Lit, Copy(3..258, 1..32768) | none | per block: lit/len symbol (286, base + extra bits tables), dist symbol (30, base + extra), EOB; static slots from the block header | Huffman, LSB-first, codes bit-reversed | block type, final bit, stored blocks, dynamic header = decision |
+| LZ4 | Lit runs, Copy(4.., 1..65535) | none | raw: token byte (lit-run nibble, len−4 nibble), 255-run extensions, offset u16 LE | bytes | frame header, block sizes, xxHash32 (derived) |
+| LZMA | Lit, Copy, asRep (slot 0..3), ShortRep | 12-state table, 4 rep slots move-to-front | `isMatch[state][pos & pb]` → `isRep[state]` → `isRepG0..G2` / `isRep0Long`; length: choice + low/mid/high trees per pos state; distance: slot tree per length state, reverse trees, direct bits, align tree; literal: 0x300 slots × (lc, lp) context, matched mode keyed by the match byte; adaptive 11-bit slots, shift 5 | range coder (low, range, cache + carry) | props header, optional end marker |
+| zstd | sequences (lit run, Copy) | 3 rep slots, repcode meaning shifts when lit run = 0 | literals: Huffman (1 or 4 streams); sequences: FSE tables per block (predefined / RLE / compressed / repeat = decisions) | backward bitstream, FSE | frame + block headers, xxHash64 (derived) |
+
+Each row is a description, not code. A new format is a new row.
+
+### 22.15.4 Families are descriptions too
+
+An encoder family (22.11.3) is a description of how it CHOOSES tokens: candidate generator knobs (hash length,
+chain depth, window), a strategy (greedy, lazy with its thresholds, optimal parse with its window length), and quirks
+(zlib's TOO_FAR). With a family identified, predictions improve and corrections shrink; without one, axiom 6's
+generic prediction still works. A family is never needed for correctness.
+
+### 22.15.5 Tiers, restated
+
+1. Declarative: a format row of 22.15.3, a family of 22.15.4.
+2. Knobs: values for a row's parameters (lc/lp/pb, window, block size).
+3. Carried code: for what no row can say (a proprietary cipher, an odd checksum), a sandboxed, deterministic,
+   cross-platform module (WebAssembly) shipped as a shared node of the lineage. An escape hatch, never the
+   common machinery.
+4. Stored: corrections, or the bytes themselves.
+
+### 22.15.6 Status (prototype `~/Storage/tmp/vacuum/cod/`)
+
+Proven before the axioms existed, as hand-wired instances: deflate replay (PACK, 22.12, VidyaGodFS `deflatelayer`),
+LZMA replay + prediction + correction (margin coding, 22.14.2–22.14.5), LZ4/LZSS framings (FRAME).
+
+**Generic engine, measured 2026-11-26 (`cod.h`, `lzma_desc.h`, `margin_gen.c`).** The engine knows primitives only:
+ops (BIT, TREE, RTREE, DIRECT, MLIT, JZ/JMP, SET, history MTF/PUSH), expressions over registers, content bytes and
+tables, adaptive 11-bit slots, a carry range coder. LZMA is a description: 55 ops, 153 expressions, 7,990 slots, 4
+state tables, knobs (lc/lp/pb, window, longest copy, the length-1 history slot, an end token).
+- **Replay:** Disco v7's 40.6M decisions re-encoded by the engine from the description: all 45,609,513 shipped bytes
+  BIT-EXACT. Expressions are specialised once (flattened to three-address micro-ops, constants folded): 30 MB/s
+  decoded per core, against 67 MB/s for the SDK's own replay on the same tokens.
+- **Margin coding on the engine:** costs come from the same description in price mode (axiom 5); transport,
+  candidates, flags, ranks and escapes are generic; the one LZMA-only context of the hand-wired coder (state ≥ 7)
+  became "kind of the previous token". Disco v6→v7: **3,593 KiB** (hand-wired: 3,621), every full and random read
+  bit-exact. Reads 12 MB/s per core, 85 MB/s on 8 threads (hand-wired: 191); random p50 78 ms.
+- **Open:** speed. About four prices per token go through the interpreter. Candidates: compile the description to
+  native code at mount (a JIT over the micro-ops), or a per-op fused form for the affine slot expressions that make up
+  most of a description.
+
+Next: deflate as a description on the same engine (static slots from a block header, a Huffman emitter), then a
+format nobody wrote code for, from its row alone.
