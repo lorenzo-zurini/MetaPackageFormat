@@ -234,8 +234,6 @@ With archives described, a mod overrides single inner files.
 - The binary layout of a tree delta (listing, kinds, piece references) and the node keys that name it.
 - Tier-3 carried functions: the machine and its limits (22.5.5).
 - The neutral decision format, and how a description names a layer's framing over it (22.11.2).
-- Copy-class layers resolved per read without a resident composed program (map the read range down layer by layer
-  through each layer's skeleton index): designed, not yet measured (22.12).
 - Token replay for Oodle-class formats: it needs only their bitstream writer (the open decoders define it), not the
   proprietary encoder's search. Unproven.
 - Pairing unnamed pieces better than "whole previous version" (CASC root/encoding files give names).
@@ -383,6 +381,27 @@ USER 2026-11-25: "the sum of the format data of the layers produces the exact re
     every read bit-exact, sequential 215–367 MB/s, random p50 0.13–0.21 ms, so no slower than the resident program.
   - Where a piece keeps a recipe instead of stored decisions, a read re-encodes the block with the recipe (13–41 MB/s)
     and the RAM block cache holds the result. That trades disk (decisions) for CPU; the packer chooses per piece.
+- **Copy layers need no resident program either (measured).** Each layer keeps a sparse INDEX (its generator state
+  every R output bytes) and reads its own stored decisions.
+  - A read seeks the top layer's index and walks its decisions, generating framing bytes and asking the layer below
+    for literal ranges.
+  - Those requests arrive in increasing order, so each layer keeps a forward cursor and rarely seeks.
+  - Measured: 8 MiB of WC3 content through the 16-layer stack (4.9 MiB shipped, 3.0 MiB of decisions), one core.
+    Every sequential and random read at depth 1, 2, 4, 8 and 16 was bit-exact.
+
+    | Depth | Sequential | Random 4K/64K p50 / p99 |
+    |---|---|---|
+    | 1–2 | 163–177 MB/s | 0.19–0.28 / 0.7–1.3 ms |
+    | 4 | 121–135 MB/s | 0.22–0.30 / 1.3–1.6 ms |
+    | 8 | 110–112 MB/s | 0.31–0.38 / 1.3–1.7 ms |
+    | 16 | 52–53 MB/s | 0.98–1.02 / 2.1–2.4 ms |
+  - RAM: the indexes only. With R = 64 KiB that is 1.0% of the shipped size for all 16 layers together; R = 4 KiB
+    takes 14% and is barely faster.
+  - **The trade-off.** Lazily, CPU grows with depth × piece granularity. LZSS literal runs of 1–8 bytes make this
+    stack about the worst case: 2.2M pieces for 4.9 MB. A materialized flat program keeps depth free but costs RAM
+    about 6× the shipped size at this granularity.
+  - Real files are 1–3 copy layers deep, where lazy reads run at full speed, so lazy is the default. A per-region
+    compiled program in the RAM LRU is the option for a deep stack read repeatedly.
 - **Compiled, never stored.** The program is derived from the per-layer data, never stored. For deflate it is not even
   kept: a read compiles just its own range (see above). Only LZMA-class checkpoints are kept in RAM (22.7.2).
   - Compiling touches no content bytes: it is arithmetic over the layers' tables. Composing 16 layers of a 128 KiB
