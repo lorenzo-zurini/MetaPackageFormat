@@ -437,8 +437,8 @@ smart part (a compiled program); the reader is a dumb machine with a fixed instr
 
 ### 22.13.2 Behaviour classes: every format fits one
 
-C (copy-like) · T (table-coded) · B (block-bounded state) · S (stream state) · O (opaque: stored bytes, today's
-behaviour). Rules that put a format into a class:
+C (copy-like) · T (table-coded) · B (block-bounded state) · S (stream state). (O, opaque, is retired by 22.15.5: a
+format no class fits gets new primitives.) Rules that put a format into a class:
 - decode to the last lossless form only;
 - everything content-independent is precomputed at mint and stored (offsets, tables, salts, IVs, timestamps);
 - linear checksums (CRC) combine;
@@ -670,8 +670,9 @@ shipped as data. Nothing in the reader knows a format or an encoder.
 
 ### 22.15.2 Axioms
 
-1. **Replay.** Shipped bytes are a pure function `S = F(C(M(H(T), X)))`. Given the description, `X` and `T`, the
-   reader replays; it never searches. Every primitive is lossless: decoding `S` gives back exactly `X` and `T`.
+1. **Replay, three ways.** Shipped bytes are a pure function `S = F(C(M(H(T), X)))`. ONE description runs in three
+   modes: DECODE (`S` → `X`, `T`: the mint's parse), CODE (`X`, `T` → `S`: the read), PRICE (the cost of a candidate
+   decision: the predictor). The reader never searches. Every primitive is lossless both ways.
 2. **Neutrality.** `T` is stored in content coordinates. Whatever the format derives from it (symbol codes, rep
    indices, flag bytes, nibble packing, block headers that are functions of the tokens) is never stored. Only true
    choices are decisions: `asRep`, a rep slot when two slots hold the same distance, a block split, a header the
@@ -719,16 +720,32 @@ chain depth, window), a strategy (greedy, lazy with its thresholds, optimal pars
 (zlib's TOO_FAR). With a family identified, predictions improve and corrections shrink; without one, axiom 6's
 generic prediction still works. A family is never needed for correctness.
 
-### 22.15.5 Tiers, restated
+### 22.15.5 Tiers, restated (USER 2026-11-26: "no opaque blocks, if there's no ops, invent them")
 
 1. Declarative: a format row of 22.15.3, a family of 22.15.4.
 2. Knobs: values for a row's parameters (lc/lp/pb, window, block size).
-3. Carried code: for what no row can say (a proprietary cipher, an odd checksum), a sandboxed, deterministic,
-   cross-platform module (WebAssembly) shipped as a shared node of the lineage. An escape hatch, never the
-   common machinery.
-4. Stored: corrections, or the bytes themselves.
+3. **A new primitive.** What no description can say yet is not shipped as code and not kept as opaque bytes: the
+   algebra grows the op that says it (a cipher's round, a checksum, a transform). The instruction set is therefore
+   VERSIONED: a description names the instruction-set version it needs, and a reader too old for it says so instead of
+   guessing. There is no carried-code tier and no opaque class (22.13.2's O is retired).
+4. Stored: corrections only, never whole blocks.
 
-### 22.15.6 Status (prototype `~/Storage/tmp/vacuum/cod/`)
+### 22.15.6 Primitives invented for decode mode (2026-11-26)
+
+Deflate's block header is itself Huffman-coded, so describing deflate needs the description to READ as well as write:
+- a mode mask on every op (an op may act in DECODE only, CODE/PRICE only, or all);
+- decisions: a FREE flag makes a coding op's value a decision (CODE reads it from the decisions, DECODE records it); a
+  DEC op moves a register to or from the decisions;
+- content: OUTLIT and OUTCOPY (DECODE writes the content, CODE and PRICE only advance the place);
+- arrays (description-owned, constant-initialised or written by STA) and loops (JZ/JMP over a counter);
+- BUILD: a canonical Huffman code from a lengths array (encode table and decode table, over-subscription refused);
+- the LSB-first bit coder: RAW (n bits) and HUFF (a symbol through a built code), and BITPOS (for alignment pads,
+  which are decisions);
+- CALL/RET, so a stream program calls a token program (PRICE runs the token program alone);
+- ASSERT: DECODE refuses what the format forbids (a distance before the start, a length symbol the format leaves
+  undefined).
+
+### 22.15.7 Status (prototype `~/Storage/tmp/vacuum/cod/`)
 
 Proven before the axioms existed, as hand-wired instances: deflate replay (PACK, 22.12, VidyaGodFS `deflatelayer`),
 LZMA replay + prediction + correction (margin coding, 22.14.2–22.14.5), LZ4/LZSS framings (FRAME).
@@ -748,5 +765,16 @@ state tables, knobs (lc/lp/pb, window, longest copy, the length-1 history slot, 
   native code at mount (a JIT over the micro-ops), or a per-op fused form for the affine slot expressions that make up
   most of a description.
 
-Next: deflate as a description on the same engine (static slots from a block header, a Huffman emitter), then a
-format nobody wrote code for, from its row alone.
+**Engine v2: three modes, measured 2026-11-26 (`cod2.h`, `asm2.h`, `lzma2_desc.h`, `deflate_desc.h`, `test2.c`).** With
+the primitives of 22.15.6 one description decodes, codes and prices:
+- **LZMA** (119 ops, 217 expressions): DECODE of Disco v7's 45.6 MB block gives the 136 MB content exactly, and its
+  40,639,329 decoded tokens equal the SDK's own token file one for one; CODE of content + decisions gives the shipped
+  bytes BIT-EXACT.
+- **deflate**, dynamic header included (118 ops, 163 expressions, 4 arrays, 3 codes): 22/22 KCD2 `.pak` members decode
+  to exactly zlib's content and code back BIT-EXACT. Broken streams (cut short, trailing bytes, 298 bit flips) are
+  judged exactly as zlib judges them: 300/300, nothing accepted that zlib refuses.
+- Speed, unspecialised (recursive expression trees): LZMA 14 MB/s decode, 15 MB/s code; deflate 18 / 23 MB/s.
+  Specialisation (v1 already measured 2.1–2.3× from it) and native compilation at mount are the next step.
+
+Next: margin coding on v2 (PRICE through the token program), speed, then a format nobody wrote code for, from its
+row alone (LZ4 or zstd).
