@@ -724,6 +724,10 @@ generic prediction still works. A family is never needed for correctness.
 
 1. Declarative: a format row of 22.15.3, a family of 22.15.4.
 2. Knobs: values for a row's parameters (lc/lp/pb, window, block size).
+**Compiled code never ships (USER 2026-11-26: "never webassembly, we shall never ship compiled code").** No
+package, delta or description carries executable code of any kind: no WebAssembly, no native modules, no bytecode for
+a general-purpose VM. A description is data over the algebra's primitives; only the reader is code.
+
 3. **A new primitive.** What no description can say yet is not shipped as code and not kept as opaque bytes: the
    algebra grows the op that says it (a cipher's round, a checksum, a transform). The instruction set is therefore
    VERSIONED: a description names the instruction-set version it needs, and a reader too old for it says so instead of
@@ -776,5 +780,11 @@ the primitives of 22.15.6 one description decodes, codes and prices:
 - Speed, unspecialised (recursive expression trees): LZMA 14 MB/s decode, 15 MB/s code; deflate 18 / 23 MB/s.
   Specialisation (v1 already measured 2.1–2.3× from it) and native compilation at mount are the next step.
 
-Next: margin coding on v2 (PRICE through the token program), speed, then a format nobody wrote code for, from its
-row alone (LZ4 or zstd).
+- **margin coding on v2** (`margin_gen2.c`): costs from PRICE mode of the same token program that decodes the stream.
+  Disco v6→v7: 3,594 KiB, the same 4,095,006 flips as v1, every full and random read bit-exact (unspecialised: 53 MB/s
+  on 8 threads).
+- **LZ4, from its description alone** (`lz4_desc.h`, 46 ops, 78 expressions, written from the block format; no LZ4
+  code anywhere): liblz4's fast encoder and HC levels 3, 7, 11 over three kinds of content at seven sizes (0 B to
+  4 MiB): **84/84 blocks decode to the exact content and code back bit-exact**.
+
+Three formats, three coders (range coder, Huffman bit coder, raw bytes), no format code in the engine.
