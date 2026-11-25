@@ -514,3 +514,34 @@ without storing them. The predictor is dominated by the skeleton of states (fewe
 Alternatively a device can fetch the rebuilt block from another of the user's devices over the LAN.
 
 Open: chunk size versus cold-read latency (8 MiB → 1.9 s); the binary layout of both blobs.
+
+### 22.14.1 Everything in the delta: replay-only LZMA (USER 2026-11-25: "no selective stuff, all built into the delta")
+
+The skeleton of states alone needs the full encoder at read time (~5 MB/s per core). For tens of GB of LZMA that is
+minutes of CPU per launch, so it cannot be the read path. The default for every device is therefore replay-only.
+
+The delta of a changed LZMA block holds:
+1. the content delta;
+2. **corrections** to version 1's decisions, carried across the content delta (where none starts at a place, the rest
+   of version 1's covering match is the prediction);
+3. **state checkpoints** every 512 KiB shipped: probabilities, reps, state, coder registers, decision-stream cursors.
+
+A read jumps to its checkpoint, rebuilds the decisions (a correction, else the transplanted one) and replays them
+through the range coder. No search, no encoder, no local store.
+
+**Measured, Disco 11-07 → 11-11** (`~/Storage/tmp/vacuum/disco/dual.c`):
+
+| | |
+|---|---|
+| corrections | 10.2% of 40.6M decisions, 7.6 MiB zstd-19 |
+| checkpoints | 87, 0.8 MiB |
+| delta for the block | 8.4 MiB, against 43.5 MiB today (5.2×) |
+| reads | full block bit-exact in 2.6 s on one core (55 MB/s decoded; parallel across checkpoint ranges); 200–400 random 4K/64K reads all exact, p50 15 ms, p99 ~40 ms |
+
+**Where the bytes are.** Coding corrections as a rank among cheap alternatives ordered by the encoder's own bit cost
+saves only 4%. Of the corrections, 60% are ranks 0–2; 40% are other lengths or distances. The cost is WHERE flips
+happen: ~10% of decisions, scattered, ≈0.47 bits per decision just to locate them.
+
+Next lever: predict where flips happen. A flip needs a near-tie, so the price margin between version 1's choice and its
+cheapest alternative, under version 2's exact prices (which the reader tracks), becomes the context for adaptively
+coding the flip flags.
