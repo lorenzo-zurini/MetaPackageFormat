@@ -187,8 +187,19 @@ reader interprets them all ("smart data, dumb reader").
   finder and no prices. Checkpoints are DERIVED by one replay pass and live in RAM; they are never stored.
   - Measured on Unity blocks (16 MiB decoded each): 1,600 random 4 KiB and 64 KiB reads of the shipped bytes were all
     bit-exact. p50 2.5–2.9 ms, p99 ≤ 6.8 ms; a whole-block replay runs at 240–370 MB/s decoded.
-  - Space checkpoints by SHIPPED bytes, not decoded ones. These blocks compress 16:1, so checkpoints every 64 KiB of
-    decoded data would take 4× the shipped size in RAM.
+  - **RAM (measured, 6 blocks):** space checkpoints by SHIPPED bytes, not decoded ones. These blocks compress 16:1, so
+    a checkpoint every 64 KiB of decoded data takes 4× the shipped size. Every 64 KiB SHIPPED, each checkpoint
+    zlib-compressed on its own (7–8.4 KB):
+    - RAM: 11–14% of the shipped size of the LZMA pieces being read.
+    - Reads: p50 2.9–3.2 ms, p99 ≤ 8.4 ms.
+
+    | Option | RAM (% of shipped) | Reads |
+    |---|---|---|
+    | Every 16 KiB shipped | — | no faster: a 64 KiB read replays its own ~1 MiB of decoded data |
+    | Every 256 KiB shipped | 6% uncompressed | p50 7–7.7 ms |
+    | Keyframes (compressed against the previous checkpoint, 3.0–3.7 KB) | about 7% | — |
+  - Deriving the checkpoints is one sequential replay of the stream (about 50 ms for a 16 MiB block), done the first
+    time any part of it is read.
 
 ### 22.7.3 Reading (USER, 2026-11-25: "no cache"; "the skeleton map is the cache")
 
@@ -223,7 +234,8 @@ With archives described, a mod overrides single inner files.
 - The binary layout of a tree delta (listing, kinds, piece references) and the node keys that name it.
 - Tier-3 carried functions: the machine and its limits (22.5.5).
 - The neutral decision format, and how a description names a layer's framing over it (22.11.2).
-- A compact in-RAM encoding of read programs (22.12).
+- Copy-class layers resolved per read without a resident composed program (map the read range down layer by layer
+  through each layer's skeleton index): designed, not yet measured (22.12).
 - Token replay for Oodle-class formats: it needs only their bitstream writer (the open decoders define it), not the
   proprietary encoder's search. Unproven.
 - Pairing unnamed pieces better than "whole previous version" (CASC root/encoding files give names).
@@ -359,10 +371,20 @@ USER 2026-11-25: "the sum of the format data of the layers produces the exact re
     - Compile: 1.4–16 ms per member.
   - Compiling a bit-level layer reads the content (a literal's code length depends on its byte); copy-class layers do
     not.
-  - RAM: 24-byte entries make the program 1–3× the shipped size. To compact it: an index every 64 entries, varint
-    entries.
-- **Compiled, never stored.** The program is derived from the per-layer data when a piece is first touched, and kept in
-  RAM like derived checkpoints (22.7.3).
+  - **No resident program (measured).** A materialized program of 24-byte entries is 1–3× the shipped size, and it is
+    not needed. A read needs only:
+    - the skeleton: per block, its bit offset, content offset, token-stream offset and verbatim header bits. That is
+      0.30% of the shipped size, stored anyway.
+    - the layer's neutral decisions as a token stream: (literal run, length, distance) per match, 32% of the shipped
+      size raw and 18% zlib'd. They are stored data, read through the page cache, not owned RAM.
+    - four decoded code tables (about 5 KB).
+
+    The read jumps to its block, sums code lengths to its start, and emits. The 22 KCD2 members re-measured this way:
+    every read bit-exact, sequential 215–367 MB/s, random p50 0.13–0.21 ms, so no slower than the resident program.
+  - Where a piece keeps a recipe instead of stored decisions, a read re-encodes the block with the recipe (13–41 MB/s)
+    and the RAM block cache holds the result. That trades disk (decisions) for CPU; the packer chooses per piece.
+- **Compiled, never stored.** The program is derived from the per-layer data, never stored. For deflate it is not even
+  kept: a read compiles just its own range (see above). Only LZMA-class checkpoints are kept in RAM (22.7.2).
   - Compiling touches no content bytes: it is arithmetic over the layers' tables. Composing 16 layers of a 128 KiB
     piece took 0.4 s in the Python prototype.
   - Storing it would be wrong: the program is large (300 KiB serialized there), and its version-2 delta (121 KiB) is
