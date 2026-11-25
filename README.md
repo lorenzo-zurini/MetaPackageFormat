@@ -129,6 +129,7 @@ Read the chapters in order the first time.
 | 19 | [Reference implementation map](docs/19-reference-implementation.md) | Where each rule lives in VidyaGod. |
 | 20 | [Conformance](docs/20-conformance.md) | The checklist a from-scratch implementation must satisfy. |
 | 21 | [Appendix: platform tokens](docs/21-platform-tokens.md) | The canonical tokens, engine kinds, naming rules. |
+| 22 | [Decoding deltas (DRAFT)](docs/22-decoding-deltas.md) | Not normative yet: pieces, decoded forms, tree deltas, declarative two-way descriptions, the no-cache runtime, measurements. |
 
 ---
 
