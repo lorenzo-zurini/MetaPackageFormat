@@ -290,6 +290,14 @@ program (22.12): every random read and a full sequential read were bit-exact, wi
 
 ## 22.11 Layers: recipes, decisions, families
 
+**The content is the lineage (USER 2026-11-25).** A piece's history is the history of its decoded content. Each
+layer's data (recipe, knobs + corrections, or decisions, plus its skeleton) is per-version data stored beside it.
+- Layer data deltas against the previous version's layer data only while the encoder stays the same.
+- A recompression event (WC3 1.27a switched the zlib window to the sector size) changes only the layer data, and a
+  recipe costs a few bytes.
+- Measured on 1.27a: decoded 64 MiB, against 281 MiB in token form, where the parse IS the history and a new encoder
+  breaks it. Tokens never carry the lineage; they are layer data.
+
 Real files nest encodings: a zip member holding a Unity bundle of LZ4 blocks, an MPQ sector zlib-compressed and then
 encrypted. A piece is peeled top-down into its content plus, per layer, what it takes to re-encode that layer exactly.
 
