@@ -569,3 +569,25 @@ Same delta structure, with the corrections coded as a model the reader replays e
 
 Next: checkpoints coded as deltas of the previous one (≈ halves 0.8 MiB); richer flag contexts; a cheaper margin for
 reader speed.
+
+### 22.14.3 At scale: Subnautica's 552 MiB LZMA bundle (measured)
+
+Disco's dialogue block was its largest LZMA file. All of Disco's LZMA bundles total 0.49 GiB; its 6.6 GiB of LZMA
+history churn is that 43.5 MiB bundle re-shipped ~150 times. Big single streams exist elsewhere: Subnautica's
+`AssetBundles/basegeneratorpieces` (Unity 5, 2018) is ONE LZMA stream, 552 MiB decoded, 174 MiB shipped.
+
+The pipeline was made memory-safe: decisions streamed to disk, inputs memory-mapped, the same-bytes chains in a sliding
+window rebuilt per checkpoint. It gives identical results on the Disco pair.
+
+| Builds 60 → 61 | |
+|---|---|
+| content change | 23 KiB |
+| today | 173.95 MiB |
+| **margin-coded delta** | **14.0–14.6 MiB (12×)**: flags+ranks 9.5, escapes 1.7, checkpoints 2.7–3.3 |
+| flips | 9.5% of 157.8M decisions |
+| reads | full bundle BIT-EXACT in 26 s per core (22 MB/s decoded; ~3 s on 8 cores across 348 checkpoints); random p50 48 ms |
+
+**Finding:** with corrections, the cost scales with the STREAM, not the change. A 23 KiB edit costs ~8% of the shipped
+bundle (Disco: 8% too), because the encoder's price-state chaos spans the whole stream. Corrections cap every LZMA
+update at ~8% of today's. Going further, toward cost proportional to the change, needs window-level prediction (the
+near-tie lattice) or the state skeleton (which costs CPU at read time).
