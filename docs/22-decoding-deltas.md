@@ -416,3 +416,45 @@ USER 2026-11-25: "the sum of the format data of the layers produces the exact re
     piece took 0.4 s in the Python prototype.
   - Storing it would be wrong: the program is large (300 KiB serialized there), and its version-2 delta (121 KiB) is
     larger than today's delta of the shipped files (70 KiB). The per-layer data behind it deltas to about 3 KiB.
+
+## 22.13 The algebra (USER 2026-11-25: "the cardinal concept")
+
+The old deltas work because their one operation, COPY, is closed under composition: a chain of versions collapses
+into one map, built once. Decoding deltas extend the operation set with encode/decode, and the set must stay CLOSED,
+so that layers and versions both collapse and the reader applies "the sum of all mutations, once". The format is the
+smart part (a compiled program); the reader is a dumb machine with a fixed instruction set.
+
+### 22.13.1 Instructions (nodes)
+
+| Node | What it is | Composes |
+|------|------------|----------|
+| SRC | raw bytes (content, literal pools) | — |
+| SEQ | COPY(node, range) / ADD(pool) segments, optionally through a MAP (XOR keystream, byte table) | SEQ over SEQ flattens at build time; keys combine; an ADD under a MAP is precomputed |
+| FRAME | an LZ framing (LZ4, LZSS, game LZs, PackBits) generated from stored neutral decisions | its literals read the input node; stays a node |
+| PACK | a static-table coder (deflate blocks) from stored decisions + per-block skeleton | MAPs fold into its table; a COPY above it is a bit range |
+| GENB | block-bounded state (MPQ cipher per sector, CBC, BWT/MTF blocks) | the block is the unit |
+| GENS | stream state (LZMA's range coder) from derived checkpoints | its input flattens; a COPY above it is a range |
+
+### 22.13.2 Behaviour classes: every format fits one
+
+C (copy-like) · T (table-coded) · B (block-bounded state) · S (stream state) · O (opaque: stored bytes, today's
+behaviour). Rules that put a format into a class:
+- decode to the last lossless form only;
+- everything content-independent is precomputed at mint and stored (offsets, tables, salts, IVs, timestamps);
+- linear checksums (CRC) combine;
+- model and coder are separate;
+- solid archives split into per-file content under one GENS;
+- unknown encoders are fitted;
+- shared dictionaries are COPY sources.
+
+### 22.13.3 Proven (v0 prototype, `~/Storage/tmp/vacuum/algebra`, one core, every read verified)
+
+| Class | Real data | Result |
+|---|---|---|
+| C | 16-layer copy stack, 8 MiB WC3 content | 16 layers built and composed in 41 ms; containers and XORs vanish (execution depth 16 → 8, top = 3 segments); every layer's node exact; RAM 1% of shipped. Speed (50 MB/s) is set by the 8 stacked LZ framings, which must each emit their tokens; real files have one |
+| T | 5 KCD2 `.pak` deflate members | recipe exact. Version 2 stored as content delta + decisions delta is 47–190× smaller: m00 4,333 → 22.7 KiB, m14 930 → 7.2 KiB. Reads 220–383 MB/s with no search |
+| B | 12 encrypted, sector-compressed WC3 files (War3xLocal) | full stack exact: SEQ(table) > GENB(cipher) > SEQ(zlib header, adler) > PACK > SEQ(slice) > content. 177 MB/s. Version 2: 115.5 → 26.3 KiB (sectors already keep today's deltas local) |
+| S | 2 Unity LZMA blocks, 16 MiB each | reads exact, p50 ~3 ms; mount 108–149 ms per block (checkpoints derived). **Version 2 barely wins: 1,026 → 915 KiB.** The optimal parser's decisions drift long after an edit (prices depend on history), so the tokens delta is ~60% of the tokens. The content delta is 2.4 KiB; realizing it needs the recipe encoder once per changed block: 2.3 s per 16 MiB (7.3 MB/s) |
+
+Open: the policy for class S lineages (store tokens, derive once with the recipe, or keep stored); compacting
+per-unit node overhead (B: 19% derived RAM in the prototype); a fused executor; the instruction set's binary form.
