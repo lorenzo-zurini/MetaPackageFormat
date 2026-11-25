@@ -458,3 +458,39 @@ behaviour). Rules that put a format into a class:
 
 Open: the policy for class S lineages (store tokens, derive once with the recipe, or keep stored); compacting
 per-unit node overhead (B: 19% derived RAM in the prototype); a fused executor; the instruction set's binary form.
+
+## 22.14 LZMA cracked: stored encoder states (2026-11-25)
+
+**The problem, measured.** Disco Elysium's `dialoguebundle` is ONE LZMA block (136.5 MiB → 43.5 MiB). Every update
+re-ships all 43.5 MiB today, even when 2 KiB of dialogue changed (9 real updates: 391.5 MiB). The content deltas are
+2 KiB – 1.8 MiB; the encoder's tokens delta is 31.6 MiB.
+
+**Why.** Carrying version 1's decisions over to version 2 through the content delta (TRANSPLANT): 90.5% are
+identical, but the 9.5% that differ are spread everywhere, every ~43 bytes. That holds even across the final 76.5 MiB,
+where the content and the match candidates are unchanged. The cause is the encoder's sequential STATE, not the content:
+- live probabilities, quantized to 128 price levels;
+- length price tables rebuilt every 63 lengths per position class;
+- distance price tables every 128 matches, align prices every 16.
+
+An edit shifts the refresh phases forever, so near-tie decisions flip for the rest of the stream. (Not position
+contexts: Unity data is 4-aligned, so every shift is ≡ 0 mod 4.)
+
+**The crack.** The chaos lives ONLY in that state; the match finder's results and the parse are pure functions of
+content + state. So the packer, which runs the real encoder at mint anyway, stores the encoder's true STATE in the
+delta every few MiB (54 KB raw, 10.4 KB zstd-19 each; no match finder). The stream splits into independent chunks:
+a reader rebuilds the match finder from the 512 KiB window, loads the state, and re-encodes the chunk.
+- **Measured:** 17 of 17 chunks re-encoded bit-exact (8 MiB each), 1.9 s per chunk → ~4 s for the whole block on 8
+  cores. Only the chunks a read touches are encoded.
+- **Per update stored:** content delta + 17 × 10.4 KB ≈ 0.2–2 MiB, against 43.5 MiB today. No decisions stored, no local
+  store needed.
+
+| Option | Stored per update (Disco) | Reader CPU |
+|---|---|---|
+| today | 43.5 MiB | none |
+| tokens delta | 31.6 MiB | replay only |
+| transplanted decisions + corrections | 7.6 MiB | replay only |
+| **stored states + content delta** | **~0.35 MiB** (161 KiB + 177 KB) | ~32 s of encoding, parallel and lazy (~4 s wall on 8 cores) |
+| content delta + one full re-encode | 161 KiB | 30 s sequential + a local store |
+
+Open: a cheaper reader using transplanted match candidates instead of the match finder (the match finder is ~60% of
+the encoder's time), with corrections for what that misses; chunk size versus latency (8 MiB → 1.9 s cold).
