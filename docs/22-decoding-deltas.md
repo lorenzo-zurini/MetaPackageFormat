@@ -875,3 +875,14 @@ Three formats, three coders (range coder, Huffman bit coder, raw bytes), no form
     record lengths that wrap are refused, a refusal pending at RET refuses, and the compiler's folds (affine mask,
     table bound, fusion with a jump landing inside its pattern) mean what they fold. Fusion no longer avoids landing
     points: it rewrites only a pattern's first instruction, so a jump into the pattern runs the originals.
+- **ISA 4 and the first archive (2026-11-27).** `EX_STREAMPOS` (the shipped stream's byte position: read so far in
+  DECODE, written so far in CODE, from the stream's start) lets a description check what an archive's index says
+  against where its members really are. With it, **Bethesda's BSA v105 (Skyrim SE) is a description** (104 ops, 667
+  expressions): its content is the header region (header, folder records, folder names and file records, file names) as
+  it is, then every member's bytes in data order; members must lie in record order, back to back; bit 30 of a record's
+  size flips the archive's compression for that member; embedded names stay with their member; every LZ4 frame option
+  (content size, dictionary id, block and content checksums, stored blocks) is read and coded back. A description using
+  `EX_STREAMPOS` is refused by an ISA-3 reader. Real archives mint and verify bit-exact (`Skyrim - Interface.bsa`,
+  65.7 MB: 0.5 s to mint, 4.5 GB/s to verify). `MintInto` decodes into a caller's buffer (a tool reserves a lazy 4 GiB
+  map). The algebra is on the command line twice: VidyaGodFS's `vgcode`, and VidyaGod's `coding describe | info | mint
+  | verify | cat | deflate-split | deflate-verify`.

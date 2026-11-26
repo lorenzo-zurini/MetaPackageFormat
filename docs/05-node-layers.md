@@ -105,6 +105,6 @@ A node inside itself (a cycle) is reported and its back edge skipped; resolution
 | `OVER: ["parent"]` | `{"NODE": "parent"}` at the position the node chooses |
 | placement variables (`%DXVK_TARGET%`, `%MONO_TARGET%`, `%DirectPlayPath%`, …) | `TARGET` on the `NODE` layer |
 | `SUBMOUNTS` relocating part of an archive | a holder node for the archive, contained with a `TAKE` pair |
-| "requires" (an any-of group, `NOT`) | `ANY` and `NOT` layers (chapter 12 §12.5) |
+| "requires" (an any-of group, `NOT`) | `INTO` layers and conditions naming node CIDs (chapter 12 §12.5, chapter 23) |
 
 Next: [`EDIT` layers](06-edit-layers.md).

@@ -8,7 +8,7 @@ apart and links them by CID: the descriptions are shared freely, the bytes are f
 ```
 <data root>/LIBRARY/
 ├── VidyaGod/                                   a library: a named collection of packages
-│   ├── [8333][v1.0] Cave Story/                 a package folder
+│   ├── [8333] Cave Story/                       a package folder
 │   │   ├── Cave Story 1.0.0.6.json              node files, each named by its label (chapter 02 §2.5)
 │   │   ├── doukutsu-rs 1.0.0.json
 │   │   ├── Doukutsu Monogatari 1.0.0.6.zip      content files the nodes name
@@ -21,7 +21,8 @@ apart and links them by CID: the descriptions are shared freely, the bytes are f
 ```
 
 A **package** is one folder (for a game, the game's folder): node files and the content files they name. Its folder
-name is presentation; nothing references it. Every node file in every package folder is read into one index keyed by
+name is presentation; nothing references it. A game's folder is named `[<uid>] <Title>`; a mod folder that is not a
+game `[<game uid>] <Game> - <Author or Mod>` (chapter 23 §23.8). Every node file in every package folder is read into one index keyed by
 CID (chapter 02 §2.5).
 
 Every node has **one home package** (chapter 02 §2.7). A package that uses another package's nodes (a game using
@@ -51,7 +52,8 @@ fetches only the deltas on its path.
 **Hydrating** a row fetches every content file its resolution names, plus the builds of its runner chain (the chain
 the resolver picks when nothing is installed: chapter 11 §11.4), plus covers. The CIDs to fetch are followed from the
 variant node through `NODE` layers, `SOURCE` and `TILE.COVER.SOURCE`, whichever package they belong to: a library
-another package publishes comes along. `ANY` and `NOT` are never followed. Runners are found by capability among
+another package publishes comes along, and so does what a part goes `INTO` (its hard link). A node CID inside a
+`WHEN` is never followed. Runners are found by capability among
 installed and shared runner packages.
 
 A tile is shown in the library when one of its rows has content present; the rest is catalog.
@@ -73,7 +75,7 @@ To share packages, an implementation **publishes** them:
 
    ```json
    { "bafkreidjdddotl4tkepmmh2ipd4e36bdkotwkomzb3hsr5b45dy455slyi": "VidyaGodLibraries/xinput/xinput_content.json",
-     "bafkreics4hd3k4unjsyv2ajblg5zqk75qdkmuysxrsb4jr4ukzs6zzcgwu": "VidyaGod/[6518][v1.0] Angry Birds Seasons/Angry Birds Seasons 4.1.0.json" }
+     "bafkreics4hd3k4unjsyv2ajblg5zqk75qdkmuysxrsb4jr4ukzs6zzcgwu": "VidyaGod/[6518] Angry Birds Seasons/Angry Birds Seasons 4.1.0.json" }
    ```
 
    A package is the entries under its `<library>/<package>/`, and nothing else: a package has no CID and no record of
@@ -96,9 +98,9 @@ not hold (a receiver relying on a pinning service could never fetch it).
 
 ## 15.5 Receiving
 
-What a peer receives is the share sheet's entries of the libraries shared with them, **closed over containment**:
-every node one of those entries contains (`NODE` layers, transitively) comes along with its whole package, under its
-own library name. A peer given a game also gets the libraries it contains, each as its own package, once. The
+What a peer receives is the share sheet's entries of the libraries shared with them, **closed over hard links**:
+every node one of those entries contains (`NODE` layers) or goes into (`INTO`), transitively, comes along with its
+whole package, under its own library name. A mod package shared alone brings the game it goes into. A peer given a game also gets the libraries it contains, each as its own package, once. The
 closure is worked out by the sender each time it sends, from the nodes themselves. A peer's catalog copy of a
 package you have installed is a view of that package, never a second home.
 
@@ -145,7 +147,8 @@ good histories, so nothing is "newer". An installed package changes only when **
   refused.
 - **Switched.** Every node the version lists comes in. An installed node it does not list goes **only when nothing
   installed still contains it**: other packages, and the new version itself. A library another game still uses stays
-  at the version that game contains, beside the new one. Containment counts; `ANY` and `NOT` do not. The node files
+  at the version that game contains, beside the new one. Hard links count (`NODE` and `INTO`: a mod installed for an
+  end keeps that end); a condition's CIDs do not. The node files
   are then named by the rule (chapter 02 §2.5) over the package's new set of nodes.
 - **Content follows the node set.** A file only removed nodes named is deleted. Bytes already here under another
   name are moved rather than fetched again. When two CIDs claim one file name in a package, each lives at its

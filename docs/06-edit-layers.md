@@ -145,7 +145,7 @@ content is a value (a CD-key file, a version stamp).
 
 Appends `VALUE` as a line unless a line equal to it already exists. Creates the file if absent, and adds a newline
 first if the file did not end in one. This is the load-order primitive: each mod appends its own line, so the file
-lists exactly the ticked mods, in graft order.
+lists exactly the ticked mods; their lines are units that merge as a set (chapter 23 §23.4), in a deterministic order.
 
 ### `LineFlag`: a line whose presence is the setting
 

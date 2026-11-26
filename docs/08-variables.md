@@ -192,7 +192,7 @@ argument sees its value.
 
 ## 8.6 `WHEN`: conditions
 
-`WHEN` holds a boolean condition over variables. It appears in three places:
+`WHEN` holds a boolean condition over variables and node CIDs. It appears in three places:
 
 - **On a layer** (any type): the layer is skipped when the condition does not hold. A `NODE` layer does not expand, a
   content layer does not mount, a fact is not written, an entry does not exist.
@@ -221,6 +221,12 @@ operand   := %KEY%  |  "quoted"  |  bare-word
 - Operands are resolved while evaluating, so a value containing `&&` or `==` is compared as data, never re-parsed.
 - An empty condition is true. A malformed condition is **true at launch** (fail-open) and a **validator error**, so a
   typo can never silently disable a layer.
+- **A node CID as an operand** (a bare word shaped like a node CID, chapter 02 §2.3) reads `true` when that node is in
+  the composition and `false` when it is not: what lies beneath the layer, plus the parts selected for the launch (the
+  ticks are the input, so nothing loops). `bafkrei…ussep == true`, `bafkrei…aok_soundtrack == false`. It never names a
+  runner (a validator refuses it), it is compared and never followed (no closure fetches it), and it is renamed in
+  place when that node is re-minted. On a part's `INTO` layer, a false condition keeps the whole part out (chapter 23
+  §23.2). Before a save, an editor's draft handle (`draft-` and 12 hex digits) stands in for a CID the same way.
 
 Choices are variables: an option with `enum` or `bool` control, and the layers that implement each choice gated on
 it. A package's own optional features are variables; a change that someone else may publish is a graft (chapter 12

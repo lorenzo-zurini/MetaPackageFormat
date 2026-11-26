@@ -19,7 +19,7 @@ what it writes. A layer is one typed entry:
 
 There are no node types. A game, a patch, a library, a runner, a mod and a configuration option are all nodes; what
 a node *is* follows from its layers: it has a way to run (`EXEC` without `GUEST`), it is a runner (`EXEC` with
-`GUEST`), it is a graft (its list begins with `ANY`), it is on the shelf (`VARIANT`).
+`GUEST`), it is a part, a mod or "graft" (its list begins with `INTO`), it is on the shelf (`VARIANT`).
 
 **Parents are layers.** A node's ancestors (the version it patches, the libraries it uses) are `NODE` layers at the
 position the node chooses, and a `NODE` layer can take part of a node (`TAKE`) and place it (`TARGET`). The
@@ -41,7 +41,7 @@ A typical game package holds:
 - the **pristine** node: the game's files exactly as released, its entry and its tile;
 - **versions**: nodes that contain the previous version and add a delta or a patch;
 - **variants**: the nodes the user can pick, marked `VARIANT`;
-- **grafts**: optional changes the user can tick, whose list begins with `ANY`;
+- **parts** (grafts): optional changes the user can tick, whose list begins with `INTO` the end they go into;
 - package-local **libraries** and, for a game with its own engine, the engine as a `custom` runner (chapter 10 §10.6).
 
 Shared runners and libraries (Proton, DirectX redistributables, dgVoodoo) live in their own packages. A game never
@@ -63,7 +63,7 @@ names its runner: the runner chain is found by capability.
 ## 1.5 Things that fall out of the model
 
 - **Mod load order.** An `AppendLine` edit in each mod writes one line of a load-order file; the ticked mods' lines
-  appear in graft order. No mod-manager construct.
+  merge as a set, in a deterministic order (chapter 23). No mod-manager construct.
 - **Optional expansions.** An expansion is a node containing the base game with an entry carrying its own tile
   (`PARENTUID` = the base game). Both tiles share one family, one install folder and one set of owned state.
 - **Multi-edition games.** Several variants contain one pristine and differ by a delta or an option.

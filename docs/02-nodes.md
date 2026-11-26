@@ -60,7 +60,8 @@ Every reference to another node is its CID, as a plain string:
 | Where | Followed? |
 |-------|-----------|
 | `NODE` | yes: fetched and kept with whatever contains it |
-| `ANY`, `NOT` | no: compared against a resolution, never fetched |
+| `INTO` | yes: a hard link, fetched and kept with the part that goes into it (chapter 23 §23.7) |
+| a node CID inside a `WHEN` | no: compared against the composition, never fetched; renamed when that node is re-minted |
 
 Content files are referenced by their own CIDs (`SOURCE`, `TILE.COVER.SOURCE`, chapter 15). Runners are never
 referenced (I9).
@@ -87,7 +88,8 @@ node the same name:
 Publishing names every published node's file by this rule (chapter 15 §15.4).
 
 The **working tree** is what an author edits. A hand-written tree MAY give each node a stored `CID` field, a handle
-that other nodes' `NODE`, `ANY` and `NOT` layers use before any real CID exists. **Freezing** resolves the handles:
+that other nodes' `NODE` and `INTO` layers use before any real CID exists (inside a `WHEN`, a handle is recognised only
+when it is a CID or an editor's draft handle, `draft-` and 12 hex digits). **Freezing** resolves the handles:
 nodes are frozen in dependency order (contained before containing), each handle in a frozen node is replaced by the
 CID its target froze to, and the frozen node's own CID follows from its bytes. A reference to a handle that did not
 freeze is an error for that node only; the rest of the library freezes.
@@ -101,10 +103,11 @@ first one read keeps the handle, and the other is still indexed under its own CI
 ## 2.6 Editing and re-minting
 
 Editing a node changes its CID. An editor that saves a node MUST re-mint every node in the library that references
-it (by `NODE`, `ANY` or `NOT`), in dependency order, so that no reference is left pointing at the old bytes, and
-SHOULD verify afterwards that every reference resolves. A reference held by someone else's package (a peer's graft
-whose `ANY` names your node) cannot be re-minted by you: it goes stale, and the graft is simply no longer offered on the new version.
-This is why a graft's `ANY` should name the lowest node it needs, usually a pristine that never changes.
+it (by `NODE`, `INTO`, or a CID in a `WHEN`), in dependency order, so that no reference is left pointing at the old
+bytes, and SHOULD verify afterwards that every reference resolves. A reference held by someone else's package (a peer's
+part that goes `INTO` your end) cannot be re-minted by you: it goes stale, and the part is no longer offered on the new
+node. This is why ends, once offered, are append-only (chapter 23 §23.6): a settled end is never re-minted. A
+library-wide re-mint is carried by `catalog repoint` (chapter 23 §23.9).
 
 ## 2.7 One home
 

@@ -11,7 +11,7 @@ is follows from its layers.
 content file's bytes (chapter 15). Every reference in the format is a CID string.
 
 **Layer** — one entry of `LAYERS`: an object with exactly one **type key** (`ZIP` `FILE` `DELTA` `DIR` `NODE` `EDIT`
-`REG` `VARS` `ENV` `DLL` `EXEC` `KEEP` `ANY` `NOT`) plus that type's own fields, and optionally `WHEN`, `COMMENT`,
+`REG` `VARS` `ENV` `DLL` `EXEC` `KEEP` `INTO`) plus that type's own fields, and optionally `WHEN`, `COMMENT`,
 `LABEL` and `SECTION` (chapter 03).
 
 **Address** — the name of something a layer writes: `FILES/<path>`, `FILES/<file>#<key>`, `REG/<hive>/<key…>/<value>`,
@@ -44,10 +44,16 @@ An effective entry carrying a tile is a **face**. Tiles merge by `UID` across no
 **Family** — the tiles under one root `UID` (the base game and its expansions, nested by `PARENTUID`).
 `%PackageUID%` is the family's root UID; owned state belongs to the family.
 
-**Graft** — a node whose list begins with an `ANY` layer: an option applied on top of a resolution that contains a
-member of that `ANY` (a mod, a fix, a loader). It enters a launch only when ticked (chapter 12 §12.5).
+**Part** (graft) — a node whose list begins with `INTO` layers: a mod, a fix, a loader, a tile of its own, that goes
+into an end (or another part) by a hard link. It enters a launch only when ticked, and parts merge as a set, without
+order (chapter 12 §12.5, chapter 23).
 
-**Instance** — the user's loadout for one family: chosen variant, ticked grafts and their order, variable values,
+**End** — a launchable: a node with `VARIANT`. Every mod is made against one (chapter 23 §23.1).
+
+**`INTO`** — the layer a part opens with: the ends or parts it goes into. One layer's members are alternatives; several
+layers mean all of them.
+
+**Instance** — the user's loadout for one family: chosen variant, ticked parts (a set), variable values,
 owned state. Local data, never a node (chapter 17 §17.3).
 
 **Ownership** — whose an address is: the package's (recomputed every launch) or the user's (kept across launches).

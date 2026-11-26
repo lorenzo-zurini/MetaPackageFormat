@@ -101,17 +101,17 @@ declares both entries and both tiles (Reign of Chaos `802`, The Frozen Throne `8
 changes only the field it must (here, the TFT executable). Every version from 1.21b is a row under both tiles.
 Getting version *N* fetches the base and the deltas on its path.
 
-## 18.5 Grafts: a soundtrack, a fix and a frame-rate mode
+## 18.5 Parts: a soundtrack, a fix and a frame-rate mode
 
 ```jsonc
 { "LABEL": "Wipeout XL FLAC soundtrack", "RECOMMENDED": ["17260"], "SECTION": "Soundtrack", "LAYERS": [
-    { "ANY": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"] },
+    { "INTO": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"] },
     { "NODE": "bafkrei…woxl_flac_files", "TARGET": "FILES/%GameDir%/music" },
     { "EDIT": [ { "MODE": "ConfigWrite", "KEY": "MusicFormat=", "VALUE": "flac" } ],
       "TARGET": "FILES/%GameDir%/wipeout.ini" } ] }
 
 { "LABEL": "Wipeout XL 200 fps", "LAYERS": [
-    { "ANY": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"] },
+    { "INTO": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"] },
     { "VARS": { "fps": { "DEFAULT": "120",
                   "UI": { "LABEL": "Frame rate", "CONTROL": "enum", "CHOICES": [
                           { "LABEL": "60", "VALUE": "60" }, { "LABEL": "120", "VALUE": "120" }, { "LABEL": "240", "VALUE": "240" } ] } } } },

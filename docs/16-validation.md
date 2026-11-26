@@ -44,7 +44,8 @@ Errors:
 - `KEEP` not a map; an address outside `FILES` and `REG`; a value that is not `true`, `false` or an options object; a
   kept `REG/HKLM/Software…` key without `ARCH`, an `ARCH` that is not a list of distinct `"32"`/`"64"`, or one on a
   `FILES` address; a wildcard outside the last segment of a `FILES` address, or on a folder;
-- `ANY` not a non-empty list of CIDs; `NOT` not a CID.
+- `INTO` not a non-empty list of CIDs; an `INTO` layer after any layer that is not one (`INTO` layers open the list);
+- `ANY` and `NOT` (gone from the vocabulary: `INTO` and conditions replace them).
 
 - the same node in two installed package folders (a node has one home, chapter 02 §2.7).
 
@@ -56,12 +57,15 @@ Errors:
 
 - a `NODE` layer naming a node that is not in the library;
 - a cycle of `NODE` layers;
-- a variant whose resolution meets a cycle, a missing node, an unmet `ANY` (not a graft's own), or a `NOT` that hits.
+- a variant whose resolution meets a cycle, a missing node, or a part it contains going `INTO` what is not beneath it;
+- an `INTO` naming a runner, or a node that is neither an end (`VARIANT`) nor a part;
+- a `WHEN` naming a runner's CID (a package names a runner's capability, never its CID).
 
 Warnings:
 
-- an `ANY` naming no node in the library; a `NOT` naming a node not in the library;
-- a graft that is offered but whose `ANY` does not hold;
+- an `INTO` layer naming no node in the library (a part for a version you do not have);
+- a `WHEN` naming a node CID that is not in the library (it reads false);
+- a part that is offered but whose `INTO` is not beneath it;
 - a held or moved mention that decided a winner (chapter 05 §5.4).
 
 ## 16.3 Content
@@ -87,7 +91,7 @@ Errors:
 
 - a `VARIANT` with no effective entry to run, or presenting no tile;
 - a variant's `RECOMMENDED` naming a tile it does not present;
-- a graft that is also a version (a variant whose list begins with `ANY`) with nothing in the library it applies onto.
+- a part that is also a version (a variant whose list begins with `INTO`) with no end in the library it goes into.
 
 Warnings: `RECOMMENDED` on a node that is neither a variant nor a graft; a `RECOMMENDED` tile no variant presents.
 

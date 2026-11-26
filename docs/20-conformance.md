@@ -24,10 +24,12 @@ below. It is also a build order: each section runs once the ones before it do.
       same list; a node never leaves its container (chapter 05 §5.4, I3).
 - [ ] **MUST** fold per address, later wins, `null` deletes; edits and deltas apply to what is beneath them; entries
       fold per label and field in first-declared order (chapter 12 §12.2).
-- [ ] **MUST** evaluate `ANY` at its position and `NOT` against the final expansion; block a variant whose checks fail.
-- [ ] **MUST** offer grafts through the index of their leading `ANY`, apply ticked grafts in instance order judging
-      each against the row with the ones before it, tick `RECOMMENDED` grafts on a fresh instance, and never offer a
-      graft the row contains (chapter 12 §12.5).
+- [ ] **MUST** check each `INTO` where it occurs (a member beneath it) and block a variant containing a part whose
+      `INTO` fails; evaluate node CIDs in `WHEN` against the composition and the selection (chapter 08 §8.6).
+- [ ] **MUST** offer a part only on the end its `INTO` names or with a part it names applied, every `INTO` layer met
+      (the hard link); apply the selection as a set, a part after what it goes into, one depth in CID order; drop and
+      report a part whose `INTO` condition is false; tick `RECOMMENDED` parts on a fresh instance; never offer a part
+      the row contains (chapter 12 §12.5, chapter 23).
 - [ ] **MUST** complete resolution through a cycle, reporting it.
 
 ## 20.3 Variables
@@ -87,7 +89,8 @@ below. It is also a build order: each section runs once the ones before it do.
 ## 20.7 Packages and sharing
 
 - [ ] **MUST** fetch content by CID only when missing and verify fetched bytes.
-- [ ] **MUST** follow `NODE`, `SOURCE` and `TILE.COVER.SOURCE` when hydrating, never `ANY` or `NOT`.
+- [ ] **MUST** follow `NODE`, `INTO`, `SOURCE` and `TILE.COVER.SOURCE` when hydrating and sharing, never a CID inside
+      a `WHEN`.
 - [ ] **SHOULD** publish a share sheet (each node's CID → `<library>/<package>/<file>`, files named by their labels)
       and one pin folder per package, reproducibly, and share entries closed over what their nodes contain.
 - [ ] **MUST NOT** fetch a node into a package other than its home.

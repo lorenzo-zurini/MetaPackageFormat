@@ -19,8 +19,7 @@ A layer has **exactly one type key**. A layer with none, or with two, is malform
 | `VARS` | `{KEY: declaration}` | | `VARS/<KEY>` | [08](08-variables.md) |
 | `EXEC` | an ordered list of entries | | `EXEC/<label>` | [09](09-exec-tiles-variants.md) |
 | `KEEP` | `{address: true \| false \| options}` | | ownership of those addresses | [13](13-ownership.md) |
-| `ANY` | a non-empty list of node CIDs | | nothing: a check | [12](12-resolution.md) |
-| `NOT` | a node CID | | nothing: a check | [12](12-resolution.md) |
+| `INTO` | a non-empty list of node CIDs (alternatives) | | nothing: what a part goes into, a hard link; only at the head of a list | [12](12-resolution.md), [23](23-mods.md) |
 
 A field the layer's type does not list MUST be refused (a misspelt `TARGTE` is an error, not an ignored key).
 
