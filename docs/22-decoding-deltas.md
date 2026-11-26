@@ -701,6 +701,21 @@ shipped as data. Nothing in the reader knows a format or an encoder.
    what is copied flattens, what is generated runs. 22.13's PACK, GENS and FRAME are CODE nodes whose descriptions
    differ: PACK has static slots (flattens per block), GENS has adaptive slots (runs from checkpoints), FRAME has raw
    bytes (copies its literals).
+10. **Demand** (2026-11-26, USER: "the fact that it doesn't flatten yet just means that our algebra isn't good enough
+    yet"). A CODE node answers a RANGE of its output as a run list: GEN runs (bytes it generates, from its own pool) and
+    COPY runs (a range of its content, passed through as it is). A COPY run is handed to the node below as a range and
+    never materialised; `COPY ∘ COPY = COPY`, so a byte copied through any number of nodes is written once, by the node
+    that holds it, straight into the reader's buffer. A node reads of its content only what its code reads: in growing
+    windows while it reads contiguously, nothing behind its segment unless its format looks back (an LZMA literal's
+    match byte; deflate and LZ4 never do), and nothing it jumps over. Corollaries:
+    - **Read cost = the GEN work on the path**, whatever the depth. COPY-class nodes (stored, LZ4 literals, container
+      members, framing) cost a run-list walk each; static coders cost their own block; adaptive coders run.
+    - **The floor is real.** An adaptive coder's output bits depend on every earlier bit, so an adaptive coder over an
+      adaptive coder runs both; no algebra removes that. What the algebra gives instead is PARALLELISM: segments form a
+      dependency graph across nodes (a segment of node k needs only the segments of node k−1 under its content range),
+      so decoding runs lower nodes first and every segment of every node is a job of its own.
+    - **Checkpoints are cheap, so dense.** A snapshot costs about 5 KB for LZMA; placing them for parallelism and
+      latency (axiom 8's knob) is the default, not the exception.
 
 ### 22.15.3 Formats as descriptions (on paper)
 
@@ -788,3 +803,75 @@ the primitives of 22.15.6 one description decodes, codes and prices:
   4 MiB): **84/84 blocks decode to the exact content and code back bit-exact**.
 
 Three formats, three coders (range coder, Huffman bit coder, raw bytes), no format code in the engine.
+
+**In VidyaGodFS (2026-11-26 night, `src/coding.{h,cpp}`, `src/codingdescs.cpp`).** The engine is production C++:
+- a binary description format (`VGCD`, instruction set version 2) with a validator: expressions refer only to earlier
+  expressions; every op, register, table, array and code index is checked at parse; table and array totals are
+  capped; a description whose compiled form would be too large is refused;
+- the machine: expressions compiled once into micro-ops (constants folded, register and constant operands in place),
+  a per-mode skip table, slots / tables / arrays bounds-checked at run, runs metered (fuel per byte produced);
+- `Mint` (DECODE, then CODE back, refusing unless every byte matches; checkpoints at the description's MARK points) and
+  a record (`VGCR`: index + one zstd payload per checkpoint: machine snapshot + that segment's decisions);
+- `CodedByteSource`: random access from checkpoints; a sequential reader continues the paused run (RAM only);
+  hostile records are refused (bounded carry counts, probabilities, lengths, payload sizes).
+- Measured: Disco's LZMA block and 22 KCD2 deflate members mint and read back BIT-EXACT; reads 15 MB/s (LZMA) and
+  25 MB/s (deflate) of content per core. The record still holds ALL decisions (42.8 MB for Disco): the predictor
+  (margin coding against the anchor) is the next layer, and the engine's speed (about 4.5× behind native LZMA replay)
+  the next optimisation.
+- Found by the mint's code-back check: deflate's one non-canonical spelling (length 258 as code 284 + 31), now a
+  decision (token kind 3).
+- **Flattened and fast (2026-11-27, USER: "make all the layer types flatten... over 100MB/s for all, go crazy").**
+  - *Copy runs pass through:* a run of content bytes in the output (LZ4 literals, stored blocks: ISA 3's BYTERUN) is one
+    bulk read of the layer below, which composes through deltas; static-code literal runs (deflate: ISA 3's HUFFRUN)
+    are one native loop.
+  - *Static coders checkpoint per block:* a description without adaptive slots checkpoints every ~64 KiB shipped
+    (`SuggestedSpacing`); adaptive ones (LZMA) every 2 MiB. Every checkpoint segment decodes on its own, so a reader
+    going front to back is served by a shared pool decoding the next segments ahead (RAM ring, a few per stream).
+  - *The machine compiles each mode once:* only that mode's ops, targets remapped and threaded through JMPs, operands
+    resolved in place (constant, register, compare-with-constant, table[register], AFFINE forms with up to four terms
+    of register / content byte / table lookup, else micro-ops), common patterns fused (compute-bit + code-bit +
+    branch, code-bit + branch, decision runs), direct-threaded dispatch; checkpoints keep original op numbers.
+  - *Descriptions do less:* an LZMA literal carries one decision, a copy four (record 42.8 → 38.0 MB).
+  - Measured (i9-10900K, default pool of 8; all bit-exact on real data):
+
+    | Format | Sequential | Random 4K/64K p50 | One core | Four workers |
+    |---|---|---|---|---|
+    | LZMA (Disco block) | **184 MB/s** | 133 ms (2 MiB spacing) | 27 MB/s | 95 MB/s |
+    | deflate (22 KCD2 members) | **475 MB/s** | 0.38 ms | ~105 MB/s | 334 MB/s |
+    | LZ4 (Disco content, 4 MiB blocks) | **856 MB/s** | 0.70 ms | 173 MB/s | 512 MB/s |
+
+    The hand-written deflate layer read 241 MB/s. Open: LZMA per core (the range coder's serial chain plus interpreter
+    state in memory; native replay is 67 MB/s) — the next step would be compiling a description to machine code at
+    mount (the reader's own, never shipped); LZMA random reads (closer checkpoints trade record size for latency).
+- **Mounted.** A layer of type `coded` in the mount spec: `source` = the record, `description` = the description file,
+  `bases` = ONE CID, the content (any layer carrying bytes: a bytes-only file, a delta's rebuild, another coded stream),
+  `name` = the file it appears as in its `target` folder. Planned like a delta (its content resolved by CID; a content no
+  layer carries plans it broken and nothing is served) but it hides nothing; served as a one-entry archive, so open,
+  read, stat and copy-up are the zip path's. The record carries the shipped size.
+- **Demand: copy-class layers are depth-free (2026-11-26, axiom 10).** A decoded segment is its generated bytes plus
+  its copy runs (byte runs of 256 B and more, kept as content ranges); a read hands the copy runs down to the layer
+  below outside every lock, so copied bytes are written once, by the layer that holds them. The content window reads
+  only what the code reads (16 KiB fresh, doubling while reads are contiguous, small again after a jump, nothing behind
+  a segment unless the format looks back), the decoding pool runs lower layers' segments first, and adaptive coders
+  checkpoint every 64–512 KiB shipped (about 32 segments; an LZMA snapshot is about 5 KB). Found on the way: the mint
+  aimed its k-th checkpoint at `k × spacing`, so a long literal run left a burst of tiny segments behind it; checkpoints
+  are now spaced from the last one.
+  - Measured (i9-10900K, pool of 8, `~/Storage/tmp/vacuum/stack/stackbench`, Disco content, all bit-exact):
+
+    | Stack (bottom first) | Before | Now (MB/s of content) |
+    |---|---|---|
+    | LZ4 ×1 / ×2 / ×4 / ×8 | 2431 / – / 562 / 362 | 2355 / 2382 / 1644 / 1992 |
+    | deflate stored ×1 / ×8 | 6328 / – | 5815 / 2943 |
+    | deflate ×1, LZ4 over deflate, deflate over LZ4 | 1078 / 906 / 561 | 1286 / 1114 / 1841 |
+    | LZMA ×1 (8 MiB / 128 MiB content) | 289 / – | 527 / 210–226 |
+    | LZMA over LZMA; LZ4·deflate·LZMA ×1 / ×2 / ×7 (21 layers) | 170; 297 / 117 / 19 | 238; 484 / 269 / 41–53 |
+
+    LZMA random 4K/64K p50 on 128 MiB: 48 ms (was 133 ms at 2 MiB spacing); deflate 2.4 ms, LZ4 1.0 ms. What remains is
+    the adaptive floor (axiom 10): the 21-layer stack holds seven LZMA layers over high-entropy data, each running its
+    coder over every byte. The engine runs LZMA about 3.6× slower per core than native liblzma; compiling a description
+    to machine code at mount (the reader's own code, never shipped) is the lever left there.
+  - Tests with teeth (mutation batches 4–6: every mutant that changes behaviour caught; two equivalent): copied bytes
+    are not generated again, the content is read about once in few reads, a refused read below is refused above,
+    record lengths that wrap are refused, a refusal pending at RET refuses, and the compiler's folds (affine mask,
+    table bound, fusion with a jump landing inside its pattern) mean what they fold. Fusion no longer avoids landing
+    points: it rewrites only a pattern's first instruction, so a jump into the pattern runs the originals.
