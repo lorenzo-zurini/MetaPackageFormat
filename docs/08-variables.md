@@ -221,8 +221,9 @@ operand   := %KEY%  |  "quoted"  |  bare-word
 - Operands are resolved while evaluating, so a value containing `&&` or `==` is compared as data, never re-parsed.
 - An empty condition is true. A malformed condition is **true at launch** (fail-open) and a **validator error**, so a
   typo can never silently disable a layer.
-- **A node CID as an operand** (a bare word shaped like a node CID, chapter 02 §2.3) reads `true` when that node is in
-  the composition and `false` when it is not: what lies beneath the layer, plus the parts selected for the launch (the
+- **A node CID as an operand** (a bare word shaped like a node CID, chapter 02 §2.3), in a **layer's** `WHEN` only (a
+  declaration's, a `UI`'s or an edit op's condition is read after the fold, and a validator refuses a CID there), reads
+  `true` when that node is in the composition and `false` when it is not: what lies beneath the layer, plus the parts selected for the launch (the
   ticks are the input, so nothing loops). `bafkrei…ussep == true`, `bafkrei…aok_soundtrack == false`. It never names a
   runner (a validator refuses it), it is compared and never followed (no closure fetches it), and it is renamed in
   place when that node is re-minted. On a part's `INTO` layer, a false condition keeps the whole part out (chapter 23
