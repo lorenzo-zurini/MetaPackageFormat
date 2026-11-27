@@ -128,12 +128,18 @@ found per unit and SHOWN (the launch window's add-ons tab, `launch plan`'s `Part
 file path (compared without case; an archive's members are read from the archive), a keyed edit (`file#key`), a binary
 edit's byte range (disjoint ranges merge: Wipeout XL's 200 fps and widescreen patch one exe at different offsets), an
 anchored edit's anchor, an appended line (a set: two different lines never conflict), a registry value, `ENV`, `DLL`,
-`VARS`. Identical writes are one write, and a part never conflicts with one it goes into. **The user's resolution** is
+`VARS`, and units INSIDE files (2026-11-27): a Bethesda archive's members (BSA 103/104/105) at the addresses loose files
+in its folder have (two mods' archives replacing one texture conflict, and so does a loose replacer of it; the same
+archive twice is one write), and a Bethesda plugin's records (.esm/.esp/.esl) as `RECORD/<owner>/<FormID>`, the owner
+being the plugin the FormID's master index names (two plugins overriding one Skyrim.esm record conflict; the same
+override twice is one write; a plugin's own new records never conflict). Identical writes are one write, and a part
+never conflicts with one it goes into. **The user's resolution** is
 kept in the instance (`RESOLUTIONS`: {address: the part whose write stands}; the window's "Keep …" buttons, `grafts
 resolve`): parts are then folded in an order where each still follows what it goes into and every kept part comes as
 late as that allows, all others keeping theirs. A resolution orders whole parts, so one that cannot hold (stale: its
 part is not one of the two, or not applied; or two resolutions needing a pair both ways) is shown as an open conflict,
-never as settled. Units inside BSAs and plugins (records) arrive with their descriptions (chapter 22).
+never as settled. A unit inside a file is SHOWN as a conflict; merging two parts' writes inside one archive or plugin
+(rebuilding it with both) is not built: a resolution keeps one part's file whole.
 
 ## 23.5 Tiles, identity and the package
 
@@ -247,7 +253,7 @@ or tooling does not yet · **❗** a gap in the model.
 | # | Scenario | How | |
 |---|---|---|---|
 | 23 | Loose-file replacer | a part with a `ZIP` | ✅ |
-| 24 | A mod in its own archive (BSA, BA2, pak) | a part with the archive; its members as units need decoding (22) | ✅ / 🔧 units |
+| 24 | A mod in its own archive (BSA, BA2, pak) | a part with the archive; a BSA's members are units (BA2, pak: 🔧) | ✅ |
 | 25 | A mod that needs another (SkyUI needs SKSE) | `INTO` the other part, or a condition naming it | ✅ |
 | 26 | Compatibility patch for A + B | two `INTO` layers: offered once both are ticked | ✅ |
 | 27 | FOMOD options, "if USSEP is installed use this patch" | the part's options; presence-dependent pieces as small parts or conditions | ✅ |
@@ -281,7 +287,7 @@ or tooling does not yet · **❗** a gap in the model.
 | 50 | Two exe patches, disjoint bytes (Wipeout 200 fps + widescreen) | disjoint byte ranges merge | 🔧 (byte-range units) |
 | 51 | A mod shipped as a delta of a game file | version-bound by nature: it goes into the ends whose file it was made from | ✅ |
 | 52 | Three delta mods from one root | merge in base coordinates (23.4) | 🔧 |
-| 53 | Plugin record conflicts | records as units need the plugin description (22) | 🔧 |
+| 53 | Plugin record conflicts | a plugin's records are units, shown per FormID; merging them into one plugin 🔧 | ✅ / 🔧 merge |
 | 54 | Two mods replace one file, one meant to win | a conflict: resolved by the user or a patch part going into both | ✅ |
 | 55 | A mod deleting game files (skip intros) | `EDIT Delete`, refused inside user state | ✅ |
 | 56 | ENB and ReShade both as `d3d11.dll` | a conflict; chain-loading renames one with a `TAKE` pair | ✅ |

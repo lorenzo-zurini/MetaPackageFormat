@@ -742,21 +742,25 @@ predicts none), from the family's parse of a block of the content the descriptio
 spends ONE flag decision per token: 0, the family's token; 1, the token follows as it is. Its record is PREDICTED
 (`VGCQ`): a mint decodes twice (plainly, to have the whole content; then with the family, every token checked), and the
 same description minted `--plain` gives the PLAIN record (`VGCR`: every flag 1), which is what a machine reads (chapter
-04 §CODED: the plain twin, `coding expand`). Parses are cached per block and shared by every segment decoding in parallel;
-a parse has its own budget (bytes parsed at most twice the progress, plus two largest blocks), so a description asking
-for parse after parse is refused. A predicted record checkpoints every 8 MiB shipped (one parse per segment); its plain
-twin keeps the dense checkpoints random reads need.
+04 §CODED: the plain twin, `coding expand`). Parses are cached per block (64 blocks or 64 MiB of tokens at most) and
+shared by every segment decoding in parallel. A parse is budgeted by its WORK: chain steps since the run started or was
+restored from a checkpoint, 128 a byte of that run's progress plus one largest block's. Real archives take about 4 a byte
+(73 in Skyrim SE's worst block); content built to make the parse crawl takes hundreds, and is refused within seconds a
+block. A predicted record checkpoints every 8 MiB shipped (a few family blocks a segment, so segments parse in
+parallel), and carries the hash of every segment's shipped bytes: a reader whose family predicts otherwise (another
+reader's, another knob, a hostile record) refuses the segment instead of serving other bytes. Its plain twin keeps the
+dense checkpoints random reads need.
 
 - **Family 1, LZ4 high compression** (`lz4family.h`): lz4 1.7's hash-chain parse (4-byte hashes, 2^15 heads, a 64 KiB
   chain, the three-match lookahead with its corrections), written from the algorithm; knob: attempts. **With 32,768
   attempts (lz4 1.7's level 16, its maximum) it is Bethesda's packer**: it reproduces Skyrim SE's archives block for
   block (Meshes1, 2016: 3,000 / 3,000 blocks identical; Textures1: 696 / 715, the rest corrections). Today's liblz4
   reproduces 226 of 300 at level 9 and none above (its levels 10–12 are another parser).
-- **BSA 105 with the family** (`coding describe bsa`; `bsa:N` other attempts, `bsa:0` none): records drop from
-  hundreds of MB to a few MB — Meshes1 (373 MB shipped) 67 MB → 0.9 MB; Textures1 (1.51 GB) 369 MB → 3.6 MB.
-  Minting runs the family (Textures1: about 6 minutes); reading through the predicted record runs it too (Textures1
-  9 MB/s at 64 KiB checkpoints), so a machine expands it once (Textures1: 3 minutes) and reads the plain twin at plain
-  speed. The content is kept at rest as a delta over nothing (chapter 04: zstd blocks), about the shipped size or less
+- **BSA 105 with the family** (`coding describe bsa`; `bsa:N` other attempts; `bsa:0` none, byte for byte the
+  description before families): records drop from hundreds of MB to hundreds of KB — Meshes1 (373 MB shipped) 67 MB →
+  0.9 MB; Textures1 (1.51 GB) 369 MB → 0.66 MB. Minting runs the family (Textures1: about 6 minutes); reading through the
+  predicted record runs it too (Textures1: 36 MB/s front to back, but a random read decodes up to an 8 MiB segment), so a
+  machine expands it once (Textures1: 95 s) and reads the plain twin (dense checkpoints) at plain speed. The content is kept at rest as a delta over nothing (chapter 04: zstd blocks), about the shipped size or less
   (zstd-9: Meshes0 2.10 GB content → 0.59 GB against 1.15 GB shipped; Textures1 2.10 GB → 1.40 GB against 1.51 GB).
 
 ### 22.15.5 Tiers, restated (USER 2026-11-26: "no opaque blocks, if there's no ops, invent them")

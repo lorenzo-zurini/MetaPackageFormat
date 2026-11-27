@@ -145,9 +145,11 @@ the shipped bytes, bit-exact; the package stores what decodes, dedups and deltas
   otherwise than its family predicts, so it is KB where a plain record (`VGCR`, every decision) is hundreds of MB. That
   is the form a package keeps and sends. Reading through it runs the family, so an implementation SHOULD keep, per
   machine, its PLAIN TWIN (the same stream's every decision: `coding expand`) and mount that: derived data, keyed by the
-  record's, the content's and the description's CIDs, made once (the first launch that needs it), refused unless it codes
-  back bit-exact from that very content. A twin that cannot be made leaves the predicted record in use: the same bytes,
-  slower. Packages never carry twins.
+  record's, the content's and the description's CIDs, made once (the first launch that needs it; `coding twins` ahead of
+  it), refused unless every segment matches the hash the predicted record carries for it. A twin that cannot be made
+  (no room, content that is not the record's) is remembered as such and leaves the predicted record in use: the same
+  bytes, slower. A record claiming a stream far bigger than its content is refused before any scratch is made. Packages
+  never carry twins. (Windows: twins are not made yet; predicted records are read as they are.)
 
 ### `DIR`
 
