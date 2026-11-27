@@ -925,17 +925,17 @@ Three formats, three coders (range coder, Huffman bit coder, raw bytes), no form
   map). The algebra is on the command line twice: VidyaGodFS's `vgcode`, and VidyaGod's `coding check | info | mint
   | verify | cat | deflate-split | deflate-verify`.
 
-## 22.16 Descriptions are node text (USER 2026-11-27: "they should be data"; "the descriptions should be in the node")
+## 22.16 Descriptions are node text (USER 2026-11-27: "they should be data"; "the descriptions should be in the node"; "the description needs to exist in the nodes that have that format")
 
-A description is a field of a node: `DESCRIPTION`, readable JSON. A `CODED` layer names the node that holds it, by CID
-(chapter 04), and the launch must contain that node (a `NODE` layer). There is no binary description anywhere: the
+A description is readable JSON a `CODED` layer carries inline, in its `DESCRIPTION` (chapter 04): every node coding a
+format holds its own copy, next to the record minted with it. There is no binary description anywhere: the
 engine reads the text, validates it (descriptions come from peers: untrusted), and runs it. The engine carries no
 format; every format a package decodes is described by the package's own data. Writing descriptions is packaging work;
 the engine owns the instruction set and the encoder families (code, versioned with it, named and tuned by
 descriptions).
 
 ```jsonc
-{ "LABEL": "Inno Setup v1",
+{ "CODED": "setup.exe.vgcr", "SOURCE": "bafk…record", "NAME": "setup.exe", "BASE_SOURCES": ["bafk…content"],
   "DESCRIPTION": {
     "NAME": "Inno Setup, zlib level 6", "ISA": 6, "CODER": "BITS", "WINDOW": 32768, "MAXLEN": 258,
     "REGISTERS": { "place": 0, "left": 52, "doff": 53 },
@@ -951,8 +951,7 @@ descriptions).
       "jz (and (eq (u32 (sub place 12)) 0x506C4472) (eq (u32 (sub place 8)) 0xE6CD5374)) @next",
       "decode: set left (shr (inleft) 3)",
       "code: set left (xleft)",
-      "…" ] },
-  "LAYERS": [] }
+      "…" ] } }
 ```
 
 ### 22.16.1 Fields

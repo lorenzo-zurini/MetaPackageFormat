@@ -13,7 +13,7 @@ Content layers put **files** into the runtime. They are the bulk of any package.
 | `SIZE` | (`ZIP` `FILE` `DELTA` `CODED`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
 | `TARGET` | the `FILES` address the content is placed under (default `FILES`, the root of the current placement) |
 | `BASE_SOURCES` | (`DELTA` `CODED`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base (`[]`: a delta over nothing, the file stored compressed); for `CODED`, exactly one: its content |
-| `DESCRIPTION` | (`CODED`, required) the CID of the node holding the format's description in its `DESCRIPTION` (chapter 22 §22.16) |
+| `DESCRIPTION` | (`CODED`, required) the format's coding description, inline: an object (chapter 22 §22.16) |
 | `NAME` | (`CODED`, required) the file name the shipped stream appears by, in `TARGET` |
 
 A file name MUST stay inside the package: no `..` segment, no absolute path. Nodes arrive from peers, and an escaping
@@ -125,19 +125,21 @@ the shipped bytes, bit-exact; the package stores what decodes, dedups and deltas
 
 ```jsonc
 { "LABEL": "Skyrim SE - 2024-12-05 (Depot 489833) - Interface", "LAYERS": [
-    { "NODE": "bafkrei…bsa105_description" },        // a node whose DESCRIPTION is BSA 105's (22.16)
     { "FILE": "Skyrim - Interface.bsa.content", "SOURCE": "bafk…content", "TARGET": "FILES/%GameDir%/Data" },
     { "CODED": "Skyrim - Interface.bsa.vgcr", "SOURCE": "bafk…record", "NAME": "Skyrim - Interface.bsa",
-      "DESCRIPTION": "bafkrei…bsa105_description", "BASE_SOURCES": ["bafk…content"], "TARGET": "FILES/%GameDir%/Data" } ] }
+      "DESCRIPTION": { "NAME": "BSA 105", "ISA": 6, "CODER": "BITS", "…": "…", "CODE": ["…"] },   // 22.16
+      "BASE_SOURCES": ["bafk…content"], "TARGET": "FILES/%GameDir%/Data" } ] }
 ```
 
 - **Its content is named by CID**, like a delta's bases: any `ZIP`, `FILE` or `DELTA` layer in the launch whose
   `SOURCE` is that CID. The content may itself be a `DELTA` (the next build's content as a delta over the last one's,
   the dedup chapter 22 measures). A `CODED` layer naming a content CID that is not in its launch MUST be refused at
   validation and MUST NOT be mounted.
-- **Its description is a node**, named by CID: data in that node's `DESCRIPTION` (22.16), never a file. The launch MUST
-  contain that node (a `NODE` layer: it brings no files) and the node MUST hold a description that reads; otherwise the
-  launch is refused at validation. A description node is usually shared, one per format (and per encoder family).
+- **Its description is the layer's own** (USER 2026-11-27: "the description needs to exist in the nodes that have that
+  format"): data inline in `DESCRIPTION` (22.16), never a file, never a reference. It MUST read and validate; a node
+  carrying one that does not is refused where nodes are checked. Each node coding a format carries its copy (a record
+  reads only through the description it was minted with, so the two travel together); a node has no `DESCRIPTION` of
+  its own.
 - **The content is bytes, never files.** It is mounted for its bytes only and shows nowhere: the game sees `NAME`, not
   `NAME.content`.
 - **The record is the layer's own file** (`CODED`, its `SOURCE`, its `SIZE`), fetched like any content file.
@@ -148,7 +150,7 @@ the shipped bytes, bit-exact; the package stores what decodes, dedups and deltas
   otherwise than its family predicts, so it is KB where a plain record (`VGCR`, every decision) is hundreds of MB. That
   is the form a package keeps and sends. Reading through it runs the family, so an implementation SHOULD keep, per
   machine, its PLAIN TWIN (the same stream's every decision: `coding expand`) and mount that: derived data, keyed by the
-  record's, the content's and the description node's CIDs, made once (the first launch that needs it; `coding twins` ahead of
+  record's, the content's and the description's CID (of its canonical text), made once (the first launch that needs it; `coding twins` ahead of
   it), refused unless every segment matches the hash the predicted record carries for it. A twin that cannot be made
   (no room, content that is not the record's) is remembered as such and leaves the predicted record in use: the same
   bytes, slower. A record claiming a stream far bigger than its content is refused before any scratch is made. Packages
