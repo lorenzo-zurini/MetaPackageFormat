@@ -129,9 +129,11 @@ file path (compared without case; an archive's members are read from the archive
 edit's byte range (disjoint ranges merge: Wipeout XL's 200 fps and widescreen patch one exe at different offsets), an
 anchored edit's anchor, an appended line (a set: two different lines never conflict), a registry value, `ENV`, `DLL`,
 `VARS`. Identical writes are one write, and a part never conflicts with one it goes into. **The user's resolution** is
-kept in the instance (`RESOLUTIONS`: {address: the part whose write stands}; the window's "keep …" links, `grafts
-resolve`): the kept part folds after its siblings, so its write stands. Units inside BSAs and plugins (records) arrive
-with their descriptions (chapter 22).
+kept in the instance (`RESOLUTIONS`: {address: the part whose write stands}; the window's "Keep …" buttons, `grafts
+resolve`): parts are then folded in an order where each still follows what it goes into and every kept part comes as
+late as that allows, all others keeping theirs. A resolution orders whole parts, so one that cannot hold (stale: its
+part is not one of the two, or not applied; or two resolutions needing a pair both ways) is shown as an open conflict,
+never as settled. Units inside BSAs and plugins (records) arrive with their descriptions (chapter 22).
 
 ## 23.5 Tiles, identity and the package
 
