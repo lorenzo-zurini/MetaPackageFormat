@@ -207,7 +207,7 @@ The rules (USER; the Golden Pass's list) are not a style: they are how a person 
 | `node check <node>` | its refs: contains, goes into (each `INTO` layer), the CIDs its conditions name |
 | `grafts tick` / `launch plan --with` | the selection after a tick; a launch with parts added |
 | `grafts conflicts` / `grafts resolve --address A --keep P` | where ticked parts write one unit differently; keep one (instance `RESOLUTIONS`) |
-| `coding describe / info / mint / verify / cat` | the coding algebra (chapter 22): describe a format, mint a shipped file into content and a record (refused unless bit-exact), verify it back |
+| `coding check / info / mint / verify / cat / expand / twins` | the coding algebra (chapter 22): check a description (a node's DESCRIPTION, §22.16), mint a shipped file into content and a record (refused unless bit-exact), verify it back |
 
 `tools/gen6/resolve.py` carries the reference semantics (`into_layers`, `when_cids`, `node_refs`, `hard_links`,
 `remap_node`), held plan-for-plan to the engine by `fold_gate.py`.

@@ -756,7 +756,14 @@ dense checkpoints random reads need.
   attempts (lz4 1.7's level 16, its maximum) it is Bethesda's packer**: it reproduces Skyrim SE's archives block for
   block (Meshes1, 2016: 3,000 / 3,000 blocks identical; Textures1: 696 / 715, the rest corrections). Today's liblz4
   reproduces 226 of 300 at level 9 and none above (its levels 10–12 are another parser).
-- **BSA 105 with the family** (`coding describe bsa`; `bsa:N` other attempts; `bsa:0` none, byte for byte the
+- **Family 2, zlib's deflate parse** (`zfamily.h`: deflate_slow — hash chains, lazy matching, TOO_FAR — levels 4–9;
+  knob: level | memLevel << 8 | windowBits << 16; token for token zlib's, GOG's Inno installers included: level 6). It
+  is INCREMENTAL (a deflate stream may be gigabytes): it parses only as far as asked and keeps a window of tokens behind
+  it. Each reading machine keeps its own (a reader's segments decode in parallel; one shared incremental parse was dragged
+  back and forth between them and refused), so a segment restored mid-stream re-parses its stream from the start once:
+  the one catch-up its budget grants it. A mint simulates exactly that at every checkpoint. Records are the deflate block
+  headers and Huffman trees (decisions: 0.3–0.7% of the compressed bytes) plus whatever zlib did otherwise.
+- **BSA 105 with the family** (its description's `predict lz4hc 32768`; other attempts, or none: byte for byte the
   description before families): records drop from hundreds of MB to hundreds of KB — Meshes1 (373 MB shipped) 67 MB →
   0.9 MB; Textures1 (1.51 GB) 369 MB → 0.66 MB. Minting runs the family (Textures1: about 6 minutes); reading through the
   predicted record runs it too (Textures1: 36 MB/s front to back, but a random read decodes up to an 8 MiB segment), so a
@@ -915,5 +922,126 @@ Three formats, three coders (range coder, Huffman bit coder, raw bytes), no form
   (content size, dictionary id, block and content checksums, stored blocks) is read and coded back. A description using
   `EX_STREAMPOS` is refused by an ISA-3 reader. Real archives mint and verify bit-exact (`Skyrim - Interface.bsa`,
   65.7 MB: 0.5 s to mint, 4.5 GB/s to verify). `MintInto` decodes into a caller's buffer (a tool reserves a lazy 4 GiB
-  map). The algebra is on the command line twice: VidyaGodFS's `vgcode`, and VidyaGod's `coding describe | info | mint
+  map). The algebra is on the command line twice: VidyaGodFS's `vgcode`, and VidyaGod's `coding check | info | mint
   | verify | cat | deflate-split | deflate-verify`.
+
+## 22.16 Descriptions are node text (USER 2026-11-27: "they should be data"; "the descriptions should be in the node")
+
+A description is a field of a node: `DESCRIPTION`, readable JSON. A `CODED` layer names the node that holds it, by CID
+(chapter 04), and the launch must contain that node (a `NODE` layer). There is no binary description anywhere: the
+engine reads the text, validates it (descriptions come from peers: untrusted), and runs it. The engine carries no
+format; every format a package decodes is described by the package's own data. Writing descriptions is packaging work;
+the engine owns the instruction set and the encoder families (code, versioned with it, named and tuned by
+descriptions).
+
+```jsonc
+{ "LABEL": "Inno Setup v1",
+  "DESCRIPTION": {
+    "NAME": "Inno Setup, zlib level 6", "ISA": 6, "CODER": "BITS", "WINDOW": 32768, "MAXLEN": 258,
+    "REGISTERS": { "place": 0, "left": 52, "doff": 53 },
+    "TABLES": { "lbase": [3, 4, 5, …] },
+    "ARRAYS": { "lens": { "SIZE": 320 }, "fixl": { "SIZE": 288, "INIT": [8, 8, …] } },
+    "HUFFS": ["litlen", "dist", "codelen"],
+    "ENTRY": "@stream",
+    "CODE": [
+      "# the loader stub as it is, up to the loader table's magic",
+      "@stream",
+      "byterun 12",
+      "@scan",
+      "jz (and (eq (u32 (sub place 12)) 0x506C4472) (eq (u32 (sub place 8)) 0xE6CD5374)) @next",
+      "decode: set left (shr (inleft) 3)",
+      "code: set left (xleft)",
+      "…" ] },
+  "LAYERS": [] }
+```
+
+### 22.16.1 Fields
+
+| Field | |
+|---|---|
+| `NAME` | what it describes (shown in tools and logs) |
+| `ISA` | the instruction set it needs (1–6); a reader refuses a newer one. 3: `huffrun` `byterun`; 4: `(streampos)`; 5: `predict`; 6: `(u16)` `(u32)` `(u16be)` `(u32be)` |
+| `CODER` | `BITS` (an LSB-first bit coder: `raw`, `huff`, `huffrun`, `byterun`) or `RANGE` (an LZMA-style range coder through adaptive slots: `bit`, `tree`, `rtree`, `direct`, `mlit`) |
+| `SHIFT` | RANGE: how far adaptive slots move (1/2^SHIFT; default 5) |
+| `SLOTS` | RANGE: how many adaptive slots |
+| `WINDOW`, `MAXLEN` | an LZ format's window and longest copy (the generic predictor's bounds) |
+| `LEN1SLOT`, `HISTORY`, `TOKEN` | the generic predictor's view of an LZ format's tokens (`HISTORY: {FROM, COUNT}` repeat-distance registers; `TOKEN: {KIND, LENGTH, SLOT, DISTANCE}` registers) |
+| `REGISTERS` | names for registers 0–63 (`{ "left": 52 }`); register 0 is the place in the content |
+| `TABLES` | named constant tables (lists of numbers) |
+| `ARRAYS` | named arrays (`SIZE`, `INIT`: the first values, the rest 0), written by `sta`, read by `(arr …)` |
+| `HUFFS` | names of the Huffman codes `build` makes |
+| `ENTRY` | the label the stream starts at; `TOKEN_ENTRY`: the token program a PRICE run calls |
+| `CODE` | the instructions, one per string; `@name` alone is a label; `# …` is a comment |
+
+Tables, arrays and codes are named, and named only: JSON objects have no key order a reader must keep. Tables and
+arrays are numbered in sorted-name order (records store arrays by number), so a description reads alike whatever order
+its text lists them in; `HUFFS` is a list (its order is its numbering).
+
+### 22.16.2 Modes
+
+One description runs three ways: DECODE (shipped bytes → content + decisions), CODE (content + decisions → shipped
+bytes, bit-exact) and PRICE (the cost of a candidate decision, for prediction). An instruction runs in every mode unless
+prefixed: `decode:`, `code:`, `price:`, joined by `+` (`code+price: set e (sub l (table lbase c))`). A coding instruction
+READS its value in DECODE and WRITES it in CODE; `free` makes the value a decision (CODE takes it from the decisions,
+DECODE records it).
+
+### 22.16.3 Values
+
+Numbers (`12`, `0x1A626C7A`), registers (`r5` or a name), and `(op value …)`, nested at most 200 deep. All arithmetic
+is 32-bit unsigned, wrapping; comparisons give 0 or 1; shifts by 32 or more give 0.
+
+| Value | |
+|---|---|
+| `(add a b)` `(sub a b)` `(mul a b)` `(shl a b)` `(shr a b)` `(and a b)` `(or a b)` `(xor a b)` | arithmetic |
+| `(lt a b)` `(eq a b)` `(ne a b)` `(ge a b)` | comparisons |
+| `(byte a)` | the content byte at place a (0 outside what exists; in DECODE, only bytes before the place exist) |
+| `(u16 a)` `(u32 a)` `(u16be a)` `(u32be a)` | ISA 6: an integer at place a, little- or big-endian (each byte as `(byte)` reads it) |
+| `(table NAME a)` `(arr NAME a)` | a table's or an array's entry (out of range: refused) |
+| `(log2slot a)` | 2·⌊log2 a⌋ + the next bit (a below 4: a): LZMA/deflate distance slots |
+| `(bitpos)` | the bit coder's position within its byte |
+| `(dleft)` `(xleft)` `(inleft)` | decisions left (CODE), content bytes after the place, shipped bits left (DECODE) |
+| `(streampos)` | ISA 4: the shipped stream's byte position |
+
+### 22.16.4 Instructions
+
+| Instruction | |
+|---|---|
+| `set r v` | register r = v |
+| `dec r` | register r ↔ the decisions (CODE reads one, DECODE records it) |
+| `jz v @l` · `jmp @l` · `call @l` · `ret` · `end` | control (calls nest at most 64 deep) |
+| `assert v` | DECODE refuses a stream breaking a rule of its format (and every mode stops on a false one) |
+| `mark` | a place a checkpoint may be taken (between whole decisions): a record's segments start at marks |
+| `flush` | the coder writes out what it holds (CODE) |
+| `outlit v` · `outcopy len dist` | content: a byte, a copy from `dist` back (DECODE writes, every mode advances the place) |
+| `byterun n` | BITS: n content bytes through the stream as they are (a stored region; copied whole when byte-aligned) |
+| `raw [free] n v r` | BITS: n raw bits (≤ 32) |
+| `huff [free] H v r` | BITS: a symbol through code H |
+| `huffrun H n r term lim` | BITS: a run of literals through code H; the symbol ending it (≥ lim) goes to register `term`, the run's length to r |
+| `build H A x n` | code H from array A [x, x+n) of code lengths (canonical; over-subscription refused) |
+| `sta A i v` | array A [i] = v |
+| `bit slot v r` · `tree nb slot v r` · `rtree nb slot v m r` · `direct n v r` · `mlit slot v match r` | RANGE: a bit through an adaptive slot; an nb-bit tree (MSB first / LSB first, `m` the bits when nb is 0); n direct bits; an LZMA matched literal |
+| `hmtf r n v` · `hpush r n v` | a history of n registers from r: move entry v to the front; push v |
+| `predict F knob r at lo hi` | ISA 5: registers r, r+1, r+2 = encoder family F's token at content place `at`, from its parse of [lo, hi): F is `lz4hc` (knob: attempts; 32768 = Bethesda's packer) or `zlib` (knob: level \| memLevel << 8 \| windowBits << 16) |
+
+### 22.16.5 Canonical form
+
+A description reads into one canonical form: each value laid out left to right, children first, each distinct value
+once. `coding check` prints it back with the author's names; reading what it prints and printing again gives the same
+text. Two texts that read to the same canonical form run alike, byte for byte (the same records).
+
+### 22.16.6 Writing one (packaging work)
+
+1. Learn the format from its spec and samples; walk them with a script until every byte is accounted for (regions,
+   streams, their lengths, gaps).
+2. Identify every compressed stream's encoder exactly (re-encode the decoded data until it matches): a match is an
+   encoder FAMILY (records shrink 100–10,000×); none is fine (every decision stored: exact, larger).
+3. Write the node; `VidyaGod coding check <node>` until it reads; `coding mint <node> <shipped> <content> <record>`
+   (bit-exact or refused); `coding verify`; `coding expand` for a predicted record's plain twin.
+4. Rules learned: read only bytes before the place (DECODE has nothing after it); keep DECODE and CODE symmetric
+   (`decode:`/`code:` pairs compute the same thing from what each mode has); stored regions are `byterun`; anything a
+   walk does not understand ends in "the rest as it is", never a refusal of the file; `mark` at every unit boundary a
+   reader may want to start from.
+
+Built-in examples, ported from the engine's former builders and verified record for record: deflate, deflate with the
+zlib family, Inno Setup (zlib chunks predicted, LZMA2 chunks walked), LZ4 block, BSA 105 with and without the LZ4HC
+family, LZMA.
