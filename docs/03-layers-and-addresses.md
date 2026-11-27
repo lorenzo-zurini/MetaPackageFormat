@@ -10,6 +10,7 @@ A layer has **exactly one type key**. A layer with none, or with two, is malform
 | Type key | Payload | Other fields | Writes | Chapter |
 |----------|---------|--------------|--------|---------|
 | `ZIP` `FILE` `DELTA` | a file name in the node's package | `SOURCE`, `SIZE`, `TARGET` | `FILES/…` at `TARGET` | [04](04-content-layers.md) |
+| `CODED` | a record file in the node's package | `SOURCE`, `SIZE`, `TARGET`, `NAME`, `DESCRIPTION`, `BASE_SOURCES` | `FILES/…/<NAME>` at `TARGET` | [04](04-content-layers.md), [22](22-decoding-deltas.md) |
 | `DIR` | a directory (a package folder, or a `%runtime%` directory) | `TARGET` | `FILES/…` at `TARGET` | [04](04-content-layers.md) |
 | `NODE` | a node CID | `TAKE`, `TARGET` | whatever it takes | [05](05-node-layers.md) |
 | `EDIT` | an ordered list of ops | `TARGET` (the file) | that file, or `FILES/<file>#<key>` | [06](06-edit-layers.md) |

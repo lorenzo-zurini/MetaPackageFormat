@@ -1,4 +1,4 @@
-# 04 · Content layers: `ZIP` `FILE` `DELTA` `DIR`
+# 04 · Content layers: `ZIP` `FILE` `DELTA` `CODED` `DIR`
 
 Content layers put **files** into the runtime. They are the bulk of any package.
 
@@ -9,21 +9,24 @@ Content layers put **files** into the runtime. They are the bulk of any package.
 | Field | Meaning |
 |-------|---------|
 | type key | the file (or directory) name, relative to the node's package folder; or, for `DIR` only, a runtime directory anchored at a `%variable%` (`%DefaultPfxDir%`) |
-| `SOURCE` | (`ZIP` `FILE` `DELTA`) the CID of the file's bytes: how to obtain it when absent (chapter 15) |
-| `SIZE` | (`ZIP` `FILE` `DELTA`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
+| `SOURCE` | (`ZIP` `FILE` `DELTA` `CODED`) the CID of the file's bytes: how to obtain it when absent (chapter 15) |
+| `SIZE` | (`ZIP` `FILE` `DELTA` `CODED`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
 | `TARGET` | the `FILES` address the content is placed under (default `FILES`, the root of the current placement) |
-| `BASE_SOURCES` | (`DELTA`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base |
+| `BASE_SOURCES` | (`DELTA` `CODED`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base; for `CODED`, exactly one: its content |
+| `DESCRIPTION` | (`CODED`, required) the `SOURCE` CID of the layer holding the format's description (chapter 22) |
+| `NAME` | (`CODED`, required) the file name the shipped stream appears by, in `TARGET` |
 
 A file name MUST stay inside the package: no `..` segment, no absolute path. Nodes arrive from peers, and an escaping
 name would make a download write outside the package folder.
 
-## 4.1 The four kinds
+## 4.1 The five kinds
 
 | Type | The bytes are… | Mounted as | Published? |
 |------|----------------|-----------|------------|
 | `ZIP` | a **STORE (uncompressed) zip** | its entries, under `TARGET`, served from inside the zip without extraction | yes |
 | `FILE` | one regular file | that file, at `TARGET/<its name>` | yes |
 | `DELTA` | a `.vgdelta` over the layers it names | the reconstructed archive's entries, under `TARGET`, read on demand | yes |
+| `CODED` | a record of decisions (chapter 22) | ONE file, `TARGET/<NAME>`: the shipped stream coded back from its content and the record, bit-exact | yes |
 | `DIR` | a directory tree | its files, under `TARGET` | no: local only |
 
 ### `ZIP`
@@ -107,6 +110,30 @@ over the version before it, a macOS build over the Windows build at another addr
 - A delta whose named bases are not the bytes it was built over fails its base check: their joined size against the
   size the delta records (an authoring tool also checks the hash it records). It MUST NOT be mounted as if it had
   reconstructed, and the implementation MUST report it.
+
+### `CODED`
+
+A shipped file (a compressed archive, an installer's stream) kept as its **decoded content** plus a small **record** of
+the decisions its encoder made, through a **description** of its format: data, never code (chapter 22). The game reads
+the shipped bytes, bit-exact; the package stores what decodes, dedups and deltas well.
+
+```jsonc
+{ "LABEL": "Skyrim SE - 2024-12-05 (Depot 489833) - Interface", "LAYERS": [
+    { "NODE": "bafkrei…bsa105_description" },        // { "FILE": "BSA 105.vgcd", "SOURCE": "bafk…desc" }
+    { "FILE": "Skyrim - Interface.bsa.content", "SOURCE": "bafk…content", "TARGET": "FILES/%GameDir%/Data" },
+    { "CODED": "Skyrim - Interface.bsa.vgcr", "SOURCE": "bafk…record", "NAME": "Skyrim - Interface.bsa",
+      "DESCRIPTION": "bafk…desc", "BASE_SOURCES": ["bafk…content"], "TARGET": "FILES/%GameDir%/Data" } ] }
+```
+
+- **Its content and its description are named by CID**, like a delta's bases: any `ZIP`, `FILE` or `DELTA` layer in
+  the launch whose `SOURCE` is that CID. The content may itself be a `DELTA` (the next build's content as a delta over
+  the last one's, the dedup chapter 22 measures), and a description is usually a node of a shared library, one per
+  format. A `CODED` layer naming a CID that is not in its launch MUST be refused at validation and MUST NOT be mounted.
+- **They are bytes, never files.** Every layer a `CODED` layer names (its content, its description) is mounted for its
+  bytes only and shows nowhere: the game sees `NAME`, not `NAME.content`.
+- **The record is the layer's own file** (`CODED`, its `SOURCE`, its `SIZE`), fetched like any content file.
+- **Made by minting** (`coding mint`, chapter 23 §23.9): decode the shipped file into content and record, code it back,
+  and refuse unless every byte matches. A record is only ever published after that check.
 
 ### `DIR`
 
