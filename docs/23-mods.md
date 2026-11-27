@@ -114,7 +114,8 @@ data, never coded: "we need merging primitives for each mutation type, for each 
   overlap is a conflict), set union (appended lines), commutative bits (`Or`), recurse (a described container). A
   removal against a write is a conflict. A missing primitive is added to the set, never written as code.
 - **Addresses are units are `TAKE` selectors.** The same addresses name what a part writes, what two parts conflict
-  on, and what a `TAKE` selects, in both directions (`NODE`'s `TAKE` downward, a part's footprint upward), down to an
+  on, and what a `TAKE` selects, in both directions (`NODE`'s `TAKE` downward, a part's footprint upward: a `TAKE` on its
+  `INTO` layer, built 2026-11-27, chapter 12 §12.5), down to an
   archive's members and a plugin's records.
 - **A conflict** names its unit, the parts and their values. It is resolved by structure, never by an order: a
   compatibility patch that goes into both (it applies after both, so its write stands), or the user's resolution kept

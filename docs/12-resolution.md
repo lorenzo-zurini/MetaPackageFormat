@@ -87,6 +87,11 @@ A **part** (a mod; "graft" is the same word) is a node whose list opens with one
 - **An entry on a part** (a mod loader such as SKSE or Forge) is one more way to run the row: the variant stays selected
   and its other parts stay offered. A part whose entry carries a tile has its own card (chapter 09 §9.4).
 - **Part declarations count in phase 1**, so a part's own options gate its own layers.
+- **A part's footprint** (2026-11-27): an `INTO` layer may carry a `TAKE`, checked and applied exactly as a `NODE`
+  layer's (chapter 05): what of the part goes into the end, and where. The part's layers are expanded through it (the
+  TAKEs of several `INTO` layers compose in order), so a file it does not take is not mounted and a pair renames one:
+  ReShade's `d3d11.dll` taken as `dxgi.dll` chain-loads beside ENB's. Conflicts (chapter 23 §23.4) are read where the
+  files land.
 
 ## 12.6 The instance
 
