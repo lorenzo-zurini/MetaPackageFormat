@@ -87,11 +87,15 @@ A **part** (a mod; "graft" is the same word) is a node whose list opens with one
 - **An entry on a part** (a mod loader such as SKSE or Forge) is one more way to run the row: the variant stays selected
   and its other parts stay offered. A part whose entry carries a tile has its own card (chapter 09 §9.4).
 - **Part declarations count in phase 1**, so a part's own options gate its own layers.
-- **A part's footprint** (2026-11-27): an `INTO` layer may carry a `TAKE`, checked and applied exactly as a `NODE`
-  layer's (chapter 05): what of the part goes into the end, and where. The part's layers are expanded through it (the
-  TAKEs of several `INTO` layers compose in order), so a file it does not take is not mounted and a pair renames one:
-  ReShade's `d3d11.dll` taken as `dxgi.dll` chain-loads beside ENB's. Conflicts (chapter 23 §23.4) are read where the
-  files land.
+- **A part's footprint** (2026-11-27): an `INTO` layer may carry a `TAKE` of FILES addresses: what of the part's files
+  go into the end, and where. A file or folder it names stays where it is (a footprint has no `TARGET`: unlike a `NODE`'s
+  `TAKE` it does not left-strip), a pair moves or renames one, `"FILES"` takes every file where it is, and what it does
+  not name is not mounted; selections that overlap mount a file at each (chapter 05), so a rename plus `"FILES"` is the
+  file twice. It applies wherever the part is expanded (applied at launch, or contained in a pack), in `INTO`-layer order
+  (the first innermost), inside its container's view. It never touches the part's facts: its options, DLL overrides,
+  entries and kept folders are its own (a fact address in an `INTO`'s `TAKE` is refused). ReShade's `d3d11.dll` taken as
+  `dxgi.dll` chain-loads beside ENB's. Conflicts (chapter 23 §23.4) are read where the files land, at every place; a
+  footprint that takes none of the part's files is a validator warning.
 
 ## 12.6 The instance
 
