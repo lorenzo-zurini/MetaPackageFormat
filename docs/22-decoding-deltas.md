@@ -960,8 +960,8 @@ descriptions).
 | Field | |
 |---|---|
 | `NAME` | what it describes (shown in tools and logs) |
-| `ISA` | the instruction set it needs (1–6); a reader refuses a newer one. 3: `huffrun` `byterun`; 4: `(streampos)`; 5: `predict`; 6: `(u16)` `(u32)` `(u16be)` `(u32be)` |
-| `CODER` | `BITS` (an LSB-first bit coder: `raw`, `huff`, `huffrun`, `byterun`) or `RANGE` (an LZMA-style range coder through adaptive slots: `bit`, `tree`, `rtree`, `direct`, `mlit`) |
+| `ISA` | the instruction set it needs (1–7); a reader refuses a newer one. 3: `huffrun` `byterun`; 4: `(streampos)`; 5: `predict`; 6: `(u16)` `(u32)` `(u16be)` `(u32be)`; 7: the `BITS16M` coder, `rawbytes`, `(div)` `(mod)`, a bounded `huffrun` |
+| `CODER` | `BITS` (an LSB-first bit coder, deflate's: `raw`, `huff`, `huffrun`, `byterun`, `rawbytes`), `BITS16M` (ISA 7: bits MSB-first from 16-bit little-endian words, LZX's, the words counted from where the bits begin: after bytes the next bits start a new run of words where they stand, as a container's bitstream begins wherever its block does; the same instructions; `byterun`/`rawbytes` at a word boundary of the bits before them) or `RANGE` (an LZMA-style range coder through adaptive slots: `bit`, `tree`, `rtree`, `direct`, `mlit`) |
 | `SHIFT` | RANGE: how far adaptive slots move (1/2^SHIFT; default 5) |
 | `SLOTS` | RANGE: how many adaptive slots |
 | `WINDOW`, `MAXLEN` | an LZ format's window and longest copy (the generic predictor's bounds) |
@@ -994,11 +994,12 @@ is 32-bit unsigned, wrapping; comparisons give 0 or 1; shifts by 32 or more give
 |---|---|
 | `(add a b)` `(sub a b)` `(mul a b)` `(shl a b)` `(shr a b)` `(and a b)` `(or a b)` `(xor a b)` | arithmetic |
 | `(lt a b)` `(eq a b)` `(ne a b)` `(ge a b)` | comparisons |
+| `(div a b)` `(mod a b)` | ISA 7: quotient, remainder (b 0: the run is refused) |
 | `(byte a)` | the content byte at place a (0 outside what exists; in DECODE, only bytes before the place exist) |
 | `(u16 a)` `(u32 a)` `(u16be a)` `(u32be a)` | ISA 6: an integer at place a, little- or big-endian (each byte as `(byte)` reads it) |
 | `(table NAME a)` `(arr NAME a)` | a table's or an array's entry (out of range: refused) |
 | `(log2slot a)` | 2·⌊log2 a⌋ + the next bit (a below 4: a): LZMA/deflate distance slots |
-| `(bitpos)` | the bit coder's position within its byte |
+| `(bitpos)` | the bit coder's position within its byte (`BITS16M`: within its 16-bit word, 0 right after bytes; word-align = `raw free (and (sub 16 (bitpos)) 15) r`) |
 | `(dleft)` `(xleft)` `(inleft)` | decisions left (CODE), content bytes after the place, shipped bits left (DECODE) |
 | `(streampos)` | ISA 4: the shipped stream's byte position |
 
@@ -1014,9 +1015,10 @@ is 32-bit unsigned, wrapping; comparisons give 0 or 1; shifts by 32 or more give
 | `flush` | the coder writes out what it holds (CODE) |
 | `outlit v` · `outcopy len dist` | content: a byte, a copy from `dist` back (DECODE writes, every mode advances the place) |
 | `byterun n` | BITS: n content bytes through the stream as they are (a stored region; copied whole when byte-aligned) |
-| `raw [free] n v r` | BITS: n raw bits (≤ 32) |
+| `raw [free] n v r` | BITS: n raw bits (≤ 32; `BITS16M`: the first read is the value's highest bit) |
+| `rawbytes [free] n v r` | ISA 7: n (1–4) stream bytes as a little-endian integer, at a byte boundary (`BITS16M`: a word boundary of the bits before it, or after bytes) |
 | `huff [free] H v r` | BITS: a symbol through code H |
-| `huffrun H n r term lim` | BITS: a run of literals through code H; the symbol ending it (≥ lim) goes to register `term`, the run's length to r |
+| `huffrun H n r term lim [max]` | BITS: a run of literals through code H; the symbol ending it (≥ lim) goes to register `term`, the run's length to r. ISA 7: `max` bounds the run (formats with no end symbol: LZX): DECODE also stops after `max` literals, `term` then 0xFFFFFFFF, and CODE then writes no ending symbol |
 | `build H A x n` | code H from array A [x, x+n) of code lengths (canonical; over-subscription refused) |
 | `sta A i v` | array A [i] = v |
 | `bit slot v r` · `tree nb slot v r` · `rtree nb slot v m r` · `direct n v r` · `mlit slot v match r` | RANGE: a bit through an adaptive slot; an nb-bit tree (MSB first / LSB first, `m` the bits when nb is 0); n direct bits; an LZMA matched literal |
