@@ -12,7 +12,7 @@ Content layers put **files** into the runtime. They are the bulk of any package.
 | `SOURCE` | (`ZIP` `FILE` `DELTA` `CODED`) the CID of the file's bytes: how to obtain it when absent (chapter 15) |
 | `SIZE` | (`ZIP` `FILE` `DELTA` `CODED`) its size in bytes, stamped at publish: a download-total hint, not an integrity check |
 | `TARGET` | the `FILES` address the content is placed under (default `FILES`, the root of the current placement) |
-| `BASE_SOURCES` | (`DELTA` `CODED`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base; for `CODED`, exactly one: its content |
+| `BASE_SOURCES` | (`DELTA` `CODED`, required) the `SOURCE` CIDs of the layers whose bytes, concatenated in that order, are the delta's base (`[]`: a delta over nothing, the file stored compressed); for `CODED`, exactly one: its content |
 | `DESCRIPTION` | (`CODED`, required) the `SOURCE` CID of the layer holding the format's description (chapter 22) |
 | `NAME` | (`CODED`, required) the file name the shipped stream appears by, in `TARGET` |
 
@@ -86,8 +86,14 @@ There is no implicit base. A base is named by its content, never by where it is 
 however the package around it is rearranged, and one delta can be built over any bytes the package holds: a version
 over the version before it, a macOS build over the Windows build at another address, a Wine prefix over Wine and DXVK.
 
-- **Naming.** `BASE_SOURCES` is REQUIRED on a `DELTA` and allowed on nothing else. A validator refuses it absent or
-  empty, an entry that is not a non-empty string, a CID named twice, and `BASE_SOURCES` on any other layer. A layer named as a base
+**A delta over nothing** (`"BASE_SOURCES": []`, 2026-11-27) is a file STORED COMPRESSED: every byte is its own,
+in independently decompressible zstd blocks, so it reads with random access like any delta. It is how a `CODED` layer's
+decoded content is kept at rest (decoded content is several times the size of the shipped stream; compressed, it is
+about the shipped size or less), and any later build's content is a delta over it as usual.
+
+- **Naming.** `BASE_SOURCES` is REQUIRED on a `DELTA` and allowed on nothing else. A validator refuses it absent, an
+  entry that is not a non-empty string, a CID named twice, and `BASE_SOURCES` on any other layer (`[]` is a delta over
+  nothing, above). A layer named as a base
   MUST carry its `SOURCE`: a tool that makes a delta over a layer without one computes that layer's CID first.
 - **Resolving.** Each entry is the file its CID names: any `ZIP`, `FILE` or `DELTA` layer in the launch's fold
   (chapter 12) whose `SOURCE` is that CID. One CID is one file, so where it is placed — beneath the delta or above it,
@@ -134,6 +140,14 @@ the shipped bytes, bit-exact; the package stores what decodes, dedups and deltas
 - **The record is the layer's own file** (`CODED`, its `SOURCE`, its `SIZE`), fetched like any content file.
 - **Made by minting** (`coding mint`, chapter 23 §23.9): decode the shipped file into content and record, code it back,
   and refuse unless every byte matches. A record is only ever published after that check.
+- **Predicted records** (2026-11-27). A description with an ENCODER FAMILY (chapter 22.15.4: the encoder that made the
+  stream, e.g. Bethesda's packer for Skyrim SE's archives) mints a PREDICTED record (`VGCQ`): only what the encoder did
+  otherwise than its family predicts, so it is KB where a plain record (`VGCR`, every decision) is hundreds of MB. That
+  is the form a package keeps and sends. Reading through it runs the family, so an implementation SHOULD keep, per
+  machine, its PLAIN TWIN (the same stream's every decision: `coding expand`) and mount that: derived data, keyed by the
+  record's, the content's and the description's CIDs, made once (the first launch that needs it), refused unless it codes
+  back bit-exact from that very content. A twin that cannot be made leaves the predicted record in use: the same bytes,
+  slower. Packages never carry twins.
 
 ### `DIR`
 

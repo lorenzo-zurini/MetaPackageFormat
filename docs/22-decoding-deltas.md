@@ -735,6 +735,30 @@ chain depth, window), a strategy (greedy, lazy with its thresholds, optimal pars
 (zlib's TOO_FAR). With a family identified, predictions improve and corrections shrink; without one, axiom 6's
 generic prediction still works. A family is never needed for correctness.
 
+**Built (ISA 5, 2026-11-27): the PREDICT op and the first family.** A family is a strategy the READER implements once
+(code, versioned with the instruction set), named and tuned by a description (data): `PREDICT` writes the family's token
+anchored at a content place into three registers (literals, copy length, distance; copy length `kNoPrediction` where it
+predicts none), from the family's parse of a block of the content the description bounds. A description that uses it
+spends ONE flag decision per token: 0, the family's token; 1, the token follows as it is. Its record is PREDICTED
+(`VGCQ`): a mint decodes twice (plainly, to have the whole content; then with the family, every token checked), and the
+same description minted `--plain` gives the PLAIN record (`VGCR`: every flag 1), which is what a machine reads (chapter
+04 §CODED: the plain twin, `coding expand`). Parses are cached per block and shared by every segment decoding in parallel;
+a parse has its own budget (bytes parsed at most twice the progress, plus two largest blocks), so a description asking
+for parse after parse is refused. A predicted record checkpoints every 8 MiB shipped (one parse per segment); its plain
+twin keeps the dense checkpoints random reads need.
+
+- **Family 1, LZ4 high compression** (`lz4family.h`): lz4 1.7's hash-chain parse (4-byte hashes, 2^15 heads, a 64 KiB
+  chain, the three-match lookahead with its corrections), written from the algorithm; knob: attempts. **With 32,768
+  attempts (lz4 1.7's level 16, its maximum) it is Bethesda's packer**: it reproduces Skyrim SE's archives block for
+  block (Meshes1, 2016: 3,000 / 3,000 blocks identical; Textures1: 696 / 715, the rest corrections). Today's liblz4
+  reproduces 226 of 300 at level 9 and none above (its levels 10–12 are another parser).
+- **BSA 105 with the family** (`coding describe bsa`; `bsa:N` other attempts, `bsa:0` none): records drop from
+  hundreds of MB to a few MB — Meshes1 (373 MB shipped) 67 MB → 0.9 MB; Textures1 (1.51 GB) 369 MB → 3.6 MB.
+  Minting runs the family (Textures1: about 6 minutes); reading through the predicted record runs it too (Textures1
+  9 MB/s at 64 KiB checkpoints), so a machine expands it once (Textures1: 3 minutes) and reads the plain twin at plain
+  speed. The content is kept at rest as a delta over nothing (chapter 04: zstd blocks), about the shipped size or less
+  (zstd-9: Meshes0 2.10 GB content → 0.59 GB against 1.15 GB shipped; Textures1 2.10 GB → 1.40 GB against 1.51 GB).
+
 ### 22.15.5 Tiers, restated (USER 2026-11-26: "no opaque blocks, if there's no ops, invent them")
 
 1. Declarative: a format row of 22.15.3, a family of 22.15.4.
