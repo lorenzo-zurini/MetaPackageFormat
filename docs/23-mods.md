@@ -123,9 +123,15 @@ data, never coded: "we need merging primitives for each mutation type, for each 
 - **The same primitives merge sibling deltas** (three delta mods from one root), so mods and the delta format share one
   merge algebra.
 
-Today: parts merge by the fold's addresses (a file, a key, a registry value, a variable), at different depths later
-wins, at one depth in CID order. Byte-range units of binary edits, line units of `AppendLine` and units inside archives
-and plugins arrive with the descriptions of chapter 22.
+Today: parts fold by the fold's addresses, at different depths later wins, at one depth in CID order. Conflicts are
+found per unit and SHOWN (the launch window's add-ons tab, `launch plan`'s `PartConflicts`, `grafts conflicts`): a
+file path (compared without case; an archive's members are read from the archive), a keyed edit (`file#key`), a binary
+edit's byte range (disjoint ranges merge: Wipeout XL's 200 fps and widescreen patch one exe at different offsets), an
+anchored edit's anchor, an appended line (a set: two different lines never conflict), a registry value, `ENV`, `DLL`,
+`VARS`. Identical writes are one write, and a part never conflicts with one it goes into. **The user's resolution** is
+kept in the instance (`RESOLUTIONS`: {address: the part whose write stands}; the window's "keep …" links, `grafts
+resolve`): the kept part folds after its siblings, so its write stands. Units inside BSAs and plugins (records) arrive
+with their descriptions (chapter 22).
 
 ## 23.5 Tiles, identity and the package
 
@@ -191,6 +197,7 @@ The rules (USER; the Golden Pass's list) are not a style: they are how a person 
 | `catalog repoint OLD NEW [--map f.json] [--dry]` | swap a CID everywhere, re-minting what names it, instance graft lists following; under the library's write lock |
 | `node check <node>` | its refs: contains, goes into (each `INTO` layer), the CIDs its conditions name |
 | `grafts tick` / `launch plan --with` | the selection after a tick; a launch with parts added |
+| `grafts conflicts` / `grafts resolve --address A --keep P` | where ticked parts write one unit differently; keep one (instance `RESOLUTIONS`) |
 | `coding describe / info / mint / verify / cat` | the coding algebra (chapter 22): describe a format, mint a shipped file into content and a record (refused unless bit-exact), verify it back |
 
 `tools/gen6/resolve.py` carries the reference semantics (`into_layers`, `when_cids`, `node_refs`, `hard_links`,
