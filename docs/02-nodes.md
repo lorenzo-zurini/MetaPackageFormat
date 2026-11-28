@@ -19,15 +19,16 @@ disk. Its layers are chapters 03–09.
 | `LAYERS` | array, required | The ordered layers, bottom → top (chapter 03). |
 | `LABEL` | string | A cosmetic name. Never a key; may repeat. Shown wherever the node is named. |
 | `VARIANT` | non-empty string | The node is on the shelf under this name (chapter 09 §9.4). |
-| `RECOMMENDED` | array of strings | Tile `UID`s under which this node is recommended: the default row for a variant, pre-ticked for a graft (chapters 09 and 12). |
 | `SECTION` | non-empty string | Where a graft sits in the launch window's graft tree: a path whose `/` nests (`"Mods/Graphics"`). |
 | `COMMENT` | string | Why the node exists, for authors. Part of the node's identity. |
 | `POS` | `[x, y]` | Where an editor draws the node. Not part of the identity. |
 | `CID` | string | A working-tree handle only (§2.5). Not part of the identity. |
 
-Any other field MUST be refused by a validator. `VARIANT`, `RECOMMENDED` and `SECTION` describe the node itself and
-**do not fold**: a node that contains a variant is not that variant, and a node that contains a graft is not a
-graft.
+Any other field MUST be refused by a validator. `VARIANT` and `SECTION` describe the node itself and are never
+inherited: a node that contains a variant is not that variant, and a node that contains a graft is not a graft.
+
+A node-level `RECOMMENDED` (generation 8) is refused. What is recommended is said where it applies: on the entry that
+is its card's default row (chapter 09 §9.3), and on a part's `INTO` layer for a part ticked by default (chapter 23).
 
 ## 2.3 Identity
 

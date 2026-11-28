@@ -8,7 +8,8 @@ into the instance and put back before the next one.
 { "KEEP": { "FILES/%Documents%/My Games/Tonic Trouble/": { "NAME": "Tonic Trouble", "CLOUD": true },
             "FILES/%Documents%/My Games/Tonic Trouble/ubi.ini#Language=": false,
             "FILES/%GameDir%/Profile.dat": true,
-            "REG/HKCU/Software/Blizzard Entertainment/Warcraft III": true } }
+            "REG/HKCU\\Software\\Blizzard Entertainment\\Warcraft III": true,
+            "REG/HKCU\\Software\\Blizzard Entertainment\\Warcraft III\\Gameplay#netgameport": false } }
 ```
 
 ## 13.1 The `KEEP` layer
@@ -23,9 +24,16 @@ A map of address → `true`, `false` or options.
 
 - Addresses are `FILES/…` or `REG/…` only. A variable's value is never kept: what the user picks for an option lives
   in the instance already. A validator refuses any other namespace.
-- **The most specific address wins** (compared without case): a kept folder with one file inside taken back gives the
-  user the folder and the package the file.
-- `KEEP` **folds** like any address: a library can keep its config, a game can take one of its files back, a ticked
+- **The most specific address wins** (compared without case), **whatever the order** the `KEEP` layers come in: a
+  kept folder with one file inside taken back gives the user the folder and the package the file. This is normative:
+  ownership is a statement about addresses, not a value that a later layer overwrites.
+- **A registry value is an address too**: `REG/<key>#<value>` (chapter 07). A kept key with one value taken back
+  (`false`) gives the user the key and the package that value: the value is re-applied after the user's key is
+  restored (UserPatch's options in a key whose volumes are the user's). `REG/<key>` alone keeps the key and everything
+  beneath it. A value is only ever taken back: keeping one value alone (`REG/<key>#<value>: true`) is refused, as only
+  keys persist. Key paths use backslashes; `/` is no separator; the key's default value is `REG/<key>#` (the empty
+  name).
+- `KEEP` **composes** like any address: a library can keep its config, a game can take one of its files back, a ticked
   graft can keep or take back while ticked. Runners may keep things too, though VidyaGod's runners keep nothing: it
   is each author's decision.
 - Owned state belongs to the **family** (`%PackageUID%`): an expansion and its base game read and write the same

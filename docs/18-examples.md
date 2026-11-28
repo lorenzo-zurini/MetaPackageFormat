@@ -8,18 +8,19 @@ the others are simplified from real packages (offsets, keys and file names are i
 
 ```jsonc
 // [299] Super Metroid — the whole package
-{ "LABEL": "super_metroid_base", "VARIANT": "super_metroid_base", "RECOMMENDED": ["299"],
+{ "LABEL": "[299] Super Metroid", "VARIANT": "Super Metroid (Japan, USA)",
   "LAYERS": [
     { "FILE": "Super Metroid (Japan, USA) (En,Ja).sfc", "SOURCE": "QmRVRg1s…", "SIZE": 3145728 },
-    { "EXEC": [ { "LABEL": "Play", "HOST": "snes", "EXE": "Super Metroid (Japan, USA) (En,Ja).sfc", "ARGS": [],
+    { "EXEC": { "Super Metroid": { "HOST": "snes", "EXE": "Super Metroid (Japan, USA) (En,Ja).sfc", "ARGS": [],
+                  "RECOMMENDED": true,
                   "TILE": { "UID": "299", "TITLE": "Super Metroid",
                             "COVER": { "FILE": "Super_Metroid.png", "SOURCE": "QmTr9QpV…", "SIZE": 953516 },
-                            "META": { "DEVELOPER": "Nintendo", "SERIES": "Metroid", "RELEASEDATE": "1994-04-18" } } } ] } ] }
+                            "META": { "DEVELOPER": "Nintendo", "SERIES": "Metroid", "RELEASEDATE": "1994-04-18" } } } } } ] }
 
 // snes9x, in the runner library: a system command, so no build
 { "LABEL": "snes9x_exec", "LAYERS": [
-    { "EXEC": [ { "LABEL": "snes9x_exec", "HOST": "linux64", "GUEST": ["snes"], "EXE": "snes9x",
-                  "ARGS": ["-fullscreen", "%Content%"] } ] } ] }
+    { "EXEC": { "snes9x_exec": { "HOST": "linux64", "GUEST": ["snes"], "EXE": "snes9x",
+                                 "ARGS": ["-fullscreen", "%Content%"] } } } ] }
 ```
 
 Chain: `[snes9x, native]`. The ROM lands at the runtime root; `%Content%` is its host path.
@@ -27,20 +28,23 @@ Chain: `[snes9x, native]`. The ROM lands at the runtime root; `%Content%` is its
 ## 18.2 A Windows game under Proton, with an option and a registry value
 
 ```jsonc
-{ "LABEL": "Silent Hill 2 Enhanced", "VARIANT": "Enhanced", "RECOMMENDED": ["10972"],
+{ "LABEL": "Silent Hill 2 Enhanced", "VARIANT": "Enhanced",
   "LAYERS": [
-    { "NODE": "bafkrei…sh2_pristine" },                                       // the game and its Play entry + tile
+    { "NODE": "bafkrei…sh2_pristine" },                                       // the game (a row of its own)
     { "ZIP": "SH2EE.zip", "SOURCE": "Qm…", "TARGET": "FILES/%GameDir%" },     // the enhancement files, above it
     { "VARS": { "FULLSCREEN": { "DEFAULT": "1",
                   "UI": { "LABEL": "Fullscreen", "CONTROL": "bool", "SECTION": "Display" } } } },
-    { "REG": { "HKCU": { "Software": { "nipkow": { "SH2EEsetup": {
-               "lang": "en", "fullscreen": "%FULLSCREEN:dword%", "install": "%GameDir%" } } } } },
+    { "REG": { "HKCU\\Software\\nipkow\\SH2EEsetup": {
+               "lang": "en", "fullscreen": "%FULLSCREEN:dword%", "install": "%GameDir%" } },
       "ARCH": ["64"] },
-    { "KEEP": { "FILES/%GameDir%/savedata/": { "NAME": "Saves" } } } ] }
+    { "KEEP": { "FILES/%GameDir%/savedata/": { "NAME": "Saves" } } },
+    { "EXEC": { "Silent Hill 2 v1.0 (Enhanced Edition)": { "HOST": "win32", "EXE": "%GameDir%/sh2pc.exe",
+                  "RECOMMENDED": true, "TILE": { "UID": "10972", "TITLE": "Silent Hill 2", … } } } } ] }
 ```
 
 Chain: `[proton, native]`. `%GameDir%` is `C:\10972` to the game and `pfx/drive_c/10972` in the runtime. The
-registry is composed into the launch's hives; the saves folder is the user's.
+registry is composed into the launch's hives; the saves folder is the user's. The pristine's own row keeps only
+`"TILE": {"UID": "10972"}`: the recommended row carries the card.
 
 ## 18.3 A game with its own engine, two builds of it, and a translation
 
@@ -52,23 +56,23 @@ Linux and Windows builds:
 { "LABEL": "Doukutsu Monogatari 1.0.0.6", "LAYERS": [
     { "ZIP": "Doukutsu Monogatari 1.0.0.6.zip", "SOURCE": "QmXLSRno…", "TARGET": "FILES/%GameDir%" },
     { "KEEP": { "FILES/%GameDir%/Profile.dat": true, "FILES/%GameDir%/Config.dat": true } },
-    { "EXEC": [ { "LABEL": "Play", "HOST": "win32", "EXE": "%GameDir%/Doukutsu.exe",
-                  "TILE": { "UID": "8333", "TITLE": "Cave Story" } } ] } ] }
+    { "EXEC": { "Play": { "HOST": "win32", "EXE": "%GameDir%/Doukutsu.exe", "TILE": { "UID": "8333" } } } } ] }
 
-// the English translation: the original, plus the 166 files the translation changes
-{ "LABEL": "Cave Story - Aeon Genesis Translation 1.03", "VARIANT": "English (Aeon Genesis 1.03)",
-  "RECOMMENDED": ["8333"], "LAYERS": [
+// the English translation: the original, plus the 166 files the translation changes; the card's recommended row
+{ "LABEL": "Cave Story - Aeon Genesis Translation 1.03", "VARIANT": "English (Aeon Genesis 1.03)", "LAYERS": [
     { "NODE": "bafkrei…doukutsu_1_0_0_6" },
-    { "ZIP": "Cave Story - Aeon Genesis Translation 1.03.zip", "SOURCE": "QmeGfexn…", "TARGET": "FILES/%GameDir%" } ] }
+    { "ZIP": "Cave Story - Aeon Genesis Translation 1.03.zip", "SOURCE": "QmeGfexn…", "TARGET": "FILES/%GameDir%" },
+    { "EXEC": { "Play": { "HOST": "win32", "EXE": "%GameDir%/Doukutsu.exe", "RECOMMENDED": true,
+                          "TILE": { "UID": "8333", "TITLE": "Cave Story", … } } } } ] }
 
 // the engine, as the package's own runner (Linux build: its guest is its runtime, chapter 10 §10.4)
 { "LABEL": "doukutsu_rs_1_0_0_linux64_exec", "LAYERS": [
     { "ZIP": "doukutsu-rs 1.0.0 - Linux x64.zip", "SOURCE": "QmRS8s48…", "TARGET": "FILES/__doukutsu-rs" },
     { "ENV": { "CAVESTORY_DATA_DIR": "%GameDir%/data", "XDG_DATA_HOME": "%TempPath%/doukutsu-rs" } },
-    { "EXEC": [ { "LABEL": "doukutsu_rs_1_0_0_linux64_exec", "HOST": "linux64", "GUEST": ["custom"],
+    { "EXEC": { "doukutsu_rs_1_0_0_linux64_exec": { "HOST": "linux64", "GUEST": ["custom"],
                   "EXE": "%RunnerMount%/__doukutsu-rs/doukutsu-rs", "ARGS": [],
                   "CONTENT_ROOT": "game/cavestory",
-                  "GUEST_ROOTS": { "%GameDir%": "%RuntimePath%/game/cavestory" } } ] } ] }
+                  "GUEST_ROOTS": { "%GameDir%": "%RuntimePath%/game/cavestory" } } } } ] }
 
 // the Windows build is the same with HOST "win64" and its .exe; inside Proton it reads %GameDir% from Proton (C:\8333)
 
@@ -76,7 +80,7 @@ Linux and Windows builds:
 { "LABEL": "doukutsu-rs", "VARIANT": "doukutsu-rs (open-source engine)", "LAYERS": [
     { "NODE": "bafkrei…aeon_genesis", "TAKE": ["FILES/%GameDir%/data"], "TARGET": "FILES/%GameDir%" },
     { "KEEP": { "FILES/%GameDir%/user/": true } },
-    { "EXEC": [ { "LABEL": "Play", "HOST": "custom", "ARGS": [], "TILE": { "UID": "8333" } } ] } ] }
+    { "EXEC": { "Play": { "HOST": "custom", "ARGS": [], "TILE": { "UID": "8333" } } } } ] }
 ```
 
 - The English variant runs the original Windows executable under Proton (`win32`).
@@ -93,19 +97,21 @@ Linux and Windows builds:
 
 { "LABEL": "wc3_1_27a", "VARIANT": "1.27a", "LAYERS": [ { "NODE": "bafkrei…wc3_1_26a" },
     { "DELTA": "delta_from__wc3_1_26a.vgdelta", "SOURCE": "Qm…", "TARGET": "FILES/%GameDir%" },
-    { "EXEC": [ { "LABEL": "Frozen Throne", "EXE": "%GameDir%/Frozen Throne.exe" } ] } ] }
+    { "EXEC": { "Reign of Chaos v1.27a":    { "HOST": "win32", "EXE": "%GameDir%/Warcraft III.exe", "TILE": { "UID": "802" } },
+                "Frozen Throne v1.27a":     { "HOST": "win32", "EXE": "%GameDir%/Frozen Throne.exe", "TILE": { "UID": "803" } } } } ] }
 ```
 
-Each version contains the one before and rebuilds the game folder from it with a delta. The pristine at the bottom
-declares both entries and both tiles (Reign of Chaos `802`, The Frozen Throne `803` with `PARENTUID 802`); a version
-changes only the field it must (here, the TFT executable). Every version from 1.21b is a row under both tiles.
+Each version contains the one before and rebuilds the game folder from it with a delta, and writes its own entries
+whole: one per tile (Reign of Chaos `802`, The Frozen Throne `803` with `PARENTUID 802`), each tile `{"UID"}` only, the
+row's reference to the card. One version per card says `"RECOMMENDED": true` on its entry and carries the full tile.
+Every version from 1.21b is a row under both tiles.
 Getting version *N* fetches the base and the deltas on its path.
 
 ## 18.5 Parts: a soundtrack, a fix and a frame-rate mode
 
 ```jsonc
-{ "LABEL": "Wipeout XL FLAC soundtrack", "RECOMMENDED": ["17260"], "SECTION": "Soundtrack", "LAYERS": [
-    { "INTO": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"] },
+{ "LABEL": "Wipeout XL FLAC soundtrack", "SECTION": "Soundtrack", "LAYERS": [
+    { "INTO": ["bafkrei…woxl_sp", "bafkrei…woxl_mp"], "RECOMMENDED": true },
     { "NODE": "bafkrei…woxl_flac_files", "TARGET": "FILES/%GameDir%/music" },
     { "EDIT": [ { "MODE": "ConfigWrite", "KEY": "MusicFormat=", "VALUE": "flac" } ],
       "TARGET": "FILES/%GameDir%/wipeout.ini" } ] }
@@ -120,8 +126,9 @@ Getting version *N* fetches the base and the deltas on its path.
       "TARGET": "FILES/%GameDir%/Wipeout2.exe" } ] }
 ```
 
-Both are offered on the single-player and multiplayer variants; the soundtrack is pre-ticked. Ticked, a graft folds
-above the variant; its option appears in the launch window; its binary op patches the executable the variant left.
+Both are offered on the single-player and multiplayer variants; the soundtrack is pre-ticked (its `INTO` says
+`RECOMMENDED`). Ticked, a graft composes above the variant; its option appears in the launch window; its binary op
+patches the executable the variant left.
 
 ## 18.6 A daisy chain
 
@@ -131,14 +138,14 @@ The Vortex console of chapter 11:
 // the Windows-only emulator, as a runner
 { "LABEL": "vortexemu_win", "LAYERS": [
     { "FILE": "vortexemu.exe", "SOURCE": "Qm…" },
-    { "EXEC": [ { "LABEL": "vortexemu", "HOST": "win32", "GUEST": ["vortex"],
-                  "EXE": "%RunnerMount%/vortexemu.exe", "ARGS": ["%Content%"] } ] } ] }
+    { "EXEC": { "vortexemu": { "HOST": "win32", "GUEST": ["vortex"],
+                               "EXE": "%RunnerMount%/vortexemu.exe", "ARGS": ["%Content%"] } } } ] }
 
 // the game
 { "LABEL": "Vortex Quest", "VARIANT": "Vortex Quest", "LAYERS": [
     { "FILE": "VortexQuest.vtx", "SOURCE": "Qm…", "TARGET": "FILES/%GameDir%" },
-    { "EXEC": [ { "LABEL": "Play", "HOST": "vortex", "EXE": "%GameDir%/VortexQuest.vtx",
-                  "TILE": { "UID": "9001", "TITLE": "Vortex Quest" } } ] } ] }
+    { "EXEC": { "Vortex Quest": { "HOST": "vortex", "EXE": "%GameDir%/VortexQuest.vtx", "RECOMMENDED": true,
+                                  "TILE": { "UID": "9001", "TITLE": "Vortex Quest" } } } } ] }
 ```
 
 Chain: `[vortexemu, proton, native]`. Proton is the boundary; vortexemu's build mounts at
@@ -159,13 +166,13 @@ Chain: `[vortexemu, proton, native]`. Proton is the boundary; vortexemu's build 
     { "EDIT": [ { "MODE": "Overwrite", "VALUE": "%PROTON_VERSION%" } ], "TARGET": "FILES/version" },
     { "VARS": { "PROTON_VERSION": { "DEFAULT": "GE-Proton7-55" } } },
     { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "SteamGameId": "%SteamAppId%", "SteamAppId": "%SteamAppId%", "LD_LIBRARY_PATH": null } },
-    { "EXEC": [ { "LABEL": "geproton_7_55_runner_exec", "HOST": "linux64", "GUEST": ["win32", "win64"],
+    { "EXEC": { "geproton_7_55_runner_exec": { "HOST": "linux64", "GUEST": ["win32", "win64"],
                   "EXE": "%RunnerMount%/proton", "ARGS": ["waitforexitandrun", "%GameDir%\\%ContentPath:winpath%"],
                   "CONTENT_ROOT": "pfx/drive_c/%PackageUID%", "PREFIX_GENERATE": true,
                   "GUEST_ROOTS": { "%GameDir%": "C:\\%PackageUID%", "%UserProfile%": "C:\\users\\steamuser",
                                    "%Documents%": "C:\\users\\steamuser\\Documents",
                                    "%SysDir32%": "C:\\windows\\syswow64", "%SysDir64%": "C:\\windows\\system32" },
-                  "DRIVES": { "C:": "%PrefixRoot%/drive_c" } } ] } ] }
+                  "DRIVES": { "C:": "%PrefixRoot%/drive_c" } } } } ] }
 ```
 
 The Proton tree and each library are separate nodes in separate packages, contained and placed where Proton expects

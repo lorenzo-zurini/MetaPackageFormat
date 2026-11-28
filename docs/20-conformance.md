@@ -17,19 +17,22 @@ below. It is also a build order: each section runs once the ones before it do.
 
 ## 20.2 Resolution
 
-- [ ] **MUST** resolve in three phases (chapter 12 §12.1): `WHEN` variables from the lists, expansion, fold.
-- [ ] **MUST** expand `NODE` layers in place through `TAKE` (left-stripped selections, renaming pairs, fact namespaces)
-      and `TARGET` (composed placement; anchored paths stay put) (chapter 05).
-- [ ] **MUST** treat a repeated occurrence as one, at its first position, moving it only for a later mention in the
-      same list; a node never leaves its container (chapter 05 §5.4, I3).
-- [ ] **MUST** fold per address, later wins, `null` deletes; edits and deltas apply to what is beneath them; entries
-      fold per label and field in first-declared order (chapter 12 §12.2).
+- [ ] **MUST** resolve in three phases (chapter 12 §12.1): `WHEN` variables from the lists and the membership
+      fixpoint for conditions on node CIDs (refusing conditions that never settle), composition, variables.
+- [ ] **MUST** compose `NODE` layers in place through `TAKE` (left-stripped selections, renaming pairs, fact
+      namespaces, deeper entry addresses) and `TARGET` (composed placement; anchored paths stay put) (chapter 05).
+- [ ] **MUST** compose by history: an occurrence once; provided values move to a re-mention, carried ones never come
+      back, a moved value leaving what later carried values rewrite to its old place; content identified by (SOURCE,
+      placed target, view), everything else by its writer; report a `raise`; a node never leaves its container
+      (chapter 05 §5.4, I3).
+- [ ] **MUST** write every address whole, later wins, `null` deletes; edits and deltas apply to what is beneath them;
+      entries by label in first-written order (chapter 12 §12.2, I10).
 - [ ] **MUST** check each `INTO` where it occurs (a member beneath it) and block a variant containing a part whose
       `INTO` fails; evaluate node CIDs in `WHEN` against the composition and the selection (chapter 08 §8.6).
 - [ ] **MUST** offer a part only on the end its `INTO` names or with a part it names applied, every `INTO` layer met
       (the hard link); apply the selection as a set, a part after what it goes into, one depth in CID order; drop and
-      report a part whose `INTO` condition is false; tick `RECOMMENDED` parts on a fresh instance; never offer a part
-      the row contains (chapter 12 §12.5, chapter 23).
+      report a part whose `INTO` condition is false; tick the parts whose `INTO` says `RECOMMENDED` on a fresh instance,
+      never a part with an entry; never offer a part the row contains (chapter 12 §12.5, chapter 23).
 - [ ] **MUST** complete resolution through a cycle, reporting it.
 
 ## 20.3 Variables
@@ -62,11 +65,11 @@ below. It is also a build order: each section runs once the ones before it do.
 ## 20.5 Content, edits and the runtime
 
 - [ ] **MUST** mount `ZIP` (STORE only), `FILE`, `DELTA` (base = the nearest content beneath at its target) and `DIR`
-      layers as one overlay in fold order (chapters 04 and 14).
+      layers as one overlay in composition order (chapters 04 and 14).
 - [ ] **MUST** apply present-beats-fetch (I8) and refuse a launch needing unavailable content.
 - [ ] **MUST** place the boundary runner's runtime-sourced layers beneath the content, and its build at
       `%RunnerMount%` (or unified).
-- [ ] **MUST** apply every `EDIT` op to the file as composed beneath it, after the mount, in fold order, and report
+- [ ] **MUST** apply every `EDIT` op to the file as composed beneath it, after the mount, in composition order, and report
       failed ops (chapter 06).
 - [ ] **MUST** compose the registry per launch from pristine hives, `REG` layers, kept subtrees and take-backs
       (chapter 14 §14.4) for prefix runners.

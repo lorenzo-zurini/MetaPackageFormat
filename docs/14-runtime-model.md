@@ -17,7 +17,7 @@ The layers, lowest priority first:
 │  kept folders          read-write, live, backed by the instance (ch. 13)│
 │  DEFAULT-DATA          the composed registry hives (§14.4)              │
 │  inner runner builds   at <CONTENT_ROOT>/__runner_<id>__ (ch. 11 §11.6) │
-│  content layers        the plan's content, in fold order                │
+│  content layers        the plan's content, in composition order         │
 │  runner assembly       the boundary runner's runtime-sourced layers     │
 │                        (its prefix, its system DLL folders)             │
 └──────────────────────────────────────────────────────────────────────┘  lowest
@@ -25,12 +25,12 @@ The layers, lowest priority first:
 
 - **Runner assembly at the bottom.** A runner's prefix and builtin DLL folders are the base system the content is laid
   into; a package's own DLLs at the same paths must win over them (chapter 10 §10.5).
-- **Content in fold order** (chapter 12): later wins.
+- **Content in composition order** (chapter 12): later wins.
 - **Kept folders** expose the instance's folders read-write at their addresses, over the package's files there.
 - **The writable layer is always ephemeral.** It catches every write outside a kept folder and is removed after the
   session, which keeps the instance's own files out of anything the game can write.
 
-After mounting, the plan's **edits** run in fold order against the mounted files, writing into the writable layer
+After mounting, the plan's **edits** run in composition order against the mounted files, writing into the writable layer
 (chapter 06): text edits, then binary patches. Owned files are put in place before them (chapter 13), so an edit on
 an owned file sees the user's copy and leaves it alone.
 

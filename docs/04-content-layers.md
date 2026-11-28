@@ -95,14 +95,14 @@ about the shipped size or less), and any later build's content is a delta over i
   entry that is not a non-empty string, a CID named twice, and `BASE_SOURCES` on any other layer (`[]` is a delta over
   nothing, above). A layer named as a base
   MUST carry its `SOURCE`: a tool that makes a delta over a layer without one computes that layer's CID first.
-- **Resolving.** Each entry is the file its CID names: any `ZIP`, `FILE` or `DELTA` layer in the launch's fold
+- **Resolving.** Each entry is the file its CID names: any `ZIP`, `FILE` or `DELTA` layer in the launch's composition
   (chapter 12) whose `SOURCE` is that CID. One CID is one file, so where it is placed — beneath the delta or above it,
   whatever its `TARGET`, seen whole or through a `TAKE` — never changes the bytes: a zip's file, a file's own bytes, or
   a delta's reconstructed archive.
   A delta naming a file that is not in its launch (not contained, or gated off by `WHEN`) MUST be refused at validation
   and MUST NOT be mounted.
 - **What it replaces.** Where the delta is mounted, it hides every placement of a file it names (and of whatever that
-  file was itself rebuilt from) that lies beneath it in the fold **inside the places the delta is mounted** (its
+  file was itself rebuilt from) that lies beneath it in the composition **inside the places the delta is mounted** (its
   `TARGET`, or where a `TAKE` places what it shows) — so a file the newer
   version dropped never shows through, however many times the package contains its base. Outside it, a base is only a
   source of bytes and stays as it is: a macOS depot rebuilt over the Windows depots at `%GameDir%` leaves them there
@@ -184,7 +184,7 @@ correctly under every runner. A runner's own build uses relative targets in its 
 
 ## 4.4 Stacking
 
-Per file, the **later** content layer in the fold wins (chapter 12): a patch above the base replaces the base's
+Per file, the **later** content layer in the composition wins (chapter 12): a patch above the base replaces the base's
 files, a mod above the patch replaces the patch's. An `EDIT` above them changes the winning file.
 
 ### Case

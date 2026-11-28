@@ -1,7 +1,7 @@
 # 23 · Mods
 
 > **Status (2026-11-27).** Sections 23.1–23.3 and 23.5–23.9 are **normative and implemented** (engine, validator,
-> package editor, CLI). Section 23.4 (merging by units) is **normative design, partly implemented**: the fold's
+> package editor, CLI). Section 23.4 (merging by units) is **normative design, partly implemented**: composition's
 > addresses merge today; units inside files and archives arrive with chapter 22's descriptions. The user's words that
 > settled each point are quoted where they decided it.
 
@@ -55,6 +55,11 @@ and per combination of mods. `INTO` attaches any number of parts to an end witho
 - **A part with its own tile is an end** (it carries `VARIANT` and a `TILE`): Forgotten Empires, Enderal, a curated mod
   set, a translation, a speedrun setup, a personal card. "A variant, a graft that's a version, a graft with its own
   tile: they're the same thing, a launchable." Making a new tile for any reason is making such a part (23.5).
+- **Three kinds of part, by what they carry** (chapter 09 §9.4): with an entry and its own `TILE`, its own card; with
+  an entry and no tile of its own, it `TAKE`s a tile and is a row under that card; with no entry, a plain mod, ticked
+  on the rows it is offered on. A part with an entry is never ticked: it is launched.
+- **Grafts nest.** Forgotten Empires goes `INTO` UserPatch, UserPatch `INTO` 1.0e, 1.0e `INTO` The Conquerors 1.0c: each
+  a graft of the one beneath. A row of Forgotten Empires is that whole chain applied over the 1.0c build.
 
 ## 23.2 Conditions: `WHEN` over variables and node CIDs
 
@@ -88,11 +93,12 @@ reads `true` when that node is in the composition and `false` when it is not.
 - **The selection is a set.** The instance keeps which parts are ticked (and their options), never an order. There is no
   reordering, in the launch window or anywhere else.
 - **A part applies after what it goes into**: one `INTO` step from the end, then two, and so on. Parts at the same depth
-  are folded in the order of their CIDs: a reading order, never a preference. Where two of them write the same unit
+  are composed in the order of their CIDs: a reading order, never a preference. Where two of them write the same unit
   differently, that is a conflict (23.4), shown, never settled by that order.
 - **The launch window** lists the offered parts after what they go into, then by `LABEL`, then CID (presentation). A
   part needing another (a part of a part, or several `INTO` layers) appears once what it needs is ticked.
-- **A fresh instance** ticks the parts `RECOMMENDED` under the launched tile.
+- **A fresh instance** ticks the offered parts whose `INTO` layer says `"RECOMMENDED": true` (never a part with an
+  entry of its own).
 - **On the command line:** `launch plan|run --with <part,…>` adds parts to the selection the launch would use;
   `launch plan` reports the parts applied (`applied_parts`) and those chosen but not applied (`dropped_parts`: not
   offered here, a condition false, not installed). `grafts tick` computes a selection after one tick.
@@ -102,7 +108,7 @@ reads `true` when that node is in the composition and `false` when it is not.
 Parts that go into the same thing MERGE, per unit. What a unit is, and how two writes to it combine, are declared as
 data, never coded: "we need merging primitives for each mutation type, for each archive type... all need to be data".
 
-- **Every mutation type has units**: a content layer's files (compared without case, as the fold's `FILES/`
+- **Every mutation type has units**: a content layer's files (compared without case, as composition's `FILES/`
   addresses are); `ConfigWrite`, `JsonSet`, `XmlSet`, `LineFlag` their keys (already keyed addresses, `file#key`);
   `AppendLine` its line; a binary edit its byte range; `Delete` its path; `REG` a value; `VARS`, `ENV`, `DLL` a name; a
   `DELTA` its edit script in base coordinates (the ranges of its base it keeps, deletes, replaces).
@@ -124,7 +130,7 @@ data, never coded: "we need merging primitives for each mutation type, for each 
 - **The same primitives merge sibling deltas** (three delta mods from one root), so mods and the delta format share one
   merge algebra.
 
-Today: parts fold by the fold's addresses, at different depths later wins, at one depth in CID order. Conflicts are
+Today: parts compose by addresses, at different depths later wins, at one depth in CID order. Conflicts are
 found per unit and SHOWN (the launch window's add-ons tab, `launch plan`'s `PartConflicts`, `grafts conflicts`): a
 file path (compared without case; an archive's members are read from the archive), a keyed edit (`file#key`), a binary
 edit's byte range (disjoint ranges merge: Wipeout XL's 200 fps and widescreen patch one exe at different offsets), an
@@ -310,7 +316,7 @@ or tooling does not yet · **❗** a gap in the model.
 | 62 | Saves shared by base game and expansions | owned state belongs to the family | ✅ |
 | 63 | Saves that depend on the mod set | nothing links a save to the end + parts it was made with | 🔧 |
 | 64 | MCM settings, SKSE co-saves | inside kept folders | ✅ |
-| 65 | Save locations that differ per store edition | `KEEP` folds per end | ✅ |
+| 65 | Save locations that differ per store edition | `KEEP` composes per end | ✅ |
 | 66 | Per-machine settings | options with take-backs; `CLOUD: false` | ✅ |
 | 67 | Game self-updaters | the runtime is rebuilt every launch | ✅ |
 | 68 | First-run generated files | `IF_EXISTS` edits | ✅ |
@@ -341,3 +347,5 @@ or tooling does not yet · **❗** a gap in the model.
 
 Open: units inside files and archives (23.4), saves linked to their composition (#63), capturing tool output (#60), DLC
 defaults from ownership (#22).
+
+Next: [Format atlas](24-format-atlas.md).

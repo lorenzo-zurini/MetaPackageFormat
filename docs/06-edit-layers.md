@@ -1,6 +1,6 @@
 # 06 · `EDIT` layers
 
-An `EDIT` layer changes **one file**, in place, as it is at that point of the fold: a line in a config file, a value
+An `EDIT` layer changes **one file**, in place, as it is at that point of the composition: a line in a config file, a value
 in a JSON file, a byte in an executable. The file is never modified at its source; the edit is applied to the
 runtime's copy each launch.
 
@@ -32,8 +32,8 @@ error. On a binary op, `true` is refused: the package provides the file it patch
 
 ## 6.1 Where an edit applies
 
-**An edit applies to the value beneath it**: the file as composed by every content layer below it in the fold, after
-the runtime is mounted. Edits run in fold order, so an edit in a mod sees the file as the base game and every mod
+**An edit applies to the value beneath it**: the file as composed by every content layer below it in the composition, after
+the runtime is mounted. Edits run in composition order, so an edit in a mod sees the file as the base game and every mod
 before it left it.
 
 - **Covered edits.** An edit beneath a later content layer that replaces its file (a `ZIP` providing the file, a

@@ -13,14 +13,15 @@ lowers every launchable as a launch would, without mounting.)*
 Errors:
 
 - a node file whose canonical form is over 256 KiB (§2.3), named by its file, with the split that brings it under;
-- a node field other than `CID LABEL POS COMMENT VARIANT RECOMMENDED SECTION LAYERS`; a field of the wrong type;
+- a node field other than `CID LABEL POS COMMENT VARIANT SECTION LAYERS` (a node-level `RECOMMENDED` names where it
+  belongs: the entry, or a part's `INTO`); a field of the wrong type;
   `LAYERS` missing or not a list; an empty `VARIANT` or `SECTION`;
 - a layer with no type key or with two; a field its type does not take;
 - `WHEN`, `COMMENT`, `LABEL`, `SECTION` of the wrong type (`LABEL` and `SECTION` non-empty);
 - a content file name that leaves the package (`..`, an absolute path); `SOURCE` not a string, `SIZE` not a number;
 - a `TARGET` that is not a `FILES` address (content, `EDIT`, `NODE`);
 - `NODE` not a CID string; `TAKE` not a list of addresses and `[address, name]` pairs; two `TAKE` selections landing on
-  one address;
+  one address; two selections where one holds the other (chapter 05 §5.2);
 - `EDIT` without ops or without a `TARGET` file; an op without `MODE`; an op field that is not a scalar; a `Delete` op
   with any field but `MODE`, `COMMENT` and `WHEN`; `IF_EXISTS` that is not a boolean, or `true` on a binary op; a `LineFlag`
   whose `KEY` is missing, blank or more than one line, or without `VALUE`, or whose literal `VALUE` is neither `1`
@@ -29,14 +30,17 @@ Errors:
 - a binary op with neither `ANCHOR` nor `OFFSET` (but `ReplaceAll`, which takes neither); `Replace` or `ReplaceAll`
   without `REPLACE`; `ReplaceAll` without `EXPECT`, or with a `REPLACE` of another length; `Poke` or `Or` without
   `VALUE`; `Cave` without `PAYLOAD`; `Or` with `EXPECT`;
-- `REG` not a tree; `ARCH` missing, empty or not a list of `"32"`/`"64"`; a `Wow6432Node` key under a hive's `Software`;
+- `REG` not a map of key paths; a key path not starting at a hive, or with an empty key name; a key that maps to neither
+  values, `{}` nor `null`; a value whose data is an object or a list; `KEY` empty or not a string; `ARCH` missing, empty
+  or not a list of `"32"`/`"64"`; a `Wow6432Node` key;
 - `VARS` not `{KEY: declaration}`; `DEFAULT`, `COMMENT`, `WHEN`, `UI.SECTION` not strings; `UI` not an object; `EVAL`
   not a boolean; a `UI.CONTROL` that is not one of chapter 08's; a `key` option whose literal `DEFAULT` is not a key
   name (chapter 08 §8.3); a `MAP` that is not an object of strings, a `MAP` table with a `UI`, an `ELSE` that is not a
   string or not on a table;
 - `ENV` or `DLL` values that are neither strings nor `null`;
-- `EXEC` not a non-empty list; an entry without `LABEL`; two entries with one label; `HOST`, `EXE`, `WORKDIR`,
-  `CONTENT_ROOT` not strings; `GUEST`, `ARGS` not string lists; `PREFIX_GENERATE`, `UNIFIED_RUNTIME` not booleans;
+- `EXEC` not a non-empty `{label: entry}`; an empty label; an entry that is not an object, or carrying a `LABEL` field;
+  `RECOMMENDED` not a boolean; `HOST`, `EXE`, `WORKDIR`, `CONTENT_ROOT` not strings; `GUEST`, `ARGS` not string lists;
+  `PREFIX_GENERATE`, `UNIFIED_RUNTIME` not booleans; an `INTO` layer's `RECOMMENDED` not a boolean;
 - `GUEST_ROOTS` keys that are not `%Anchor%`s, values that are not paths, anchors spelled from each other in a
   circle, an anchor on a drive `DRIVES` does not lay out, an anchor neither on a drive nor spelled from a `%variable%`
   (`n64/x`, `/opt/x`); `DRIVES` values that are not paths;
@@ -66,7 +70,7 @@ Warnings:
 - an `INTO` layer naming no node in the library (a part for a version you do not have);
 - a `WHEN` naming a node CID that is not in the library (it reads false);
 - a part that is offered but whose `INTO` is not beneath it;
-- a held or moved mention that decided a winner (chapter 05 §5.4).
+- a re-mention that raises a node's own layers over values written after its first place (chapter 05 §5.4: "raise").
 
 ## 16.3 Content
 
@@ -90,10 +94,13 @@ a binary op without `EXPECT`.
 Errors:
 
 - a `VARIANT` with no effective entry to run, or presenting no tile;
-- a variant's `RECOMMENDED` naming a tile it does not present;
+- a card (a tile `UID`) with **two or more** recommended rows, or with several rows and **none** recommended (chapter 09
+  §9.4);
+- a graft with an entry that presents no tile, of its own or taken (it appears on no card, chapter 09 §9.4);
 - a part that is also a version (a variant whose list begins with `INTO`) with no end in the library it goes into.
 
-Warnings: `RECOMMENDED` on a node that is neither a variant nor a graft; a `RECOMMENDED` tile no variant presents.
+Warnings: `RECOMMENDED` on the `INTO` layer of a graft that has an entry (a row is never ticked); a recommended row
+whose tile has no `TITLE`; a tile no variant presents.
 
 ## 16.5 Runners and paths
 

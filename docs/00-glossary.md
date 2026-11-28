@@ -3,8 +3,7 @@
 Terms are defined once here and used with exactly these meanings. Capitalised JSON keys (`LAYERS`, `TAKE`) are field
 names; lower-case words in `code font` are derived readings.
 
-**Node** — the unit of the format: one JSON file, `{LABEL, VARIANT?, RECOMMENDED?, SECTION?, COMMENT?, POS?,
-LAYERS}`. Its identity is its **CID** (chapter 02). `LABEL` is cosmetic and may repeat. A node has no type; what it
+**Node** — the unit of the format: one JSON file, `{LABEL, VARIANT?, SECTION?, COMMENT?, POS?, LAYERS}`. Its identity is its **CID** (chapter 02). `LABEL` is cosmetic and may repeat. A node has no type; what it
 is follows from its layers.
 
 **CID** — a content identifier: CIDv1, raw codec, sha2-256 of the node's canonical bytes (chapter 02 §2.3), or of a
@@ -14,22 +13,31 @@ content file's bytes (chapter 15). Every reference in the format is a CID string
 `REG` `VARS` `ENV` `DLL` `EXEC` `KEEP` `INTO`) plus that type's own fields, and optionally `WHEN`, `COMMENT`,
 `LABEL` and `SECTION` (chapter 03).
 
-**Address** — the name of something a layer writes: `FILES/<path>`, `FILES/<file>#<key>`, `REG/<hive>/<key…>/<value>`,
-`VARS/<KEY>`, `ENV/<NAME>`, `DLL/<name>`, `EXEC/<label>` (chapter 03 §3.3). The fold is per address.
+**Address** — the name of something a layer writes: `FILES/<path>`, `FILES/<file>#<key>`, `REG/<hive>\<key…>`,
+`REG/<hive>\<key…>#<value>`, `VARS/<KEY>`, `ENV/<NAME>`, `DLL/<name>`, `EXEC/<label>` and its parts
+(`EXEC/<label>/TILE/COVER`) (chapter 03 §3.3). Composition is per address, and every address is written whole.
 
 **Anchor** — a `%Name%` at the start of a path that a runner places: `%GameDir%`, `%Documents%`, `%SysDir32%`, …
 (chapter 03 §3.4, chapter 10 §10.4). Packages write anchors; runners say where they are.
 
-**Containment** — a `NODE` layer: "this node is made of that one, here". The contained node's layers expand in place
-of the `NODE` layer, selected by `TAKE` and placed by `TARGET` (chapter 05).
+**Containment** — a `NODE` layer: "this node is made of that one, here". The contained node's composition comes in
+place of the `NODE` layer, selected by `TAKE` and placed by `TARGET` (chapter 05).
 
-**Occurrence** — one expansion of a node: (node CID, what it is taken through, where it is placed). The same
-occurrence reached twice is one occurrence (chapter 05 §5.4).
+**Occurrence** — one way a node is reached: (node CID, what it is taken through, where it is placed). The same
+occurrence reached twice is composed once (chapter 05 §5.4).
 
-**Fold** — resolving a node: expand its list, then for each address the latest writer wins; `null` deletes; an edit
-applies to what is beneath it (chapter 12).
+**Provided / carried** — within one item of a list, an occurrence's own layers (and everything a `NODE` with a `TAKE`
+takes) are **provided**; what a contained node brings of its own containment is **carried**. A carried value never
+overrides one already composed (chapter 05 §5.4).
 
-**Plan** — what a resolution produces: the ordered content and edits, and the folded registry, DLLs, environment,
+**Composition** — resolving a node: lay each item of its list over what came before, per address the latest writer
+wins (a carried value excepted); `null` deletes; an edit applies once, to what is beneath it (chapters 05 and 12).
+Generation 8 called this "the fold"; nothing folds any more (I10).
+
+**Recommended** — `"RECOMMENDED": true` on an entry: its card's default row, the one its presentation comes from
+(one per card); on a part's `INTO` layer: the part is ticked by default (chapter 09 §9.4, chapter 23).
+
+**Plan** — what a resolution produces: the ordered content and edits, and the composed registry, DLLs, environment,
 variables, entries and keeps.
 
 **Variant** — a node carrying `VARIANT: "<name>"`: listed on the shelf under that name (chapter 09 §9.4).
@@ -37,9 +45,10 @@ variables, entries and keeps.
 **Entry** — one object of an `EXEC` layer: a way to run (no `GUEST`) or a runner (with `GUEST`) (chapter 09).
 
 **Tile / face** — a `TILE` object on an entry: one presentable game (`UID`, `PARENTUID`, `TITLE`, `COVER`, `META`).
-An effective entry carrying a tile is a **face**. Tiles merge by `UID` across nodes and packages (chapter 09 §9.3).
+An effective entry carrying a tile is a **face**. Faces with one `UID` are one card, presented by its recommended row
+(chapter 09 §9.3).
 
-**Row** — what the shelf lists: a variant × one of the tiled entries in its fold.
+**Row** — what the shelf lists: a variant × one of the tiled entries in its composition. Every build of a game is a row.
 
 **Family** — the tiles under one root `UID` (the base game and its expansions, nested by `PARENTUID`).
 `%PackageUID%` is the family's root UID; owned state belongs to the family.

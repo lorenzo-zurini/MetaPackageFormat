@@ -9,6 +9,9 @@ archives (MPQ, CASC, zip/`.pak`, Unity bundles, BSA) changes a few files per upd
 change wholesale, so the delta stores them again. This chapter splits content down to its pieces, decodes them where
 that is exact, and deltas **pieces against pieces**.
 
+
+> Which formats are described, viewed, waiting on a primitive or not yet cracked: the [format atlas](24-format-atlas.md).
+
 ## 22.1 Goals and non-goals
 
 - **Smaller histories.** Measured: Warcraft III's 8 versions take 2.10× the latest build today, 1.54× with decoded

@@ -20,8 +20,8 @@ to it.
 A runner is a node whose default entry has a non-empty `GUEST`:
 
 ```json
-{ "EXEC": [ { "LABEL": "snes9x", "HOST": "linux64", "GUEST": ["snes"], "EXE": "%RunnerMount%/snes9x",
-              "ARGS": ["-fullscreen", "%Content%"] } ] }
+{ "EXEC": { "snes9x": { "HOST": "linux64", "GUEST": ["snes"], "EXE": "%RunnerMount%/snes9x",
+                         "ARGS": ["-fullscreen", "%Content%"] } } }
 ```
 
 For each guest platform it is a directed edge **guest → host**: it consumes content of the guest platform and is
@@ -113,7 +113,7 @@ A runner's own layers are written in its own layout, with relative targets (`FIL
 ## 10.5 The runner's build
 
 A runner needs binaries: the Proton tree, the emulator. Those bytes are the runner's **build**: the content layers of
-the runner's own resolution (its node and everything it contains, folded like any node).
+the runner's own resolution (its node and everything it contains, composed like any node).
 
 ```jsonc
 { "LABEL": "geproton_7_55", "LAYERS": [
@@ -121,7 +121,7 @@ the runner's own resolution (its node and everything it contains, folded like an
     { "NODE": "bafkrei…dxvk_2_3", "TARGET": "FILES/files/lib64/wine/dxvk" },     // a shared library, placed
     { "DIR": "%DefaultPfxDir%", "TARGET": "FILES/pfx" },                         // the prefix, assembled at launch
     { "ENV": { "STEAM_COMPAT_DATA_PATH": "%RuntimePath%", "LD_LIBRARY_PATH": null } },
-    { "EXEC": [ { "LABEL": "geproton_runner", "HOST": "linux64", "GUEST": ["win32", "win64"], … } ] } ] }
+    { "EXEC": { "geproton_runner": { "HOST": "linux64", "GUEST": ["win32", "win64"], … } } } ] }
 ```
 
 Two kinds of content end up in a runner's resolution:

@@ -11,10 +11,11 @@ what it writes. A layer is one typed entry:
     { "NODE":  "bafkrei…wc3_1_26a" },                                  // the version before, contained
     { "DELTA": "delta_from__wc3_1_26a.vgdelta", "SOURCE": "Qm…",
       "TARGET": "FILES/%GameDir%" },                                    // what changed, as a binary delta
-    { "REG":   { "HKCU": { "Software": { "Blizzard Entertainment": { "Warcraft III": {
-                 "Gameplay": { "netgameport": "dword:000017e0" } } } } } } },
-    { "KEEP":  { "REG/HKCU/Software/Blizzard Entertainment/Warcraft III": true } },
-    { "EXEC":  [ { "LABEL": "Play", "HOST": "win32", "EXE": "%GameDir%/Frozen Throne.exe" } ] } ] }
+    { "REG":   { "HKCU\\Software\\Blizzard Entertainment\\Warcraft III\\Gameplay": { "netgameport": "dword:000017e0" } },
+      "ARCH": ["32"] },
+    { "KEEP":  { "REG/HKCU\\Software\\Blizzard Entertainment\\Warcraft III": true } },
+    { "EXEC":  { "Warcraft III v1.27a": { "HOST": "win32", "EXE": "%GameDir%/Frozen Throne.exe",
+                                          "TILE": { "UID": "803" }, "RECOMMENDED": true } } } ] }
 ```
 
 There are no node types. A game, a patch, a library, a runner, a mod and a configuration option are all nodes; what
@@ -25,13 +26,16 @@ a node *is* follows from its layers: it has a way to run (`EXEC` without `GUEST`
 position the node chooses, and a `NODE` layer can take part of a node (`TAKE`) and place it (`TARGET`). The
 direction is always newer → older: a library never lists its users, a version never lists its mods.
 
-## 1.2 Addresses and the fold
+## 1.2 Addresses and composition
 
 Everything a layer writes has an **address**: a file (`FILES/%GameDir%/Data/x.dat`), a key inside a config file
-(`FILES/%GameDir%/game.ini#Resolution=`), a registry value, a variable, an environment variable, a DLL policy, an
-entry. Resolving a node walks its list, expands every `NODE` layer in place, and folds: per address, **the later
-writer wins**, `null` deletes, and an edit applies to the value beneath it. There is one rule for every kind of
-fact; a registry value, an environment variable and a file are overridden the same way.
+(`FILES/%GameDir%/game.ini#Resolution=`), a registry key or value (`REG/HKCU\Software\X#Volume`), a variable, an
+environment variable, a DLL policy, an entry (`EXEC/Play`) or any part of one (`EXEC/Play/TILE/COVER`). Resolving a
+node walks its list and brings each `NODE` layer's node in place: per address, **the later writer wins**, `null`
+deletes, and an edit applies once, to the value beneath it. What a layer only *carries* (another node's layers it
+brings along) never overrides a value already composed (chapter 05 §5.4). Every address is written whole: nothing
+folds (I10). There is one rule for every kind of fact; a registry value, an environment variable and a file are
+overridden the same way.
 
 ## 1.3 What a complete package is
 
@@ -51,7 +55,8 @@ names its runner: the runner chain is found by capability.
 
 1. **Pick a row**: a variant × one of its tiled entries (chapter 09).
 2. **Resolve** the variant's node with the instance's variable values and ticked grafts (chapter 12): phase 1 reads
-   the variables `WHEN` may use, phase 2 expands, phase 3 folds and resolves the variables fully.
+   the variables `WHEN` may use and decides which nodes the composition holds (conditions on node CIDs, a
+   fixpoint), phase 2 composes, phase 3 resolves the variables fully.
 3. **Find the runner chain** from the entry's platform to the machine's, preferring installed runners (chapter 11).
    Each runner resolves its own node the same way.
 4. **Hydrate** what is missing: fetch each content layer's bytes by CID (chapter 15).
@@ -84,8 +89,9 @@ A conforming implementation MUST preserve these. Later chapters refer to them.
 - **I2 — Containment is the only structure.** A node is exactly its list. What a node is made of is what its `NODE`
   layers contain, where they are; nothing outside a node changes what it resolves to except the instance (variable
   values, ticked grafts) and the runner chain. A cycle is reported and its back edge skipped (chapter 12).
-- **I3 — One fold.** Per address, the latest writer in expansion order wins; `null` deletes; an edit applies to what
-  is beneath it. A node never rises above the node that contains it (chapter 12).
+- **I3 — Composition.** Per node, in its list order, the later writer of an address wins; a value a layer only
+  *carries* never overrides one already in the composition; `null` deletes; an edit applies once, to what is beneath
+  it. A node never rises above the node that contains it (chapters 05 §5.4 and 12).
 - **I4 — Single overlay, one process.** The runtime is one overlay mount. A launch executes one host process, the
   native terminal, which nests every runner and the content (chapters 11 and 14).
 - **I5 — Chains always end at the machine.** Every runner chain ends at the machine platform through a native
@@ -100,6 +106,9 @@ A conforming implementation MUST preserve these. Later chapters refer to them.
   library never names its users, a pristine never names its grafts. Grouping, offering and chaining are derived. The
   one exception is soft: a game's entry may *recommend* a runner by label (`RECOMMENDEDRUNNER`), which the chain
   prefers when it is installed and ignores when it is not (chapter 11 §11.4).
+- **I10 — Nothing folds.** Every address is written whole: a later write of an address replaces everything beneath
+  it (an `EXEC` entry, a tile, a registry value). Part of a thing is changed only by writing or taking its deeper
+  address (`EXEC/Play/TILE/COVER`), in list order (chapter 09 §9.2).
 
 ## 1.7 Relationship to the reference implementation
 

@@ -48,13 +48,12 @@ available authored terminal is preferred.
 
 ```
 function ResolveChain(library, launch, entry, pinned):
-    if pinned is empty and entry.RECOMMENDEDRUNNER names a runner (by LABEL) serving entry.HOST:
+    if pinned is empty and entry.RECOMMENDEDRUNNER names a runner (by its entry label) serving entry.HOST:
         pinned = [that runner]                  # a soft pin: honoured only where a pin would be, below
     start  = entry.HOST
     goal   = machine platform
     all    = available runners (chapter 10 §10.7), sorted better-first:
-               RECOMMENDED for the launched tile or its family,
-               then in the launch's own package folder,
+               in the launch's own package folder,
                then serving fewer GUEST platforms,
                then by LABEL
     chain  = ChainOver(installed(all))          # installed runners first

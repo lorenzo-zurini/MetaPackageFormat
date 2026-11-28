@@ -180,7 +180,7 @@ Each variable's raw value comes from, highest first:
 
 1. a per-launch override (the CLI's `--var KEY=VALUE`, the launch window's control);
 2. the instance's saved value (including a drawn `POOL` value);
-3. the folded declaration's `DEFAULT`.
+3. the composed declaration's `DEFAULT`.
 
 All variables form **one namespace**, and every reference sees each key's final value regardless of where it was
 declared: values are substituted against the built-ins and every other variable until nothing changes (VidyaGod stops
@@ -203,7 +203,7 @@ argument sees its value.
 the per-launch overrides, the built-ins (`%UID%`, `%PackageUID%`, the screen size), and the `DEFAULT`s of `VARS`
 layers that are themselves ungated and reached only through ungated `NODE` layers. A layer `WHEN` cannot read a
 variable that is declared only inside a gated layer (it would be circular); a validator refuses it. Declaration and
-op `WHEN`s are read after the fold, against every variable.
+op `WHEN`s are read after composition, against every variable.
 
 **Grammar.**
 
@@ -222,9 +222,12 @@ operand   := %KEY%  |  "quoted"  |  bare-word
 - An empty condition is true. A malformed condition is **true at launch** (fail-open) and a **validator error**, so a
   typo can never silently disable a layer.
 - **A node CID as an operand** (a bare word shaped like a node CID, chapter 02 §2.3), in a **layer's** `WHEN` only (a
-  declaration's, a `UI`'s or an edit op's condition is read after the fold, and a validator refuses a CID there), reads
-  `true` when that node is in the composition and `false` when it is not: what lies beneath the layer, plus the parts selected for the launch (the
-  ticks are the input, so nothing loops). `bafkrei…ussep == true`, `bafkrei…aok_soundtrack == false`. It never names a
+  declaration's, a `UI`'s or an edit op's condition is read after composition, and a validator refuses a CID there),
+  reads `true` when that node is in the **final composition** of the launch, wherever it is, and `false` when it is
+  not. `bafkrei…ussep == true`, `bafkrei…aok_soundtrack == false`. Membership is found first (phase 1, chapter 12
+  §12.1): resolve with a guess, read which nodes the composition holds, re-decide the conditions, until nothing changes
+  (a fixpoint; the ticks are an input, so a part is never ticked by a condition). A set of conditions with no
+  fixpoint (a node that is in only when it is out) is **refused**, naming the nodes. A CID operand never names a
   runner (a validator refuses it), it is compared and never followed (no closure fetches it), and it is renamed in
   place when that node is re-minted. On a part's `INTO` layer, a false condition keeps the whole part out (chapter 23
   §23.2). Before a save, an editor's draft handle (`draft-` and 12 hex digits) stands in for a CID the same way.
@@ -240,7 +243,7 @@ it. A package's own optional features are variables; a change that someone else 
                           "CHOICES": [ {"LABEL": "Host", "VALUE": "host"}, {"LABEL": "Join", "VALUE": "join"} ] } },
                 "JOIN_ADDR": { "DEFAULT": "", "WHEN": "%NETMODE% == join",
                                "UI": { "LABEL": "Host address", "CONTROL": "text" } } } },
-    { "REG": { "HKCU": { "Software": { "Game": { "Hosting": "dword:00000001" } } } },
+    { "REG": { "HKCU\\Software\\Game": { "Hosting": "dword:00000001" } },
       "ARCH": ["32"], "WHEN": "%NETMODE% == host" } ] }
 ```
 

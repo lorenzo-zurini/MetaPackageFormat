@@ -1,7 +1,7 @@
 # 03 · Layers & addresses
 
-A node's `LAYERS` list is ordered bottom → top. Each layer is one typed entry; each writes to **addresses**; the fold
-(chapter 12) decides, per address, which writer wins.
+A node's `LAYERS` list is ordered bottom → top. Each layer is one typed entry; each writes to **addresses**;
+composition (chapter 05 §5.4, chapter 12) decides, per address, which writer wins.
 
 ## 3.1 Layer types
 
@@ -14,13 +14,13 @@ A layer has **exactly one type key**. A layer with none, or with two, is malform
 | `DIR` | a directory (a package folder, or a `%runtime%` directory) | `TARGET` | `FILES/…` at `TARGET` | [04](04-content-layers.md) |
 | `NODE` | a node CID | `TAKE`, `TARGET` | whatever it takes | [05](05-node-layers.md) |
 | `EDIT` | an ordered list of ops | `TARGET` (the file) | that file, or `FILES/<file>#<key>` | [06](06-edit-layers.md) |
-| `REG` | a hive tree | `ARCH` | `REG/…` | [07](07-registry-dll-env.md) |
+| `REG` | `{key path: {value: data} \| {} \| null}` | `ARCH`, `KEY` | `REG/<key>`, `REG/<key>#<value>` | [07](07-registry-dll-env.md) |
 | `DLL` | `{dll: order \| null}` | | `DLL/<dll>` | [07](07-registry-dll-env.md) |
 | `ENV` | `{NAME: value \| null}` | | `ENV/<NAME>` | [07](07-registry-dll-env.md) |
 | `VARS` | `{KEY: declaration}` | | `VARS/<KEY>` | [08](08-variables.md) |
-| `EXEC` | an ordered list of entries | | `EXEC/<label>` | [09](09-exec-tiles-variants.md) |
+| `EXEC` | `{label: entry}` | | `EXEC/<label>` (and every part of it) | [09](09-exec-tiles-variants.md) |
 | `KEEP` | `{address: true \| false \| options}` | | ownership of those addresses | [13](13-ownership.md) |
-| `INTO` | a non-empty list of node CIDs (alternatives) | | nothing: what a part goes into, a hard link; only at the head of a list | [12](12-resolution.md), [23](23-mods.md) |
+| `INTO` | a non-empty list of node CIDs (alternatives) | `TAKE`, `RECOMMENDED` | nothing: what a part goes into, a hard link; only at the head of a list | [12](12-resolution.md), [23](23-mods.md) |
 
 A field the layer's type does not list MUST be refused (a misspelt `TARGTE` is an error, not an ignored key).
 
@@ -30,7 +30,7 @@ A field the layer's type does not list MUST be refused (a misspelt `TARGTE` is a
 |-------|---------|
 | `WHEN` | A condition over variables (chapter 08 §8.6). When it does not hold, the layer is skipped as if absent: a `NODE` layer does not expand, a content layer does not mount, a fact is not written. |
 | `COMMENT` | Why the layer is there. Prose for authors; part of the node's identity. |
-| `LABEL` | What the layer is called in an editor. Presentation only: the fold never reads it. |
+| `LABEL` | What the layer is called in an editor. Presentation only: resolution never reads it. |
 | `SECTION` | A folder in an editor's layer tree (`/` nests). Presentation only. |
 
 An editor that shows a layer without a `LABEL` SHOULD name it from the launch-window label of the variable its
@@ -43,11 +43,11 @@ that option without repeating it.
 |-----------|---------|-----|------|
 | `FILES` | `FILES/<path>` | the path | insensitive |
 | `FILES` (inside a file) | `FILES/<file>#<key>` | the op's `KEY` | the key is bytewise |
-| `REG` | `REG/<hive>/<key…>/<value>` | key path and value name | insensitive |
+| `REG` | `REG/<hive>\<key…>` (a key), `REG/<hive>\<key…>#<value>` (a value) | key path and value name | insensitive |
 | `DLL` | `DLL/<name>` | DLL name | insensitive |
 | `ENV` | `ENV/<NAME>` | variable name | bytewise |
 | `VARS` | `VARS/<KEY>` | variable key | bytewise |
-| `EXEC` | `EXEC/<label>` | entry label | bytewise |
+| `EXEC` | `EXEC/<label>`, `EXEC/<label>/<field>/…` | entry label, then the entry's own fields | bytewise |
 
 - **`TARGET` names the address a layer writes, namespace included.** A content layer at `"TARGET":
   "FILES/%GameDir%"` writes the files it holds under `%GameDir%`; an `EDIT` with `"TARGET":
@@ -58,8 +58,14 @@ that option without repeating it.
   writes the whole file.
 - `FILES` and `REG` are trees: an address may name a folder or a key, and a `null` or a `KEEP` on it covers
   everything beneath it.
-- `EXEC` entries are ordered by where each label was **first** declared; a later layer redefining a label changes
-  that entry in place (chapter 09 §9.2).
+- **A registry key path is written as Windows writes it**: backslashes between key names, doubled in JSON
+  (`"REG/HKCU\\Software\\X"`). A `/` inside a key name is part of the name. A value is the key's address, `#`, and
+  the value's name (`REG/HKCU\\Software\\X#Volume`); a key name may hold `#`, a value name never, so the value starts
+  after the **last** `#`.
+- **`EXEC` is a tree too**: `EXEC/Play` is the entry, `EXEC/Play/TILE` its tile, `EXEC/Play/TILE/COVER` the cover.
+  Every address is written whole: a later write of `EXEC/Play` replaces the entry, and a part of it changes only by a
+  write or a `TAKE` of its deeper address (chapter 09 §9.2, invariant I10). Entries are ordered by where each label
+  was **first** written.
 
 ## 3.4 Paths and anchors
 
@@ -92,7 +98,7 @@ validator error when broken:
   literally. A value that is not a path (a registry string, an argument) may embed an anchor anywhere:
   `"RunDll32 %ProgramFiles32%\\x.dll"`.
 - **One spelling per place: the most specific anchor.** `%Windows%/syswow64/x.dll` is refused; write
-  `%SysDir32%/x.dll`. Addresses fold and are owned by their spelling, so two spellings of one place would never meet.
+  `%SysDir32%/x.dll`. Addresses compose and are owned by their spelling, so two spellings of one place would never meet.
 
 Because packages write anchors, the same package runs under Proton, under plain Wine (a different user name) and
 natively on Windows (the real profile), and what the user owns is found again after switching runners.
