@@ -117,7 +117,8 @@ its rows; picking a row selects that node and that entry. Every build of a game 
 
 - **with its own `TILE`** it is its own card (Forgotten Empires over The Conquerors, Horn of the Abyss over Heroes
   III): on that card, each row is the graft applied over an end it goes `INTO`, and its entry is what runs;
-- **without a tile** it must `TAKE` one (`{"INTO": ["…"], "TAKE": ["EXEC/Play/TILE"]}`): it is a row under that card;
+- **without a tile** it must take one onto its entry (`{"NODE": "<the card's node>", "TAKE": [["EXEC/Play/TILE",
+  "EXEC/<its label>/TILE"]]}`; an `INTO` layer's `TAKE` only places the part's files): it is a row under that card;
 - an entry with neither appears nowhere, and a validator refuses it.
 
 Grafts nest: Forgotten Empires goes `INTO` UserPatch, which goes `INTO` 1.0e, which goes `INTO` The Conquerors'
